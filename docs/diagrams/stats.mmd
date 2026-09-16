@@ -1,0 +1,52 @@
+flowchart TB
+    subgraph STATS
+        v3(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
+        v9(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
+        v12(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
+        v20(["mantel_test<br/><i>Mantel test across all pairs of feature table…</i>"])
+        v22(["maaslin2<br/><i>MaAsLin2 per feature table, plus the figure t…</i>"])
+        v28(["halla_transpose_metadata<br/><i>HAllA needs the metadata with samples as colu…</i>"])
+        v34(["halla<br/><i>HAllA — hierarchical all-against-all associat…</i>"])
+        v41(["stratified_metadata<br/><i>Merge the pathway abundances with the metadat…</i>"])
+        v48(["stratified_barplot<br/><i>One barplot per (pathway rank, metadata varia…</i>"])
+        v51(["covariate_equation<br/><i>Work out the multivariate covariate equation…</i>"])
+        v55(["beta_diversity<br/><i>One beta diversity analysis for one feature t…</i>"])
+        v62(["stats_report<br/><i>Render the stats report.</i>"])
+        v65(["archive_output<br/><i>Archive a report folder.</i>"])
+    end
+
+    v3 --> v9
+    v3 --> v12
+    v3 --> v28
+    v3 --> v34
+    v3 --> v41
+    v3 --> v51
+    v3 --> v62
+    v9 --> v20
+    v9 --> v22
+    v9 --> v34
+    v9 --> v55
+    v9 --> v62
+    v12 --> v20
+    v12 --> v22
+    v12 --> v34
+    v12 --> v55
+    v12 --> v62
+    v20 --> v62
+    v22 --> v48
+    v22 --> v62
+    v28 --> v9
+    v28 --> v12
+    v28 --> v34
+    v28 --> v41
+    v28 --> v62
+    v34 --> v62
+    v41 --> v48
+    v48 --> v62
+    v51 --> v20
+    v51 --> v22
+    v51 --> v34
+    v51 --> v55
+    v51 --> v62
+    v55 --> v62
+    v62 --> v65

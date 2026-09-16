@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-// Mash sketch → paste → dist pipeline for pairwise genome distance estimation
+// Sketch each qualifying MAG, the first step of the Mash distance pipeline.
 process mash_sketch {
     publishDir "${params.outdir}/sgbs/mash", mode: 'copy'
 
@@ -22,6 +22,7 @@ process mash_sketch {
     """
 }
 
+// Paste the per-MAG Mash sketches into one reference sketch.
 process mash_paste {
     publishDir "${params.outdir}/sgbs/mash", mode: 'copy'
 
@@ -41,6 +42,7 @@ process mash_paste {
     """
 }
 
+// Pairwise Mash distances between every MAG and the reference sketch.
 process mash_dist {
     publishDir "${params.outdir}/sgbs/mash", mode: 'copy'
 

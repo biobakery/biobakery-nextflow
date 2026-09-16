@@ -1,190 +1,87 @@
-### ============================================================
-### Harvard FASRC / HSPH (Cannon) — biobakery-nextflow params
-### biobakery-workflows-nextflow v0.0.4
-### ============================================================
-###
-### Tool stack:
-###   KneadData   0.12.0          hutlab: rocky8/kneaddata/0.12.0-devel
-###   MetaPhlAn   4.0.6_vOct22    hutlab: rocky8/metaphlan4/4.0.6_vOct22_fixed
-###   HUMAnN      4.0-alpha-1     hutlab: rocky8/humann4/4.0-alpha-1-final
-###   BAQLaVa     1.2.0           hutlab: rocky8/baqlava/1.2.0  (optional)
-###
-### Resources for a complete mgx run with viral profiling
-###   kneaddata  16 GB  /  8 h  / 8 cpus
-###   metaphlan  32 GB  / 12 h  / 8 cpus     (peaked ~17 GB on a 50 MB paired sample)
-###   humann     32 GB  / 12 h  / 8 cpus     (peaked ~15 GB)
-###   baqlava    48 GB  /  8 h  / 4 cpus     (peaked >16 GB; 16 GB OOM-killed it)
-###   assembly   64 GB megahit, 32 GB binning/checkm2, 32 GB phylophlan
-### All set in conf/profiles/harvard_rc.config and scaled by task.attempt on retry.
-###
-### Compatible stack: MetaPhlAn 4.0.6_vOct22 + mpa_vOct22_CHOCOPhlAnSGB_202403
-### is required for HUMAnN 4 and BAQLaVa 1.2.0 compatibility.
-### BAQLaVa 1.2.0 auto-loads HUMAnN 4 and anadama2.
-###
-### Note on MetaPhlAn CLI flags:
-###   hutlab builds of MetaPhlAn 4.x use v3-style flags
-###   (--bowtie2db / --bowtie2out). Set metaphlan_version: "metaphlan_v3".
-###
-### ============================================================
-### SETUP (one-time, already done for the lab)
-### ============================================================
-###
-###   source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-###   hutlab load rocky8/biobakery-workflows-nextflow/0.0.2
-###
-###   After loading the module, $BIOBAKERY_NF_PIPELINE and $BIOBAKERY_NF_PARAMS
-###   are set automatically — no need to specify paths manually.
-###
-### ============================================================
-### BASIC RUN
-### ============================================================
-###
-###   Paired-end:
-###     nextflow run $BIOBAKERY_NF_PIPELINE/main.nf \
-###       -profile harvard_rc \
-###       -params-file $BIOBAKERY_NF_PARAMS \
-###       --readsdir /path/to/fastqs \
-###       --outdir /path/to/output
-###
-###   Single-end:
-###     nextflow run $BIOBAKERY_NF_PIPELINE/main.nf \
-###       -profile harvard_rc \
-###       -params-file $BIOBAKERY_NF_PARAMS \
-###       --readsdir /path/to/fastqs \
-###       --filepattern "*.fastq.gz" \
-###       --paired_end false \
-###       --outdir /path/to/output
-###
-###   Demo run (included test sample):
-###     nextflow run $BIOBAKERY_NF_PIPELINE/main.nf \
-###       -profile harvard_rc \
-###       -params-file $BIOBAKERY_NF_PARAMS \
-###       --readsdir test/single_end_rawfastq \
-###       --filepattern "*.fastq.gz" \
-###       --paired_end false \
-###       --outdir test/results
-###
-###   Resume an interrupted run:
-###     add -resume to any of the above
-###
-###   Select workflow (default: mgx):
-###     add --workflow <name>
-###     Available: mgx | mtx | mgx_mtx | 16s | vis | stats | assembly
-###
-###   With BAQLaVa viral profiling:
-###     add --run_viral_profiling true
-###     (for test samples with 0 prescreen species also add --baqlava_bypass_depletion true)
-###
-###   With StrainPhlAn strain profiling:
-###     add --run_strain_profiling true
-###
-### ============================================================
-### OVERRIDING ANY PARAM
-### ============================================================
-###   Any value below can be overridden on the command line with --param_name value
-###   without editing this file. Example:
-###     --host_genome /n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL
-###     --run_viral_profiling true
-###     --workflow mgx_mtx
-###
-### ============================================================
-
-# ------------------------------------
-# Input / output
-# ------------------------------------
-# Override on the command line: --readsdir / --outdir
-readsdir: "test/single_end_rawfastq"
-outdir:   "test/results"
-
-# ------------------------------------
-# Read type
-# ------------------------------------
-# paired_end: true  for paired-end reads (R1 + R2)
-# paired_end: false for single-end reads
-paired_end:   true
-filepattern:  "*_R{1,2}*.fastq.gz"
-# Single-end pattern:
-# filepattern: "*.fastq.gz"
-
-# ------------------------------------
-# KneadData — host decontamination
-# ------------------------------------
-# param: --host_genome
-# Available databases on FASRC:
-#   hg38 (human):    /n/lab_storage/huttenhower_lab/data/kneaddata_databases/hg38
-#   mouse C57BL:     /n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL
-#   ribosomal RNA:   /n/lab_storage/huttenhower_lab/data/kneaddata_databases/ribosomal_RNA/SILVA_128_LSUParc_SSUParc_ribosomal_RNA_v0.2
-host_genome: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/hg38"
-
-# Metatranscriptome runs (--workflow mtx, and the mtx half of mgx_mtx) also
-# remove host mRNA and rRNA, matching the wts half of biobakery_workflows
-# wmgx_wmtx. Ignored by the mgx, 16s and assembly workflows.
-# params: --host_transcriptome / --rrna_db
-host_transcriptome: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/transcriptome"
-rrna_db:            "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/ribosomal_RNA/SILVA_128_LSUParc_SSUParc_ribosomal_RNA_v0.2"
-
-# ------------------------------------
-# MetaPhlAn 4.1.1 — taxonomic profiling
-# ------------------------------------
-# param: --metaphlan_version  controls CLI flag style:
-#   "metaphlan_v3" → --bowtie2db / --bowtie2out  (required for hutlab 4.x builds)
-#   "metaphlan_v4" → --db_dir / --mapout
-# param: --metaphlan_db       path to database directory
-# param: --metaphlan_index    name of the index inside metaphlan_db
+# ═════════════════════════════════════════════════════════════════════════════
+# THIS RUN — Harvard FASRC (Cannon) params template.
 #
-# Available databases on FASRC:
-#   mpa_vOct22_CHOCOPhlAnSGB_202403 (default — required for HUMAnN 4 and BAQLaVa 1.2.0):
-#     /n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.0.6_vOct_fixed/lib/python3.10/site-packages/metaphlan/metaphlan_databases
-#   mpa_vJun23_CHOCOPhlAnSGB_202307 (use with HUMAnN 3.9 / BAQLaVa 0.5.0 only — NOT compatible with BAQLaVa 1.2.0):
-#     /n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.1.1/lib/python3.10/site-packages/metaphlan/metaphlan_databases
-metaphlan_version: "metaphlan_4.0.6_fixed"
-metaphlan_db:      "/n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.0.6_vOct_fixed/lib/python3.10/site-packages/metaphlan/metaphlan_databases"
-metaphlan_index:   "mpa_vOct22_CHOCOPhlAnSGB_202403"
+# This file is for the handful of settings that belong to one run. It is
+# deliberately almost empty: everything a FASRC run needs is already a default.
+#
+#   * database paths, tool versions ....... conf/databases/harvard_rc.config
+#   * tool modules, queue, resources ...... conf/profiles/harvard_rc.config
+#   * every other parameter's default ..... conf/params.config
+#
+# All three are applied by `-profile harvard_rc`. Anything set here overrides
+# them, and anything passed as `--flag value` on the command line overrides
+# this. So the shortest correct run passes no params file at all:
+#
+#   nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
+#     --readsdir /path/to/fastqs --outdir /path/to/output -w /path/to/output/work
+#
+# Copy this file when you want those settings written down instead:
+#
+#   cp $BIOBAKERY_NF_PARAMS my-study.yaml
+#   nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
+#     -params-file my-study.yaml -w /path/to/output/work
+#
+# Keep the work directory on shared storage. Compute nodes cannot see the login
+# node's /tmp, and a work directory there fails every task with exit 127.
+#
+# Setup, once per shell:
+#   source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
+#   hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
+#
+# The full parameter list is in README.md; the steps each workflow runs are in
+# docs/workflow_reference.md.
+# ═════════════════════════════════════════════════════════════════════════════
 
-# ------------------------------------
-# HUMAnN 3.9 — functional profiling
-# ------------------------------------
-# param: --humann_version   output file naming: "humann_v37" or "humann_v4a"
-# param: --humann_db        parent dir; pipeline appends /chocophlan, /uniref, /utility_mapping
-#
-# The symlink directory at /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3 maps:
-#   chocophlan/      → /n/lab_storage/huttenhower_lab/data/humann3_databases/version_3.1/chocophlan
-#   uniref/          → /n/lab_storage/huttenhower_lab/data/humann3_databases/version_3.0.0-final/uniref90
-#   utility_mapping/ → /n/lab_storage/huttenhower_lab/data/humann3_databases/version_3.0.0-final/utility_mapping
-#
-# HUMAnN 4 databases (default — required for BAQLaVa 1.2.0):
-#   chocophlan/      → /n/lab_storage/huttenhower_lab/data/humann4_databases/nucleotide_v4-alpha_final
-#   uniref/          → /n/lab_storage/huttenhower_lab/data/humann4_databases/protein_ec_filtered
-#   utility_mapping/ → /n/lab_storage/huttenhower_lab/data/humann4_databases/utility_mapping_v4-alpha_final
-#
-# To use HUMAnN 3.9 instead (also update beforeScript in conf/profiles/harvard_rc.config to rocky8/humann3/3.9-devel):
-#   humann_version: "humann_v37"
-#   humann_db: "/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3"
-#   (also switch metaphlan to 4.1.1 + mpa_vJun23 and baqlava to 0.5.0-devel)
-humann_version: "humann_v4a"
-humann_db:      "/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4"
+### Input and output — the two settings every run needs
 
-# ------------------------------------
-# BAQLaVa — viral profiling (optional)
-# ------------------------------------
-# param: --run_viral_profiling       true/false — enable the baqlava process (default: false)
-# param: --baqlava_bypass_depletion  true/false — bypass internal HUMAnN bacterial depletion step
-#   Keep false for real microbiome samples (depletion removes bacterial reads before viral search).
-#   Set true only for test/tiny samples where MetaPhlAn prescreen finds 0 species (HUMAnN
-#   would skip alignment and not produce the unaligned reads file baqlava needs).
-#
-# Resources (set in conf/profiles/harvard_rc.config, not here):
-#   baqlava   48 GB x attempt, 8 h, 4 cpus
-# BAQLaVa runs HUMAnN internally for bacterial depletion and a DIAMOND
-# translated search, so it needs at least as much memory as the humann process
-# itself (32 GB). At 16 GB it was OOM-killed at a 15.69 GB peak. Slurm reports
-# these as exit 125, which conf/base.config now retries.
-run_viral_profiling:      false
-baqlava_bypass_depletion: false
+# readsdir: "/path/to/your/fastqs"
+# outdir:   "/path/to/output"
 
-# ------------------------------------
-# StrainPhlAn — strain profiling (optional)
-# ------------------------------------
-# param: --run_strain_profiling   true/false — enable StrainPhlAn (default: false)
-# param: --strainphlan_clades     null = profile all detected clades; or comma-separated list
-run_strain_profiling: false
+### Which workflow
+
+# mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
+# workflow: "mgx"
+
+# mgx_mtx takes two input folders instead of readsdir, plus an optional file
+# mapping each RNA sample to its DNA sample:
+# input_metagenome:        "/path/to/dna/fastqs"
+# input_metatranscriptome: "/path/to/rna/fastqs"
+# input_mapping:           "/path/to/rna_to_dna.tsv"
+
+### Library layout
+
+# Paired-end is detected from the read filenames and is the default. Force
+# single-end, or change the mate naming convention, only if needed:
+# single_end:      true
+# pair_identifier: "_R{1,2}"
+# filepattern:     "*_R{1,2}*.fastq.gz"      # overrides pair_identifier outright
+
+### Optional stages (all default to off)
+
+# BAQLaVa viral profiling. Needs taxonomic profiling, which it consumes, and is
+# given 48 GB by the profile because it runs HUMAnN internally.
+# run_viral_profiling: true
+# baqlava_bypass_depletion: true     # only for tiny samples (0 prescreen species)
+
+# StrainPhlAn strain profiling.
+# run_strain_profiling: true
+
+# The stats report at the end of a profiling run. Needs input_metadata and
+# enough samples for MaAsLin2, HAllA and the mantel test to fit; otherwise run
+# `--workflow stats` separately. The vis report is already chained by default.
+# run_stats: true
+# input_metadata: "/path/to/metadata.tsv"
+# stats_fixed_effects: "diagnosis,age"
+
+### Non-human host
+
+# Mouse: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL"
+# host_genome: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL"
+
+### Assembly workflow
+
+# The PhyloPhlAn database is already set by the profile; these are the knobs.
+# sgb_completeness:          50          # minimum MAG completeness %
+# sgb_contamination:         10          # maximum MAG contamination %
+# megahit_min_contig_length: 2500
+# sgb_abundance_type:        "by_sample" # or by_dataset

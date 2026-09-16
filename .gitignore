@@ -1,22 +1,22 @@
-test/output/*
-test/results/*
+# Nextflow run state and output
 .nextflow*
-work/*
-test/work/
+work/
 work_test*/
-output/*
-.DS_Store
+output/
 results/
 
-# run logs
-test/tutorial_run.log
+# Integration test runs (tests/run_tests.sh writes both)
+tests/results/
+tests/work/
 
-# large intermediate files in tutorial output
-test/tutorial_output/**/*.sam
-test/tutorial_output/**/*.sam.bz2
-test/tutorial_output/kneaddata/*.fastq.gz
-test/tutorial_output/metaphlan/mpa_vOct22_CHOCOPhlAnSGB_202403/
-test/tutorial_output/**/.anadama/
+# Large intermediate files inside the committed tutorial reference output
+tests/data/tutorial_output/**/*.sam
+tests/data/tutorial_output/**/*.sam.bz2
+tests/data/tutorial_output/kneaddata/*.fastq.gz
+tests/data/tutorial_output/metaphlan/mpa_vOct22_CHOCOPhlAnSGB_202403/
+tests/data/tutorial_output/**/.anadama/
+
+.DS_Store
 # python bytecode from the bin/scripts helpers
 __pycache__/
 *.pyc

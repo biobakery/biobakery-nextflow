@@ -1,33 +1,44 @@
-# this file allows us to set-up CI on Github actions
-# This was copied from https://www.nf-test.com/tutorials/github-actions/
+# What can be checked without the bioBakery tool stack.
+#
+# The integration suite (tests/run_tests.sh) needs KneadData, MetaPhlAn, HUMAnN,
+# the reference databases and a SLURM cluster, so it cannot run here; see
+# tests/README.md. What runs here instead is bin/make_diagrams.py --check, which
+# rebuilds every workflow's DAG with `nextflow run -preview`. -preview resolves
+# the configuration and builds the graph without launching a task, so it needs
+# only Nextflow and a JVM -- and it still catches a config that does not parse,
+# a broken include, a channel wired to nothing, and a docs/ page that has
+# drifted from the code.
 
-name: CI Tests
+name: CI
 
 on: [push, pull_request]
 
 jobs:
-  test:
+  graph:
+    name: Workflow graphs and docs are current
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 11
-        uses: actions/setup-java@v2
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'adopt'
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Setup Nextflow latest-edge
-        uses: nf-core/setup-nextflow@v1
+      - name: Set up Nextflow
+        uses: nf-core/setup-nextflow@v2
         with:
-          version: "latest-edge"
+          version: '24.10.4'
 
-      - name: Install nf-test
+      - name: Check every profile parses
         run: |
-          wget -qO- https://get.nf-test.com | bash
-          sudo mv nf-test /usr/local/bin/
+          for profile in local harvard_rc tufts_hpc amazon; do
+            echo "== -profile $profile"
+            nextflow config -profile "$profile" > /dev/null
+          done
 
-      - name: Run Tests
-        run: nf-test test --ci
+      - name: Check the diagrams and the step reference are up to date
+        run: bin/make_diagrams.py --check

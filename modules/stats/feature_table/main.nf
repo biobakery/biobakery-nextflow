@@ -20,7 +20,7 @@ nextflow.enable.dsl=2
 // folder wholesale, so a second process publishing into it races with that
 // copy. The table is only an intermediate for the alpha diversity plots there.
 
-// mgx taxonomy, pathways and any other data files
+// Build one feature table (taxonomy, pathways or any other data file).
 process feature_table {
     tag "${feature_type}"
     publishDir path: "${params.outdir}/stats/features", mode: 'copy', enabled: { publish }
@@ -40,7 +40,7 @@ process feature_table {
     """
 }
 
-// 16s taxonomy profiles
+// Reformat a 16s taxonomy profile into a feature table.
 process trim_taxonomy {
     tag "${feature_type}"
     publishDir path: "${params.outdir}/stats/features", mode: 'copy', enabled: { publish }

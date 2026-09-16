@@ -1,0 +1,89 @@
+flowchart TB
+    subgraph QUALITY_CONTROL
+        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
+        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
+        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+    end
+    subgraph TAXONOMIC_PROFILING
+        v28(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
+        v31(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
+        v35(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
+        v37(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+    end
+    subgraph FUNCTIONAL_PROFILING
+        v43(["humann<br/><i>HUMAnN — functional profiling</i>"])
+        v47(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
+        v49(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
+        v51(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
+        v61(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
+        v63(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
+        v67(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
+        v70(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
+        v74(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
+        v79(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+    end
+    subgraph VIRAL_PROFILING
+        v99(["baqlava<br/><i>BAQLaVa — viral profiling</i>"])
+    end
+    subgraph STRAIN_PROFILING
+        v101(["sample2markers<br/><i>StrainPhlAn step 1: extract per-sample strain…</i>"])
+        v106(["strainphlan<br/><i>StrainPhlAn step 2: build strain phylogeny pe…</i>"])
+    end
+    subgraph MGX
+        v113(["stage_report_input<br/><i>Build a bioBakery-standard output folder for…</i>"])
+        v139(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+    end
+    subgraph VIS
+        v116(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
+        v124(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
+        v125(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
+        v131(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
+        v134(["vis_report<br/><i>Render the visualization report.</i>"])
+        v137(["archive_output<br/><i>Archive a report folder.</i>"])
+    end
+
+    v8 --> v20
+    v8 --> v28
+    v8 --> v43
+    v8 --> v99
+    v11 --> v20
+    v11 --> v28
+    v11 --> v43
+    v11 --> v99
+    v20 --> v113
+    v28 --> v31
+    v28 --> v35
+    v28 --> v43
+    v28 --> v99
+    v31 --> v101
+    v35 --> v37
+    v35 --> v113
+    v37 --> v113
+    v43 --> v47
+    v43 --> v49
+    v43 --> v61
+    v43 --> v63
+    v43 --> v79
+    v47 --> v61
+    v47 --> v63
+    v49 --> v51
+    v61 --> v113
+    v63 --> v67
+    v67 --> v70
+    v67 --> v113
+    v70 --> v74
+    v70 --> v113
+    v74 --> v113
+    v79 --> v113
+    v101 --> v106
+    v113 --> v116
+    v113 --> v124
+    v113 --> v125
+    v113 --> v131
+    v113 --> v134
+    v116 --> v124
+    v116 --> v125
+    v116 --> v131
+    v116 --> v134
+    v131 --> v134
+    v134 --> v137

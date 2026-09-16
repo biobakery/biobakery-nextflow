@@ -46,6 +46,7 @@ process strainphlan {
     def db_flag     = (db_clade.name != 'NO_DB')                  ? "--database ${db_clade}"                                          : ""
     def phylo_flag  = params.strainphlan_phylophlan_mode           ? "--phylophlan-mode ${params.strainphlan_phylophlan_mode}"          : ""
     def min_samples = params.strainphlan_marker_in_n_samples       ? "--marker-in-n-samples ${params.strainphlan_marker_in_n_samples}"  : ""
+    def extra_args  = params.strainphlan_options ?: ""
     """
     mkdir -p output
     strainphlan.py \\
@@ -56,6 +57,7 @@ process strainphlan {
         -c ${clade} \\
         -t SGB \\
         $phylo_flag \\
-        $min_samples
+        $min_samples \\
+        $extra_args
     """
 }

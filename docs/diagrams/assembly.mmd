@@ -1,0 +1,62 @@
+flowchart TB
+    subgraph QUALITY_CONTROL
+        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
+        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
+        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+    end
+    subgraph ASSEMBLY
+        v30(["megahit<br/><i>MEGAHIT — de novo metagenome assembly</i>"])
+        v34(["align_and_depth<br/><i>Align reads to assembled contigs and compute…</i>"])
+        v38(["metabat2<br/><i>MetaBAT2 — bin contigs into Metagenome-Assemb…</i>"])
+        v40(["checkm2<br/><i>CheckM2 — assess MAG quality (completeness &…</i>"])
+        v43(["mag_n50<br/><i>Compute N50 for each MAG bin</i>"])
+        v46(["checkm2_merge<br/><i>Merge per-sample CheckM2 quality reports into…</i>"])
+        v47(["checkm2_wrangling<br/><i>Merge CheckM2 QA with N50 stats and filter by…</i>"])
+        v48(["phylophlan_metagenomic<br/><i>PhyloPhlAn metagenomic — phylogenetic placeme…</i>"])
+        v51(["phylophlan_merge<br/><i>Merge per-sample PhyloPhlAn placements and ad…</i>"])
+        v55(["mash_list_inputs<br/><i>List qualifying MAG FASTA paths to feed into…</i>"])
+        v56(["mash_sketch<br/><i>Sketch each qualifying MAG, the first step of…</i>"])
+        v57(["mash_paste<br/><i>Paste the per-MAG Mash sketches into one refe…</i>"])
+        v58(["mash_dist<br/><i>Pairwise Mash distances between every MAG and…</i>"])
+        v59(["sgb_cluster<br/><i>Cluster MAGs into SGBs using Mash distances +…</i>"])
+        v61(["abundance<br/><i>Per-sample MAG abundance, mirroring the Calcu…</i>"])
+        v66(["merge_tax_abundance<br/><i>Merge abundance data with taxonomy and SGB as…</i>"])
+        v68(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+    end
+
+    v8 --> v20
+    v8 --> v30
+    v8 --> v34
+    v8 --> v61
+    v11 --> v20
+    v11 --> v30
+    v11 --> v34
+    v11 --> v61
+    v30 --> v34
+    v30 --> v38
+    v30 --> v61
+    v34 --> v38
+    v34 --> v61
+    v38 --> v40
+    v38 --> v43
+    v38 --> v48
+    v38 --> v55
+    v38 --> v61
+    v40 --> v46
+    v43 --> v47
+    v46 --> v47
+    v47 --> v55
+    v47 --> v59
+    v47 --> v66
+    v48 --> v51
+    v51 --> v55
+    v51 --> v59
+    v51 --> v66
+    v55 --> v56
+    v55 --> v59
+    v56 --> v57
+    v56 --> v58
+    v57 --> v58
+    v58 --> v59
+    v59 --> v66
+    v61 --> v66

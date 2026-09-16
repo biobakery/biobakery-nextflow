@@ -27,9 +27,11 @@
 | Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts.config` |
 | AWS Batch profile | Per-process ECR containers, S3 I/O |
 | Execution reports | Timeline, report, trace, DAG — all timestamped to `results/pipeline_info/` |
-| Architecture diagrams | draw.io source files in `assets/diagrams/` |
-| Demo test sample | `test/single_end_rawfastq/HD32R1_subsample.fastq.gz` |
-| CI tests (nf-test) | `tests/main.nf.test`, `tests/validate_output.nf.test` |
+| Workflow diagrams and step tables | **generated** — `bin/make_diagrams.py` → [workflow_reference.md](workflow_reference.md), `diagrams/*.mmd` |
+| Architecture diagrams | draw.io source files in `assets/diagrams/` (hand-drawn, and older than the generated ones) |
+| Demo test sample | `tests/data/single_end_rawfastq/HD32R1_subsample.fastq.gz` |
+| Integration suite | `tests/run_tests.sh` — 16 cases, 39 checks; see [tests/README.md](../tests/README.md) |
+| CI | `bin/make_diagrams.py --check` — the graphs and docs are current |
 
 ---
 
@@ -38,10 +40,9 @@
 ```
 biobakery-nextflow/
 ├── main.nf                              # Entry point — workflow router (--workflow flag)
-├── nextflow.config                      # Global params + profile imports
-├── template-params.yaml                 # Reference params for all environments
+├── nextflow.config                      # Index: the config layering, profiles, manifest
+├── conf/                                # See README "Configuration layers"
 ├── Dockerfile                           # Combined kneaddata+metaphlan+humann image
-├── nf-test.config                       # nf-test configuration
 │
 ├── workflows/                           # Top-level workflow entry points
 │   ├── mgx.nf                           # Whole metagenome shotgun ✅
@@ -113,24 +114,25 @@ biobakery-nextflow/
 │       ├── mgx_mtx_workflow.drawio
 │       └── sixteens_workflow.drawio
 │
-├── test/
-│   ├── rawfastq/                        # Paired-end test reads
-│   ├── single_end_rawfastq/             # Single-end test reads (incl. HD32R1 demo)
-│   └── tutorial_output/                 # Validated reference outputs
-│
-├── tests/                               # nf-test suite
-│   ├── main.nf.test
-│   ├── validate_output.nf.test
-│   └── nextflow.config
-│
-└── processes/                           # Legacy flat structure (reference only — not used by main.nf)
-    ├── kneaddata.nf
-    ├── metaphlan.nf
-    ├── humann.nf
-    └── baqlava.nf
+└── tests/                               # everything test-related, merged in v0.0.4
+    ├── run_tests.sh                     # the integration suite
+    ├── submit_tests.sh                  # run it as a SLURM job
+    └── data/
+        ├── rawfastq/                    # Paired-end test reads
+        ├── single_end_rawfastq/         # Single-end test reads (incl. HD32R1 demo)
+        └── tutorial_output/             # Validated reference outputs
 ```
 
+> The top-level `processes/` directory — an earlier flat copy of the KneadData,
+> MetaPhlAn, HUMAnN and BAQLaVa processes — was deleted in v0.0.4. It had been
+> superseded by `modules/` and was imported by nothing. `modules/` is the only
+> place a `process` is defined; see README, "Processes, modules, subworkflows,
+> workflows".
+
 ![Architecture overview](../assets/diagrams/architecture_overview.drawio.png)
+
+> This diagram is hand-drawn and predates the port's later stages. The
+> authoritative, generated view is [workflow_reference.md](workflow_reference.md).
 
 ---
 
@@ -190,6 +192,9 @@ biobakery-nextflow/
 ## 4. Workflow Step Toggles
 
 ![MGX workflow](../assets/diagrams/mgx_workflow.drawio.png)
+
+> Hand-drawn; see [workflow_reference.md](workflow_reference.md#mgx) for the
+> generated version, which is rebuilt from the pipeline and checked by CI.
 
 Every major step is individually togglable via params. All default to `true` for the MGX workflow except strain/viral profiling which are opt-in.
 
@@ -448,19 +453,17 @@ nextflow run main.nf \
 nextflow run main.nf \
   -profile harvard_rc \
   --workflow mgx \
-  --readsdir test/single_end_rawfastq \
-  --filepattern "*.fastq.gz" \
+  --readsdir tests/data/single_end_rawfastq \
   --paired_end false \
-  --outdir test/results
+  --outdir tests/results
 
 # With BAQLaVa viral profiling (bypass depletion for tiny test sample)
 nextflow run main.nf \
   -profile harvard_rc \
   --workflow mgx \
-  --readsdir test/single_end_rawfastq \
-  --filepattern "*.fastq.gz" \
+  --readsdir tests/data/single_end_rawfastq \
   --paired_end false \
-  --outdir test/results \
+  --outdir tests/results \
   --run_viral_profiling true \
   --baqlava_bypass_depletion true
 ```
@@ -473,7 +476,7 @@ nextflow run main.nf \
 
 ```bash
 source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-hutlab load rocky8/biobakery-workflows-nextflow/0.0.1
+hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
 ```
 
 ### Installed hutlab modules (MGX workflow)

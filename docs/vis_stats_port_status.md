@@ -148,12 +148,12 @@ Half the samples carry a case effect on a few species and pathways, so MaAsLin2,
 PERMANOVA and the mantel test have real signal rather than noise. Regenerate
 with `python make_fixture.py --output input`.
 
-`test/tutorial_output` in the repo is **not** usable for vis: it is a single
+`tests/data/tutorial_output` in the repo is **not** usable for vis: it is a single
 sample and 29 clades, so `document.read_table()` finds no sample set.
 
 ## Verified under -profile harvard_rc
 
-`bash test/run_tests.sh` (submitted with `sbatch test/submit_tests.sh`) runs
+`bash tests/run_tests.sh` (submitted with `sbatch tests/submit_tests.sh`) runs
 `VIS` and `STATS` against the generated fixture on SLURM as tests 11 and 12.
 Both complete and publish their full output set --
 `vis/{mgx_report.html,figures,data,alpha_diversity_plots}` + `vis.zip`, and
@@ -344,7 +344,7 @@ standalone run against the fixture:
 `rocky8/anadama2/0.10.0-devel` (pweave, and the R_LIBS that holds vegan),
 R 4.5.1 and HUMAnN. `withName: halla` keeps its own module, for the reason in
 issue 2. Both workflows now run under `-profile harvard_rc` on SLURM, not only
-as `-profile local` hand runs, and are covered by `test/run_tests.sh` (tests 11
+as `-profile local` hand runs, and are covered by `tests/run_tests.sh` (tests 11
 and 12).
 
 One porting defect surfaced only once they ran outside the hand-run
@@ -514,5 +514,5 @@ without lmod, and is the hand-run equivalent of the `withName: halla`
    one substantive item left: an upstream run has to be produced first, and an
    upstream 3.2 stats run cannot complete on a standard wmgx folder (decision 6),
    so the comparison has to be section by section rather than a diff.
-3. The chained reports are covered by `test/run_tests.sh` for mgx and mgx_mtx;
+3. The chained reports are covered by `tests/run_tests.sh` for mgx and mgx_mtx;
    `mtx` chaining runs the same code and is not separately tested.

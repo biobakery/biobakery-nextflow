@@ -36,8 +36,11 @@ def read_input(indir, label) {
     def force_single = params.single_end || params.paired_end == false
 
     // Explicit filepattern wins; otherwise derive it from the layout so a
-    // single-end run does not have to restate the pattern.
-    def paired_glob = params.filepattern ?: params.filepattern_paired
+    // single-end run does not have to restate the pattern. The paired glob is
+    // built from --pair_identifier rather than being its own parameter, so
+    // changing the mate naming convention is one setting and the two cannot
+    // disagree.
+    def paired_glob = params.filepattern ?: "*${params.pair_identifier}*.fastq.gz"
     def single_glob = params.filepattern ?: params.filepattern_single
 
     // ...except that a pair-identifier alternation like "*_R{1,2}*.fastq.gz"

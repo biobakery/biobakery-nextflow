@@ -21,6 +21,8 @@ process halla_transpose_metadata {
     """
 }
 
+// HAllA — hierarchical all-against-all association between features and metadata.
+//
 // Gene family tables are skipped upstream, matching the original.
 //
 // hallagram.png is only produced when there are enough associations to plot, so

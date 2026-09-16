@@ -1,0 +1,51 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# THIS RUN — Tufts HPC params template.
+#
+# The counterpart to conf/harvard_rc.yaml, and the same shape: only the settings
+# that belong to one run. `-profile tufts_hpc` already supplies
+#
+#   * database paths, tool versions ....... conf/databases/tufts.config
+#   * executor, queue, Apptainer .......... conf/profiles/tufts_hpc.config
+#   * every other parameter's default ..... conf/params.config
+#
+# and `--flag value` on the command line overrides whatever is set here.
+#
+#   nextflow run /path/to/main.nf -profile tufts_hpc \
+#     --readsdir /path/to/fastqs --outdir /path/to/output -w /path/to/output/work
+#
+# The Tufts stack is MetaPhlAn 4 (mpa_vJun23) with HUMAnN 3.7, and the tools are
+# expected on PATH or in a container -- unlike harvard_rc, the profile loads no
+# modules. Only the mgx and mtx workflows have been exercised here; the assembly
+# workflow additionally needs phylophlan_path, and mtx needs host_transcriptome
+# and rrna_db, none of which are set for this site yet.
+# ═════════════════════════════════════════════════════════════════════════════
+
+### Input and output
+
+# readsdir: "/path/to/your/fastqs"
+# outdir:   "/path/to/output"
+
+### Which workflow
+
+# mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
+# workflow: "mgx"
+
+### Library layout
+
+# Paired-end is detected from the read filenames and is the default.
+# single_end:      true
+# pair_identifier: "_R{1,2}"
+
+### Databases this site has not set yet
+
+# Needed by --workflow mtx and by the mtx half of mgx_mtx:
+# host_transcriptome: "/cluster/tufts/bonhamlab/shared/databases/kneaddata/transcriptome"
+# rrna_db:            "/cluster/tufts/bonhamlab/shared/databases/kneaddata/SILVA_128_LSUParc_SSUParc_ribosomal_RNA_v0.2"
+
+# Needed by --workflow assembly:
+# phylophlan_path: "/cluster/tufts/bonhamlab/shared/databases/phylophlan"
+
+### Optional stages (all default to off)
+
+# run_viral_profiling: true
+# run_strain_profiling: true

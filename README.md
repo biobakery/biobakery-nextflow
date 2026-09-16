@@ -22,12 +22,13 @@
 4. [Quick Start](#quick-start)
 5. [Use Cases](#use-cases)
 6. [All Parameters](#all-parameters)
-7. [Compute Profiles](#compute-profiles)
-8. [Changing Databases](#changing-databases)
-9. [Changing Resources](#changing-resources)
-10. [Output Structure](#output-structure)
-11. [Testing](#testing)
-12. [Project Status](#project-status)
+7. [Configuration layers](#configuration-layers)
+8. [Compute Profiles](#compute-profiles)
+9. [Changing Databases](#changing-databases)
+10. [Changing Resources](#changing-resources)
+11. [Output Structure](#output-structure)
+12. [Testing](#testing)
+13. [Project Status](#project-status)
 
 ---
 
@@ -54,6 +55,12 @@ a bioBakery-standard folder built from that run's own channels — turn that off
 for its analyses to fit. See
 [docs/vis_stats_port_status.md](docs/vis_stats_port_status.md) for the full port
 status, the upstream defects worked around, and the remaining work.
+
+**[docs/workflow_reference.md](docs/workflow_reference.md) is the map of what
+runs where**: one diagram and one step-by-step table per workflow, both
+generated from the pipeline itself by `bin/make_diagrams.py`, so they cannot
+drift from the code. [docs/dependencies.md](docs/dependencies.md) is the
+companion for where each step's software comes from.
 
 ---
 
@@ -86,7 +93,7 @@ Tools are pre-installed via the hutlab module system. No containers needed.
 ```sh
 # One-time setup (run once per login shell or add to ~/.bashrc)
 source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-hutlab load rocky8/biobakery-workflows-nextflow/0.0.1
+hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
 
 # Verify Nextflow is available
 nextflow -version
@@ -109,18 +116,20 @@ export PATH="/cluster/tufts/bonhamlab/shared/bin:$PATH"
 # Database paths are loaded from conf/databases/tufts.config
 ```
 
-Create a params file for your run (see `template-params.yaml` for all options):
-
-```yaml
-# my-run-params.yaml
-readsdir: /path/to/my/fastqs
-outdir:   /path/to/results
-paired_end: true
-filepattern: "*_R{1,2}*.fastq.gz"
-```
+The profile already sets the executor, the containers and the database paths,
+so a run only has to say where the reads are:
 
 ```sh
-nextflow run main.nf -profile tufts_hpc -params-file my-run-params.yaml
+nextflow run main.nf -profile tufts_hpc \
+  --readsdir /path/to/my/fastqs --outdir /path/to/results
+```
+
+To write those settings down instead, copy the site template — it is a list of
+commented-out settings, not a file you have to fill in:
+
+```sh
+cp conf/tufts_hpc.yaml my-run.yaml
+nextflow run main.nf -profile tufts_hpc -params-file my-run.yaml
 ```
 
 ---
@@ -179,11 +188,16 @@ nextflow run main.nf \
 
 ```sh
 nextflow run main.nf --workflow mgx \
-  --paired_end false \
-  --filepattern "*.fastq.gz" \
+  --single_end true \
   --readsdir /path/to/fastqs \
   [other required params]
 ```
+
+`--paired_end false` means the same thing. Layout is detected from the read
+filenames, so neither flag is needed unless you want to force single-end on
+reads that do pair up. `--filepattern` is only for a naming convention the
+defaults do not match — `*.fastq.gz` for single-end and
+`*<pair_identifier>*.fastq.gz` for paired-end.
 
 ### Resume an interrupted run
 
@@ -194,12 +208,16 @@ nextflow run main.nf [same params as original run] -resume
 ### Using a params file (recommended for reproducibility)
 
 ```sh
-# Copy template and fill in your paths
-cp template-params.yaml my-params.yaml
+# Copy your site's template and uncomment what you need
+cp conf/harvard_rc.yaml my-params.yaml     # or conf/tufts_hpc.yaml
 # Edit my-params.yaml ...
 
-nextflow run main.nf -params-file my-params.yaml
+nextflow run main.nf -profile harvard_rc -params-file my-params.yaml
 ```
+
+A params file is for settings that belong to one run. Database paths, tool
+modules and resource requests are already defaults of the profile, so they do
+not belong in it — see [Configuration layers](#configuration-layers).
 
 ---
 
@@ -429,17 +447,15 @@ nextflow run main.nf -profile harvard_rc \
 ```sh
 # Harvard FASRC — single-end demo
 nextflow run main.nf -profile harvard_rc \
-  --readsdir    test/single_end_rawfastq \
-  --filepattern "*.fastq.gz" \
+  --readsdir    tests/data/single_end_rawfastq \
   --paired_end  false \
-  --outdir      test/results
+  --outdir      tests/results
 
 # Same demo + viral profiling
 nextflow run main.nf -profile harvard_rc \
-  --readsdir    test/single_end_rawfastq \
-  --filepattern "*.fastq.gz" \
+  --readsdir    tests/data/single_end_rawfastq \
   --paired_end  false \
-  --outdir      test/results \
+  --outdir      tests/results \
   --run_viral_profiling true \
   --baqlava_bypass_depletion true
 ```
@@ -634,7 +650,10 @@ the report was built from, and point a later standalone run straight at it.
 | `--sgb_completeness` | `50` | Minimum MAG completeness % for SGB inclusion |
 | `--sgb_contamination` | `10` | Maximum MAG contamination % for SGB inclusion |
 | `--sgb_abundance_type` | `by_sample` | Abundance estimation: `by_sample \| by_dataset` |
-| `--sgb_gc_length_stats` | `false` | Calculate GC content and length statistics per bin |
+
+> Per-bin GC and length statistics are not ported. `--sgb_gc_length_stats`
+> existed up to v0.0.4 but nothing read it; it was removed in the cleanup along
+> with the orphaned `calculateGC.py`.
 
 ### Report options (shared by `vis` and `stats`)
 
@@ -699,6 +718,47 @@ the report was built from, and point a later standalone run straight at it.
 
 ---
 
+## Configuration layers
+
+Each kind of setting has exactly one home. `nextflow.config` is an index that
+includes them in order, and later layers win:
+
+| | File | Scope | Change it when |
+|---|---|---|---|
+| 1 | `conf/params.config` | **global defaults** — every parameter's default value | a default is wrong for everyone |
+| 2 | `conf/base.config` | **default resources** — cpus/memory/time per process, and `check_max()` | a process is mis-sized everywhere |
+| 3 | `conf/reports.config` | **runtime** — the timeline/report/trace/dag files written next to the output | never, normally |
+| 4 | `conf/profiles/<site>.config` | **site runtime** (`-profile`) — executor, queue, containers, tool environment | something about a machine changes |
+| 5 | `conf/databases/<site>.config` | **site defaults** (`-profile`) — database paths and the tool versions tied to them | a database moves or is rebuilt |
+| 6 | `-params-file my.yaml` | **this run** — `conf/harvard_rc.yaml`, `conf/tufts_hpc.yaml` are templates | you want a run written down |
+| 7 | `--flag value` on the CLI | **this run**, highest precedence | one-off |
+
+So: a default for everyone goes in layer 1; a fact about a cluster goes in 4 or
+5; a single run changes nothing on disk at all. Nothing in layers 1–3 is
+site-specific and nothing in 4–5 is run-specific — that split is the point.
+
+Two consequences worth knowing:
+
+* **A params file should be almost empty.** `conf/harvard_rc.yaml` — the file
+  `$BIOBAKERY_NF_PARAMS` points at — is a list of commented-out settings, not a
+  configuration you must complete. Everything a FASRC run needs is already a
+  default of `-profile harvard_rc`. Restating database paths there is how the
+  two drift apart.
+* **A site profile should only override what genuinely differs.** Copying
+  `base.config`'s resource numbers into a profile means a fix to a figure never
+  reaches that site, and a plain `memory = '32.G'` also silently disables the
+  retry escalation, because `base.config` scales every request by
+  `task.attempt`.
+
+To see what a profile actually resolves to, ask Nextflow:
+
+```sh
+nextflow config -profile harvard_rc | less
+nextflow config -profile harvard_rc | grep humann
+```
+
+---
+
 ## Compute Profiles
 
 Use `-profile <name>` to select the execution environment.
@@ -708,11 +768,13 @@ Use `-profile <name>` to select the execution environment.
 | `standard` / `local` | Laptop / workstation | local | conda / system PATH |
 | `tufts_hpc` | Tufts HPC | SLURM `batch` | Apptainer containers |
 | `harvard_rc` | Harvard FASRC Cannon | SLURM `hsph` | hutlab module system |
-| `amazon` | AWS | AWS Batch | ECR containers |
-| `engaging` | MIT Engaging | SLURM `newnodes` | system PATH |
+| `amazon` | AWS | AWS Batch | ECR containers — **incomplete**, six processes only |
 
 > The `harvard_rc` and `tufts_hpc` profiles also auto-load their respective `conf/databases/*.config`,
 > so database paths are set automatically — override them on the CLI if needed.
+>
+> The `engaging` profile (MIT Engaging) was removed in v0.0.4: it named processes
+> that no longer exist and had not been used since the port.
 
 ---
 
@@ -770,11 +832,16 @@ Override for a specific cluster in the profile config, e.g. `conf/profiles/harva
 ```groovy
 // conf/profiles/harvard_rc.config
 withName: humann {
-    memory = '64.G'   // was 32.G
-    cpus   = 16       // was 8
-    time   = '24.h'   // was 12.h
+    // the reason this site differs, in one line
+    memory = { 64.GB * task.attempt }
 }
 ```
+
+Keep the `* task.attempt` form: a plain `memory = '64.G'` also disables the
+retry escalation from `conf/base.config`, so a task killed for running out of
+memory retries with exactly what killed it. Override only what genuinely
+differs, and leave the rest to `base.config` — that way a fix to a resource
+figure reaches every site.
 
 **One-off override on the command line** (without editing files):
 
@@ -890,21 +957,23 @@ results/
 
 ## Testing
 
-Test FASTQ files live in `test/`:
+Everything test-related is under `tests/` — see [tests/README.md](tests/README.md).
+Up to v0.0.4 it was split between `test/` and `tests/`; the two are now one.
 
 | Directory | Contents |
 |---|---|
-| `test/rawfastq/` | Two paired-end samples |
-| `test/single_end_rawfastq/` | `HD32R1_subsample.fastq.gz` — [bioBakery tutorial](https://github.com/biobakery/biobakery_workflows/tree/master/examples/tutorial/input) demo sample, plus one single-end read file |
+| `tests/data/rawfastq/` | Two paired-end samples |
+| `tests/data/single_end_rawfastq/` | `HD32R1_subsample.fastq.gz` — [bioBakery tutorial](https://github.com/biobakery/biobakery_workflows/tree/master/examples/tutorial/input) demo sample, plus one single-end read file |
+| `tests/data/tutorial_output/` | Reference output from the upstream tutorial run |
 
 ### Integration suite
 
-`test/run_tests.sh` runs every workflow except 16s, in both library layouts,
+`tests/run_tests.sh` runs every workflow except 16s, in both library layouts,
 against the real tool stack. On Harvard FASRC, submit it rather than running it
 on a login node:
 
 ```sh
-sbatch test/submit_tests.sh
+mkdir -p tests/results && sbatch tests/submit_tests.sh
 ```
 
 | Test | Workflow | Layout | Covers |
@@ -926,7 +995,7 @@ sbatch test/submit_tests.sh
 | 15-16 | — | — | the toggle and two-input guards |
 
 The drivers run in parallel, each with its own launch and work directory; logs
-and outputs land in `test/results/<test name>{.log,/}`.
+and outputs land in `tests/results/<test name>{.log,/}`.
 
 Two fixtures live outside the repository, because they are large and
 reproducible from a seed rather than worth committing. Tests that need one are
@@ -966,20 +1035,27 @@ nothing, and they check that every stage runs and that the no-MAG path still
 reaches a final profile. Tests 13 and 14 are the ones that exercise binning,
 CheckM2, PhyloPhlAn and SGB clustering on actual MAGs.
 
-### Unit tests
+### What CI checks
 
-Run with [nf-test](https://www.nf-test.com/):
+CI has no tools, no databases and no cluster, so it cannot run any of the above.
+It runs what needs none of them:
 
 ```sh
-# From HPC
-nf-test test tests/main.nf.test         --profile tufts_hpc
-nf-test test tests/validate_output.nf.test --profile tufts_hpc
-
-# Locally (requires databases)
-nextflow run main.nf -profile harvard_rc -params-file template-params.yaml
+bin/make_diagrams.py --check
 ```
 
-CI runs automatically on every push via `.github/workflows/ci-tests.yml`.
+This rebuilds every workflow's graph with `nextflow run -preview`, which
+resolves the configuration and builds the DAG without launching a task, and
+fails if `docs/workflow_reference.md` or `docs/diagrams/*.mmd` no longer match
+the pipeline. It catches a config that does not parse, a broken `include`, a
+channel wired to nothing, and documentation that has drifted from the code.
+See `.github/workflows/ci-tests.yml`.
+
+There is no nf-test suite any more. The two case files that used to be here
+asserted a four-process pipeline and loaded params files that were not in the
+repo, so they had not run since well before v0.0.4; they were removed rather
+than rewritten, because what they were trying to assert needs the real tool
+stack that `tests/run_tests.sh` already exercises.
 
 ---
 
@@ -987,8 +1063,18 @@ CI runs automatically on every push via `.github/workflows/ci-tests.yml`.
 
 The port from `biobakery_workflows` 3.2 (AnADAMA2) is **feature complete except
 16s**. Every workflow below is verified on the real tool stack for single-end
-and paired-end input by `test/run_tests.sh` — 39 checks over 16 cases, all
+and paired-end input by `tests/run_tests.sh` — 39 checks over 16 cases, all
 green as of 2026-09-02.
+
+> **The v0.0.4 cleanup changed layout, not behaviour**, but it has not been
+> through a full suite run since. What changed: `processes/` and the nf-test
+> cases deleted; `test/` and `tests/` merged; params moved out of
+> `nextflow.config` into `conf/params.config`; execution reports into
+> `conf/reports.config`; site profiles reduced to real overrides;
+> `template-params.yaml` folded into `conf/harvard_rc.yaml`;
+> `conf/tufts_hpc.yaml` added; `docs/workflow_reference.md`,
+> `docs/diagrams/` and `docs/dependencies.md` added. Re-run
+> `sbatch tests/submit_tests.sh` before cutting a new module.
 
 ### Complete
 
@@ -1015,7 +1101,8 @@ green as of 2026-09-02.
 | `--report_format pdf` | not exercised since the report links were made relative |
 | Chained `stats` at scale | the chained path is wired and covered for `vis`; chained `stats` needs a study large enough for its analyses to fit, which the test data is not. Standalone `stats` is covered |
 | MAG-level assembly test data | tests 13-14 use simulated reads from two genomes. Real multi-species data would exercise SGB clustering harder |
-| Non-FASRC profiles | `tufts_hpc`, `aws` and `local` carry no module or resource blocks for the vis/stats and report-staging processes; only `harvard_rc` is complete |
+| Non-FASRC profiles | only `harvard_rc` sets a software environment per process. `tufts_hpc` and `local` expect the tools on `PATH`, and `aws` has containers for six processes out of ~59. Resources now come from `conf/base.config` everywhere, so that part is no longer per-profile work |
+| Full suite run after the v0.0.4 cleanup | the cleanup is verified by `bin/make_diagrams.py --check`, the four input guards and a real `version_log` run; the 16-case suite has not been re-run since |
 
 ---
 
@@ -1064,22 +1151,29 @@ biobakery-nextflow/
 │       ├── merge_pairs/main.nf          # concatenate a pair when QC is bypassed
 │       ├── report_input/main.nf         # build the bioBakery folder vis/stats read
 │       └── version_log/main.nf
+├── nextflow.config                      # index only: the layering, profiles, manifest
 ├── conf/
-│   ├── base.config                      # Default resources + check_max()
-│   ├── profiles/
-│   │   ├── harvard_rc.config            # hutlab module system + SLURM hsph
-│   │   ├── tufts_hpc.config             # Apptainer + SLURM batch
-│   │   ├── aws.config                   # AWS Batch + ECR containers
-│   │   └── local.config
-│   └── databases/
-│       ├── harvard_rc.config            # Default DB paths on Cannon
-│       └── tufts.config                 # Default DB paths on Tufts
+│   ├── params.config                    # GLOBAL DEFAULTS — every parameter's default
+│   ├── base.config                      # DEFAULT RESOURCES — per-process cpus/memory/time
+│   ├── reports.config                   # RUNTIME — timeline/report/trace/dag files
+│   ├── profiles/                        # SITE RUNTIME (-profile): executor, queue, tools
+│   │   ├── harvard_rc.config            #   hutlab module system + SLURM hsph
+│   │   ├── tufts_hpc.config             #   Apptainer + SLURM batch
+│   │   ├── aws.config                   #   AWS Batch + ECR containers (incomplete)
+│   │   └── local.config                 #   this machine
+│   ├── databases/                       # SITE DEFAULTS (-profile): database paths
+│   │   ├── harvard_rc.config            #   MetaPhlAn vOct22 + HUMAnN 4 stack
+│   │   └── tufts.config                 #   MetaPhlAn vJun23 + HUMAnN 3.7 stack
+│   ├── harvard_rc.yaml                  # THIS RUN — params template ($BIOBAKERY_NF_PARAMS)
+│   └── tufts_hpc.yaml                   # THIS RUN — params template
 ├── bin/
+│   ├── make_diagrams.py                 # generates docs/diagrams/ + workflow_reference.md
 │   ├── scripts/                         # Python helpers (from anadama2 assembly_tasks/)
 │   │   ├── checkm_wrangling.py
 │   │   ├── mag_n50_calc.py
 │   │   ├── mash_list_inputs.py
 │   │   ├── phylophlan_add_tax_assignment.py
+│   │   ├── checkm.py, checkm/           # vendored CheckM 1.2.0, coverage+profile only (GPLv3)
 │   │   ├── biobakery_bootstrap.py       # puts the vendored layer on sys.path/PYTHONPATH
 │   │   ├── biobakery_identify_inputs.py # input discovery → JSON manifest
 │   │   ├── biobakery_vis_report.py      # vis report driver
@@ -1099,7 +1193,29 @@ biobakery-nextflow/
 │   └── Rscripts/                        # only R scripts patched for the current R stack;
 │                                        #   these shadow the biobakery_workflows copies
 ├── docs/
+│   ├── workflow_reference.md            # GENERATED — diagram + step table per workflow
+│   ├── diagrams/*.mmd                   # GENERATED — Nextflow's own DAG, per workflow
+│   ├── dependencies.md                  # which module provides what, and the version pins
 │   ├── architecture.md
 │   └── vis_stats_port_status.md         # vis/stats port status and known divergences
-└── test/                                # Test FASTQ files + expected outputs
+└── tests/
+    ├── run_tests.sh                     # the integration suite (16 cases, 39 checks)
+    ├── submit_tests.sh                  # run it as a SLURM job
+    └── data/                            # test FASTQ files + reference tutorial output
 ```
+
+### Processes, modules, subworkflows, workflows
+
+Four words that sound interchangeable, so: a **process** is Nextflow's unit of
+execution — one tool invocation. A **module** is a file under `modules/` holding
+one or more closely related processes and nothing else; modules are the only
+place a `process` is defined. A **subworkflow** under `subworkflows/` wires
+modules into a reusable stage (`QUALITY_CONTROL`, `TAXONOMIC_PROFILING`) with
+`take:`/`emit:`, and is used by more than one workflow. A **workflow** under
+`workflows/` is one entry point, selected by `--workflow`, and `main.nf` is only
+the router between them.
+
+There was also a top-level `processes/` directory up to v0.0.4, holding an
+earlier flat copy of the KneadData, MetaPhlAn, HUMAnN and BAQLaVa processes. It
+had been superseded by `modules/`, was imported by nothing, and is now deleted —
+there is one definition of each process again.
