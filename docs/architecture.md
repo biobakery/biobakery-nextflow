@@ -28,7 +28,8 @@
 | AWS Batch profile | Per-process ECR containers, S3 I/O |
 | Execution reports | Timeline, report, trace, DAG — all timestamped to `results/pipeline_info/` |
 | Workflow diagrams and step tables | **generated** — `bin/make_diagrams.py` → [workflow_reference.md](workflow_reference.md), `diagrams/*.mmd` |
-| Architecture diagrams | draw.io source files in `assets/diagrams/` (hand-drawn, and older than the generated ones) |
+| Architecture diagram | **generated** — `docs/diagrams/architecture.mmd`, also embedded at the top of [workflow_reference.md](workflow_reference.md): the router, the workflows, the stages each one wires, and the chaining |
+| Older architecture drawings | draw.io source files in `assets/diagrams/` (hand-drawn, predate the generated ones, and can drift) |
 | Demo test sample | `tests/data/single_end_rawfastq/HD32R1_subsample.fastq.gz` |
 | Integration suite | `tests/run_tests.sh` — 16 cases, 39 checks; see [tests/README.md](../tests/README.md) |
 | CI | `bin/check_profile_resources.py` — no profile has deleted a process's cpus/memory/time; `bin/make_diagrams.py --check` — the graphs and docs are current |
@@ -128,6 +129,11 @@ biobakery-nextflow/
 > superseded by `modules/` and was imported by nothing. `modules/` is the only
 > place a `process` is defined; see README, "Processes, modules, subworkflows,
 > workflows".
+
+> The generated counterpart of this picture is
+> [`docs/diagrams/architecture.mmd`](diagrams/architecture.mmd), rendered at the top of
+> [workflow_reference.md](workflow_reference.md). It is read out of `main.nf`'s router and the
+> `include` statements, so unlike the drawing below it cannot drift from the code.
 
 ![Architecture overview](../assets/diagrams/architecture_overview.drawio.png)
 

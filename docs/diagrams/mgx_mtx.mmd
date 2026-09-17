@@ -1,130 +1,173 @@
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QC_MGX
-        v10(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v13(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v22(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph QC_MTX
-        v34(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v37(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v46(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata_2(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata_2(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts_2["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph TAX_MGX
-        v55(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v58(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v62(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v64(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip("<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)")
+        metaphlan_merge("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts("<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…")
     end
     subgraph TAX_MTX
-        v67(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v70(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v75(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v77(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan_2("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip_2["<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)"]
+        metaphlan_merge_2("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts_2["<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…"]
     end
     subgraph FUNC_MGX
-        v84(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v88(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v90(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v92(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v102(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v104(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v108(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v111(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v115(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v120(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge("<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…")
+        humann_log_counts("<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…")
     end
     subgraph FUNC_MTX
-        v138(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v142(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v144(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v146(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v156(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v158(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v162(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v165(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v169(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v174(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann_2("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs_2("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup_2("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename_2["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join_2("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm_2("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab_2("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features_2("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge_2["<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…"]
+        humann_log_counts_2["<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…"]
     end
     subgraph MGX_MTX
-        v201(["rna_dna_norm<br/><i>RNA/DNA relative expression ratio for one fea…</i>"])
-        v217(["stage_report_input<br/><i>Build a bioBakery-standard output folder for…</i>"])
-        v243(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        rna_dna_norm["<b>rna_dna_norm</b><br/>RNA/DNA relative expression<br/>ratio for one feature type."]
+        stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
     subgraph STRAIN_PROFILING
-        v205(["sample2markers<br/><i>StrainPhlAn step 1: extract per-sample strain…</i>"])
-        v210(["strainphlan<br/><i>StrainPhlAn step 2: build strain phylogeny pe…</i>"])
+        direction TB
+        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
+        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
     end
     subgraph VIS
-        v220(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v228(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v229(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v235(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v238(["vis_report<br/><i>Render the visualization report.</i>"])
-        v241(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs("<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder.")
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v10 --> v22
-    v10 --> v55
-    v10 --> v84
-    v13 --> v22
-    v13 --> v55
-    v13 --> v84
-    v22 --> v217
-    v34 --> v46
-    v34 --> v67
-    v34 --> v138
-    v37 --> v46
-    v37 --> v67
-    v37 --> v138
-    v55 --> v58
-    v55 --> v62
-    v55 --> v84
-    v58 --> v205
-    v62 --> v64
-    v62 --> v217
-    v64 --> v217
-    v67 --> v70
-    v67 --> v75
-    v67 --> v138
-    v75 --> v77
-    v84 --> v88
-    v84 --> v90
-    v84 --> v102
-    v84 --> v104
-    v84 --> v120
-    v88 --> v102
-    v88 --> v104
-    v90 --> v92
-    v102 --> v201
-    v102 --> v217
-    v104 --> v108
-    v108 --> v111
-    v108 --> v217
-    v111 --> v115
-    v111 --> v217
-    v115 --> v217
-    v120 --> v217
-    v138 --> v142
-    v138 --> v144
-    v138 --> v156
-    v138 --> v158
-    v138 --> v174
-    v142 --> v156
-    v142 --> v158
-    v144 --> v146
-    v156 --> v201
-    v158 --> v162
-    v162 --> v165
-    v165 --> v169
-    v205 --> v210
-    v217 --> v220
-    v217 --> v228
-    v217 --> v229
-    v217 --> v235
-    v217 --> v238
-    v220 --> v228
-    v220 --> v229
-    v220 --> v235
-    v220 --> v238
-    v235 --> v238
-    v238 --> v241
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> metaphlan
+    paired_end_kneaddata --> humann
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> metaphlan
+    single_end_kneaddata --> humann
+    kneaddata_read_counts --> stage_report_input
+    paired_end_kneaddata_2 --> kneaddata_read_counts_2
+    paired_end_kneaddata_2 --> metaphlan_2
+    paired_end_kneaddata_2 --> humann_2
+    single_end_kneaddata_2 --> kneaddata_read_counts_2
+    single_end_kneaddata_2 --> metaphlan_2
+    single_end_kneaddata_2 --> humann_2
+    metaphlan --> metaphlan_bzip
+    metaphlan --> metaphlan_merge
+    metaphlan --> humann
+    metaphlan_bzip --> sample2markers
+    metaphlan_merge --> metaphlan_species_counts
+    metaphlan_merge --> stage_report_input
+    metaphlan_species_counts --> stage_report_input
+    metaphlan_2 --> metaphlan_bzip_2
+    metaphlan_2 --> metaphlan_merge_2
+    metaphlan_2 --> humann_2
+    metaphlan_merge_2 --> metaphlan_species_counts_2
+    humann --> humann_regroup_ecs
+    humann --> humann_regroup
+    humann --> humann_join
+    humann --> humann_renorm
+    humann --> humann_log_counts
+    humann_regroup_ecs --> humann_join
+    humann_regroup_ecs --> humann_renorm
+    humann_regroup --> humann_rename
+    humann_join --> rna_dna_norm
+    humann_join --> stage_report_input
+    humann_renorm --> humann_join_relab
+    humann_join_relab --> humann_count_features
+    humann_join_relab --> stage_report_input
+    humann_count_features --> humann_feature_counts_merge
+    humann_count_features --> stage_report_input
+    humann_feature_counts_merge --> stage_report_input
+    humann_log_counts --> stage_report_input
+    humann_2 --> humann_regroup_ecs_2
+    humann_2 --> humann_regroup_2
+    humann_2 --> humann_join_2
+    humann_2 --> humann_renorm_2
+    humann_2 --> humann_log_counts_2
+    humann_regroup_ecs_2 --> humann_join_2
+    humann_regroup_ecs_2 --> humann_renorm_2
+    humann_regroup_2 --> humann_rename_2
+    humann_join_2 --> rna_dna_norm
+    humann_renorm_2 --> humann_join_relab_2
+    humann_join_relab_2 --> humann_count_features_2
+    humann_count_features_2 --> humann_feature_counts_merge_2
+    sample2markers --> strainphlan
+    stage_report_input --> identify_inputs
+    stage_report_input --> feature_table
+    stage_report_input --> trim_taxonomy
+    stage_report_input --> add_ec_names
+    stage_report_input --> vis_report
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style QC_MGX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style QC_MTX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style TAX_MGX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style TAX_MTX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style FUNC_MGX fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style FUNC_MTX fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style MGX_MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage1
+    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
+    classDef stage3 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage3
+    classDef stage4 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage4
+    classDef stage5 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage5
+    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class rna_dna_norm,stage_report_input,version_log stage6
+    classDef stage7 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage7
+    classDef stage8 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage8
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,4,5,6,8,9,11,12,15,16,18,19,22,32,33,36,38,39,40,49,54,55,56,57,58 stroke:#475569,stroke-width:2px

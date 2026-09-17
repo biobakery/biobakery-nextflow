@@ -220,9 +220,69 @@ def simplify(mermaid, catalog):
     return _render(processes, membership, order, catalog)
 
 
+# One colour per kind of stage, so the same stage is the same colour in every
+# diagram. Aliased stages (QC_MGX, QC_MTX) share their family's colour; the
+# subgraph label says which half they belong to. Fills are light and the text
+# colour is set explicitly, so the diagrams stay legible in both GitHub themes.
+STAGE_COLOURS = [
+    (("QC", "QUALITY_CONTROL"),        ("#dbeafe", "#3b82f6", "#1e3a8a")),
+    (("TAX", "TAXONOMIC_PROFILING"),   ("#dcfce7", "#22c55e", "#14532d")),
+    (("FUNC", "FUNCTIONAL_PROFILING"), ("#ede9fe", "#8b5cf6", "#4c1d95")),
+    (("VIRAL_PROFILING",),             ("#ffedd5", "#f97316", "#7c2d12")),
+    (("STRAIN_PROFILING",),            ("#ccfbf1", "#14b8a6", "#134e4a")),
+    (("ASSEMBLY",),                    ("#fef3c7", "#d97706", "#78350f")),
+    (("VIS",),                         ("#fce7f3", "#ec4899", "#831843")),
+    (("STATS",),                       ("#e0e7ff", "#6366f1", "#312e81")),
+]
+DEFAULT_COLOUR = ("#f1f5f9", "#94a3b8", "#334155")   # the workflow's own steps
+
+
+def _stage_colour(stage):
+    for prefixes, colour in STAGE_COLOURS:
+        for prefix in prefixes:
+            if stage == prefix or stage.startswith(prefix + "_"):
+                return colour
+    return DEFAULT_COLOUR
+
+
+def _wrap(text, width=30, lines=2):
+    """Break a description at word boundaries, never mid-word."""
+    words, out, current = text.split(), [], ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= width:
+            current = candidate
+            continue
+        out.append(current)
+        current = word
+        if len(out) == lines:
+            break
+    if current and len(out) < lines:
+        out.append(current)
+    if len(out) == lines and len(" ".join(out)) < len(text):
+        out[-1] = out[-1].rstrip(" ,;:.") + "…"
+    return "<br/>".join(part for part in out if part)
+
+
+def _node_ids(processes):
+    """Readable, unique node ids: the process name rather than Nextflow's v12."""
+    ids, used = {}, {}
+    for node in sorted(processes, key=lambda n: int(n[1:])):
+        base = re.sub(r"\W", "_", processes[node])
+        used[base] = used.get(base, 0) + 1
+        ids[node] = base if used[base] == 1 else f"{base}_{used[base]}"
+    return ids
+
+
 def _render(processes, membership, edges, catalog):
-    """Emit the simplified flowchart, one subgraph per subworkflow."""
-    out = ["flowchart TB"]
+    """Emit the simplified flowchart, one subgraph per subworkflow.
+
+    Laid out like a hand-drawn diagram rather than a dump: the stages run left
+    to right, the steps inside a stage run top to bottom, each stage has its own
+    colour, and a step that publishes output is drawn with a doubled border. The
+    node ids are the process names, so the .mmd file reads as well as it renders.
+    """
+    ids = _node_ids(processes)
 
     groups = {}
     for node, name in processes.items():
@@ -231,30 +291,250 @@ def _render(processes, membership, edges, catalog):
         groups.setdefault(path[-1] if path else "", []).append((node, name))
 
     def label(name):
-        summary = catalog.get(name, {}).get("summary", "")
-        summary = re.sub(r'["<>]', "", summary)
-        if len(summary) > 46:
-            summary = summary[:45].rstrip() + "…"
-        return f'{name}<br/><i>{summary}</i>' if summary else name
+        summary = re.sub(r'["<>]', "", catalog.get(name, {}).get("summary", ""))
+        wrapped = _wrap(summary) if summary else ""
+        return f"<b>{name}</b><br/>{wrapped}" if wrapped else f"<b>{name}</b>"
+
+    # Where the flow starts and stops, which is the first thing you look for.
+    # Nearly every process publishes something, so publishing is not a useful
+    # distinction to draw; being an entry or an exit is.
+    has_incoming = {dst for _src, dst in edges}
+    has_outgoing = {src for src, _dst in edges}
+
+    def shape(node, name):
+        body = f'"{label(name)}"'
+        if node not in has_incoming:
+            return f"{ids[node]}([{body}])"      # entry: stadium
+        if node not in has_outgoing:
+            return f"{ids[node]}[{body}]"        # exit: square corners
+        return f"{ids[node]}({body})"            # in the middle: rounded
 
     # Subworkflows in the order the pipeline reaches them, not alphabetically:
     # the node ids Nextflow assigns follow the order the graph was built in.
     def first_node(group):
         return min(int(node[1:]) for node, _name in groups[group])
 
-    for group in sorted(groups, key=first_node):
+    out = [
+        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,',
+        '                        "rankSpacing": 70, "padding": 8}}}%%',
+        "flowchart LR",
+    ]
+
+    ordered = sorted(groups, key=first_node)
+    for group in ordered:
         indent = "    "
         if group:
             out.append(f"    subgraph {group}")
+            out.append("        direction TB")
             indent = "        "
         for node, name in sorted(groups[group], key=lambda p: int(p[0][1:])):
-            out.append(f'{indent}{node}(["{label(name)}"])')
+            out.append(f"{indent}{shape(node, name)}")
         if group:
             out.append("    end")
 
+    stage_of = {}
+    for group in ordered:
+        for node, _name in groups[group]:
+            stage_of[node] = group
+
     out.append("")
-    for src, dst in edges:
-        out.append(f"    {src} --> {dst}")
+    crossing = []
+    for index, (src, dst) in enumerate(edges):
+        out.append(f"    {ids[src]} --> {ids[dst]}")
+        if stage_of.get(src) != stage_of.get(dst):
+            crossing.append(index)
+
+    out.append("")
+    for group in ordered:
+        if not group:
+            continue
+        fill, stroke, _text = _stage_colour(group)
+        out.append(f"    style {group} fill:{fill}22,stroke:{stroke},"
+                   f"stroke-width:1px,stroke-dasharray:4 3,color:{stroke}")
+
+    out.append("")
+    for index, group in enumerate(ordered):
+        fill, stroke, text = _stage_colour(group)
+        klass = f"stage{index}"
+        out.append(f"    classDef {klass} fill:{fill},stroke:{stroke},"
+                   f"stroke-width:1.5px,color:{text}")
+        members = ",".join(ids[node] for node, _name
+                           in sorted(groups[group], key=lambda p: int(p[0][1:])))
+        out.append(f"    class {members} {klass}")
+
+    out.append("")
+    out.append("    linkStyle default stroke:#cbd5e1,stroke-width:1.5px")
+    if crossing:
+        # A hand-off between stages is the edge worth following, so draw it
+        # darker than the wiring inside a stage.
+        out.append(f"    linkStyle {','.join(str(i) for i in crossing)} "
+                   "stroke:#475569,stroke-width:2px")
+
+    names = sorted({name for _node, name in processes.items()})
+    return "\n".join(out) + "\n", names
+
+
+# ── The overall architecture diagram ────────────────────────────────────────
+#
+# Not a DAG: this one is the shape of the code rather than of a run. It is read
+# out of main.nf's router and the include statements, so it cannot drift either.
+
+ROUTER_CASE = re.compile(r"case\s+'([^']+)'\s*:\s*\n\s*(\w+)\s*\(", re.M)
+WORKFLOW_DECL = re.compile(r"^workflow\s+(\w+)\s*\{", re.M)
+INCLUDE = re.compile(r"include\s*\{\s*([\w\s]+?)\s*\}\s*from\s*'([^']+)'")
+FUNCTION_DECL = re.compile(r"^def\s+(\w+)\s*\(", re.M)
+
+
+def _declared(path):
+    """Workflow names declared in one file, with the comment above each."""
+    lines = open(path).read().split("\n")
+    found = {}
+    for index, line in enumerate(lines):
+        match = re.match(r"^workflow\s+(\w+)\s*\{", line)
+        if match:
+            found[match.group(1)] = _comment_above(lines, index)
+    return found
+
+
+def _included(path):
+    """(names, source file) pairs included by one file."""
+    text = open(path).read()
+    out = []
+    for names, source in INCLUDE.findall(text):
+        for name in re.split(r"\s+as\s+|\s*;\s*", names.strip()):
+            name = name.strip()
+            if name:
+                out.append((name, source))
+    return out
+
+
+def _router_map():
+    """--workflow token → the workflow it calls, from main.nf's switch."""
+    text = open(os.path.join(REPO, "main.nf")).read()
+    return {token: name for token, name in ROUTER_CASE.findall(text)}
+
+
+def architecture_diagram():
+    """The entry point, the workflows, the stages they wire, and the helpers."""
+    router = _router_map()
+
+    workflows = {}
+    for name in sorted(os.listdir(os.path.join(REPO, "workflows"))):
+        if name.endswith(".nf"):
+            path = os.path.join(REPO, "workflows", name)
+            for wf, summary in _declared(path).items():
+                workflows[wf] = {"summary": summary, "includes": _included(path)}
+
+    stages, helpers = {}, {}
+    for name in sorted(os.listdir(os.path.join(REPO, "subworkflows"))):
+        if not name.endswith(".nf"):
+            continue
+        path = os.path.join(REPO, "subworkflows", name)
+        lines = open(path).read().split("\n")
+        declared = _declared(path)
+        for stage, summary in declared.items():
+            included = _included(path)
+            steps = {n for n, src in included if "/modules/" in src}
+            chains = {n for n, src in included if "/workflows/" in src}
+            stages[stage] = {"summary": summary, "steps": len(steps),
+                             "chains": sorted(chains)}
+        if not declared:
+            # A Groovy helper rather than a workflow -- read_input, mtx_common.
+            for index, line in enumerate(lines):
+                match = re.match(r"^def\s+(\w+)\s*\(", line)
+                if match:
+                    helpers.setdefault(name, _comment_above(lines, index))
+                    break
+
+    token_of = {name: token for token, name in router.items()}
+
+    out = [
+        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,',
+        '                        "rankSpacing": 90, "padding": 8}}}%%',
+        "flowchart LR",
+        "    subgraph entry[\"Entry point\"]",
+        "        direction TB",
+        '        main_nf(["<b>main.nf</b><br/>Routes --workflow to one<br/>'
+        'entry point, and nothing else."])',
+        "    end",
+        "    subgraph flows[\"workflows/ — one per --workflow\"]",
+        "        direction TB",
+    ]
+
+    for wf in sorted(workflows, key=lambda w: (w not in token_of, token_of.get(w, w))):
+        token = token_of.get(wf, "")
+        direct = len({n for n, src in workflows[wf]["includes"] if "/modules/" in src})
+        summary = _wrap(re.sub(r'["<>`]', "", workflows[wf]["summary"]), 34, 3)
+        extra = f"<br/><i>+{direct} direct steps</i>" if direct else ""
+        flag = f"<br/><i>--workflow {token}</i>" if token else ""
+        out.append(f'        {wf}("<b>{wf}</b>{flag}<br/>{summary}{extra}")')
+    out += ["    end", '    subgraph subs["subworkflows/ — reusable stages"]',
+            "        direction TB"]
+
+    for stage in sorted(stages):
+        summary = _wrap(re.sub(r'["<>`]', "", stages[stage]["summary"]), 34, 3)
+        count = stages[stage]["steps"]
+        if count:
+            tail = f"<br/><i>{count} step{'s' if count != 1 else ''}</i>"
+        elif stages[stage]["chains"]:
+            tail = f"<br/><i>chains {' + '.join(stages[stage]['chains'])}</i>"
+        else:
+            tail = ""
+        out.append(f'        {stage}("<b>{stage}</b><br/>{summary}{tail}")')
+    out.append("    end")
+
+    if helpers:
+        out += ['    subgraph help["subworkflows/ — Groovy helpers, not stages"]',
+                "        direction TB"]
+        for name, summary in sorted(helpers.items()):
+            ident = name.replace(".nf", "")
+            out.append(f'        {ident}["<b>{name}</b><br/>'
+                       f'{_wrap(re.sub(chr(34), "", summary), 34)}"]')
+        out.append("    end")
+
+    out.append("")
+    for wf in sorted(workflows):
+        out.append(f"    main_nf --> {wf}")
+
+    # An aliased include (`QUALITY_CONTROL as QC_MGX`) names the same stage
+    # twice, so the same pair can arrive more than once.
+    seen = set()
+    for wf in sorted(workflows):
+        for name, _source in workflows[wf]["includes"]:
+            if name in stages and (wf, name) not in seen:
+                seen.add((wf, name))
+                out.append(f"    {wf} --> {name}")
+    for stage in sorted(stages):
+        for wf in stages[stage]["chains"]:
+            if wf in workflows and (stage, wf) not in seen:
+                seen.add((stage, wf))
+                out.append(f"    {stage} -.->|chained| {wf}")
+
+    out.append("")
+    out.append("    style entry fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
+    out.append("    style flows fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
+    out.append("    style subs fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
+    if helpers:
+        out.append("    style help fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
+
+    out.append("")
+    out.append("    classDef router fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a")
+    out.append("    class main_nf router")
+    out.append("    classDef flow fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#1e293b")
+    out.append(f"    class {','.join(sorted(workflows))} flow")
+    for index, stage in enumerate(sorted(stages)):
+        fill, stroke, text = _stage_colour(stage)
+        out.append(f"    classDef arch{index} fill:{fill},stroke:{stroke},"
+                   f"stroke-width:1.5px,color:{text}")
+        out.append(f"    class {stage} arch{index}")
+    if helpers:
+        idents = ",".join(sorted(n.replace(".nf", "") for n in helpers))
+        out.append("    classDef helper fill:#ffffff,stroke:#cbd5e1,"
+                   "stroke-width:1px,color:#475569")
+        out.append(f"    class {idents} helper")
+
+    out.append("")
+    out.append("    linkStyle default stroke:#94a3b8,stroke-width:1.5px")
     return "\n".join(out) + "\n"
 
 
@@ -287,21 +567,25 @@ def build(outdir, stubs):
     diagrams = os.path.join(outdir, "diagrams")
     os.makedirs(diagrams, exist_ok=True)
 
+    architecture = architecture_diagram()
+    with open(os.path.join(diagrams, "architecture.mmd"), "w") as handle:
+        handle.write(architecture)
+
     rendered = {}
     for workflow, title, args in WORKFLOWS:
         raw = os.path.join(stubs["work"], f"{workflow}.raw.mmd")
         if os.path.exists(raw):
             os.remove(raw)
-        mermaid = simplify(render_dag(workflow, args, raw, stubs), catalog)
+        mermaid, names = simplify(render_dag(workflow, args, raw, stubs), catalog)
         with open(os.path.join(diagrams, f"{workflow}.mmd"), "w") as handle:
             handle.write(mermaid)
-        rendered[workflow] = (title, mermaid)
+        rendered[workflow] = (title, mermaid, names)
 
     with open(os.path.join(outdir, "workflow_reference.md"), "w") as handle:
-        handle.write(reference_page(rendered, catalog))
+        handle.write(reference_page(rendered, catalog, architecture))
 
 
-def reference_page(rendered, catalog):
+def reference_page(rendered, catalog, architecture):
     """The generated markdown: one diagram plus one step table per workflow."""
     out = [
         "# Workflow reference",
@@ -311,26 +595,54 @@ def reference_page(rendered, catalog):
         "",
         "Every diagram is Nextflow's own DAG for that workflow, taken from",
         "`nextflow run -preview -with-dag`, with the value-channel and operator",
-        "nodes contracted away so only the steps remain. Boxes are grouped by the",
-        "subworkflow they live in. Each step's description is the comment above its",
-        "`process` in `modules/`.",
+        "nodes contracted away so only the steps remain. Each step's description",
+        "is the comment above its `process` in `modules/`.",
+        "",
+        "How to read one:",
+        "",
+        "* **Stages run left to right**, steps within a stage top to bottom. A",
+        "  dashed box is one subworkflow.",
+        "* **Colour is the stage**, and is the same in every diagram: quality",
+        "  control blue, taxonomy green, function purple, viral orange, strain",
+        "  teal, assembly amber, vis pink, stats indigo, and the workflow's own",
+        "  steps grey.",
+        "* **Shape marks the ends of the flow**: a rounded-end box starts a",
+        "  workflow, a square-cornered box finishes one, and everything between",
+        "  them has soft corners.",
+        "* **A darker arrow crosses between stages**; the pale ones are wiring",
+        "  inside a stage. Where each step publishes its output is in the table",
+        "  below the diagram, not in the picture.",
         "",
         "Optional stages that are off by default (`--run_viral_profiling`,",
         "`--run_strain_profiling`) are drawn as if enabled, so the diagram shows",
         "everything a workflow can do.",
         "",
+    ]
+
+    out += [
+        "## How the pieces fit",
+        "",
+        "`main.nf` routes `--workflow` to one entry point under `workflows/`,",
+        "which wires the reusable stages under `subworkflows/`, which in turn",
+        "wire the processes defined under `modules/`. A process is only ever",
+        "defined in a module. Each box below carries the comment written above",
+        "its `workflow` block, and the step count is how many module processes",
+        "that stage includes.",
+        "",
+        "```mermaid",
+        architecture.rstrip(),
+        "```",
+        "",
         "| Workflow | `--workflow` | What it does | Steps |",
         "|---|---|---|---|",
     ]
     for workflow, _title, _args in WORKFLOWS:
-        title, mermaid = rendered[workflow]
-        count = len(set(re.findall(r'v\d+\(\["(\w+)', mermaid)))
-        out.append(f"| [{workflow}](#{workflow}) | `{workflow}` | {title} | {count} |")
+        title, _mermaid, names = rendered[workflow]
+        out.append(f"| [{workflow}](#{workflow}) | `{workflow}` | {title} | {len(names)} |")
     out.append("")
 
     for workflow, _title, _args in WORKFLOWS:
-        title, mermaid = rendered[workflow]
-        names = sorted(set(re.findall(r'v\d+\(\["(\w+)', mermaid)))
+        title, mermaid, names = rendered[workflow]
         out += [
             f"## {workflow}",
             "",
@@ -385,11 +697,13 @@ def main():
 
         if not options.check:
             print(f"Wrote {os.path.join(docs, 'workflow_reference.md')}")
-            print(f"Wrote {len(WORKFLOWS)} diagrams to {os.path.join(docs, 'diagrams')}")
+            print(f"Wrote {len(WORKFLOWS) + 1} diagrams to "
+                  f"{os.path.join(docs, 'diagrams')} (one per workflow, plus architecture)")
             return
 
         stale = []
-        for name in ["workflow_reference.md"] + [
+        for name in ["workflow_reference.md",
+                     os.path.join("diagrams", "architecture.mmd")] + [
             os.path.join("diagrams", f"{w}.mmd") for w, _t, _a in WORKFLOWS
         ]:
             new, old = os.path.join(target, name), os.path.join(docs, name)
@@ -399,7 +713,8 @@ def main():
             sys.exit("ERROR: these are out of date with the pipeline:\n  " +
                      "\n  ".join(stale) +
                      "\nRegenerate with: bin/make_diagrams.py")
-        print(f"Up to date: docs/workflow_reference.md and {len(WORKFLOWS)} diagrams.")
+        print(f"Up to date: docs/workflow_reference.md, the architecture diagram "
+              f"and {len(WORKFLOWS)} workflow diagrams.")
 
 
 if __name__ == "__main__":

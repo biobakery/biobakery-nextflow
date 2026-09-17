@@ -1,62 +1,77 @@
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QUALITY_CONTROL
-        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph ASSEMBLY
-        v30(["megahit<br/><i>MEGAHIT — de novo metagenome assembly</i>"])
-        v34(["align_and_depth<br/><i>Align reads to assembled contigs and compute…</i>"])
-        v38(["metabat2<br/><i>MetaBAT2 — bin contigs into Metagenome-Assemb…</i>"])
-        v40(["checkm2<br/><i>CheckM2 — assess MAG quality (completeness &…</i>"])
-        v43(["mag_n50<br/><i>Compute N50 for each MAG bin</i>"])
-        v46(["checkm2_merge<br/><i>Merge per-sample CheckM2 quality reports into…</i>"])
-        v47(["checkm2_wrangling<br/><i>Merge CheckM2 QA with N50 stats and filter by…</i>"])
-        v48(["phylophlan_metagenomic<br/><i>PhyloPhlAn metagenomic — phylogenetic placeme…</i>"])
-        v51(["phylophlan_merge<br/><i>Merge per-sample PhyloPhlAn placements and ad…</i>"])
-        v55(["mash_list_inputs<br/><i>List qualifying MAG FASTA paths to feed into…</i>"])
-        v56(["mash_sketch<br/><i>Sketch each qualifying MAG, the first step of…</i>"])
-        v57(["mash_paste<br/><i>Paste the per-MAG Mash sketches into one refe…</i>"])
-        v58(["mash_dist<br/><i>Pairwise Mash distances between every MAG and…</i>"])
-        v59(["sgb_cluster<br/><i>Cluster MAGs into SGBs using Mash distances +…</i>"])
-        v61(["abundance<br/><i>Per-sample MAG abundance, mirroring the Calcu…</i>"])
-        v66(["merge_tax_abundance<br/><i>Merge abundance data with taxonomy and SGB as…</i>"])
-        v68(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        megahit("<b>megahit</b><br/>MEGAHIT — de novo metagenome<br/>assembly")
+        align_and_depth("<b>align_and_depth</b><br/>Align reads to assembled<br/>contigs and compute contig…")
+        metabat2("<b>metabat2</b><br/>MetaBAT2 — bin contigs into<br/>Metagenome-Assembled Genomes…")
+        checkm2("<b>checkm2</b><br/>CheckM2 — assess MAG quality<br/>(completeness & contamination)")
+        mag_n50("<b>mag_n50</b><br/>Compute N50 for each MAG bin")
+        checkm2_merge("<b>checkm2_merge</b><br/>Merge per-sample CheckM2<br/>quality reports into one table")
+        checkm2_wrangling("<b>checkm2_wrangling</b><br/>Merge CheckM2 QA with N50<br/>stats and filter by…")
+        phylophlan_metagenomic("<b>phylophlan_metagenomic</b><br/>PhyloPhlAn metagenomic —<br/>phylogenetic placement of MAGs…")
+        phylophlan_merge("<b>phylophlan_merge</b><br/>Merge per-sample PhyloPhlAn<br/>placements and add taxonomic…")
+        mash_list_inputs("<b>mash_list_inputs</b><br/>List qualifying MAG FASTA<br/>paths to feed into Mash")
+        mash_sketch("<b>mash_sketch</b><br/>Sketch each qualifying MAG,<br/>the first step of the Mash…")
+        mash_paste("<b>mash_paste</b><br/>Paste the per-MAG Mash<br/>sketches into one reference…")
+        mash_dist("<b>mash_dist</b><br/>Pairwise Mash distances<br/>between every MAG and the…")
+        sgb_cluster("<b>sgb_cluster</b><br/>Cluster MAGs into SGBs using<br/>Mash distances +…")
+        abundance("<b>abundance</b><br/>Per-sample MAG abundance,<br/>mirroring the Calculate…")
+        merge_tax_abundance["<b>merge_tax_abundance</b><br/>Merge abundance data with<br/>taxonomy and SGB assignments…"]
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
 
-    v8 --> v20
-    v8 --> v30
-    v8 --> v34
-    v8 --> v61
-    v11 --> v20
-    v11 --> v30
-    v11 --> v34
-    v11 --> v61
-    v30 --> v34
-    v30 --> v38
-    v30 --> v61
-    v34 --> v38
-    v34 --> v61
-    v38 --> v40
-    v38 --> v43
-    v38 --> v48
-    v38 --> v55
-    v38 --> v61
-    v40 --> v46
-    v43 --> v47
-    v46 --> v47
-    v47 --> v55
-    v47 --> v59
-    v47 --> v66
-    v48 --> v51
-    v51 --> v55
-    v51 --> v59
-    v51 --> v66
-    v55 --> v56
-    v55 --> v59
-    v56 --> v57
-    v56 --> v58
-    v57 --> v58
-    v58 --> v59
-    v59 --> v66
-    v61 --> v66
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> megahit
+    paired_end_kneaddata --> align_and_depth
+    paired_end_kneaddata --> abundance
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> megahit
+    single_end_kneaddata --> align_and_depth
+    single_end_kneaddata --> abundance
+    megahit --> align_and_depth
+    megahit --> metabat2
+    megahit --> abundance
+    align_and_depth --> metabat2
+    align_and_depth --> abundance
+    metabat2 --> checkm2
+    metabat2 --> mag_n50
+    metabat2 --> phylophlan_metagenomic
+    metabat2 --> mash_list_inputs
+    metabat2 --> abundance
+    checkm2 --> checkm2_merge
+    mag_n50 --> checkm2_wrangling
+    checkm2_merge --> checkm2_wrangling
+    checkm2_wrangling --> mash_list_inputs
+    checkm2_wrangling --> sgb_cluster
+    checkm2_wrangling --> merge_tax_abundance
+    phylophlan_metagenomic --> phylophlan_merge
+    phylophlan_merge --> mash_list_inputs
+    phylophlan_merge --> sgb_cluster
+    phylophlan_merge --> merge_tax_abundance
+    mash_list_inputs --> mash_sketch
+    mash_list_inputs --> sgb_cluster
+    mash_sketch --> mash_paste
+    mash_sketch --> mash_dist
+    mash_paste --> mash_dist
+    mash_dist --> sgb_cluster
+    sgb_cluster --> merge_tax_abundance
+    abundance --> merge_tax_abundance
+
+    style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style ASSEMBLY fill:#fef3c722,stroke:#d97706,stroke-width:1px,stroke-dasharray:4 3,color:#d97706
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage1
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,3,5,6,7 stroke:#475569,stroke-width:2px

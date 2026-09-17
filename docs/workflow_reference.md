@@ -5,13 +5,123 @@ CI checks this file with `bin/make_diagrams.py --check`.
 
 Every diagram is Nextflow's own DAG for that workflow, taken from
 `nextflow run -preview -with-dag`, with the value-channel and operator
-nodes contracted away so only the steps remain. Boxes are grouped by the
-subworkflow they live in. Each step's description is the comment above its
-`process` in `modules/`.
+nodes contracted away so only the steps remain. Each step's description
+is the comment above its `process` in `modules/`.
+
+How to read one:
+
+* **Stages run left to right**, steps within a stage top to bottom. A
+  dashed box is one subworkflow.
+* **Colour is the stage**, and is the same in every diagram: quality
+  control blue, taxonomy green, function purple, viral orange, strain
+  teal, assembly amber, vis pink, stats indigo, and the workflow's own
+  steps grey.
+* **Shape marks the ends of the flow**: a rounded-end box starts a
+  workflow, a square-cornered box finishes one, and everything between
+  them has soft corners.
+* **A darker arrow crosses between stages**; the pale ones are wiring
+  inside a stage. Where each step publishes its output is in the table
+  below the diagram, not in the picture.
 
 Optional stages that are off by default (`--run_viral_profiling`,
 `--run_strain_profiling`) are drawn as if enabled, so the diagram shows
 everything a workflow can do.
+
+## How the pieces fit
+
+`main.nf` routes `--workflow` to one entry point under `workflows/`,
+which wires the reusable stages under `subworkflows/`, which in turn
+wire the processes defined under `modules/`. A process is only ever
+defined in a module. Each box below carries the comment written above
+its `workflow` block, and the step count is how many module processes
+that stage includes.
+
+```mermaid
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 90, "padding": 8}}}%%
+flowchart LR
+    subgraph entry["Entry point"]
+        direction TB
+        main_nf(["<b>main.nf</b><br/>Routes --workflow to one<br/>entry point, and nothing else."])
+    end
+    subgraph flows["workflows/ — one per --workflow"]
+        direction TB
+        SIXTEENS("<b>SIXTEENS</b><br/><i>--workflow 16s</i><br/>16S rRNA amplicon workflow — stub")
+        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>+17 direct steps</i>")
+        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>+3 direct steps</i>")
+        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>+6 direct steps</i>")
+        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>+3 direct steps</i>")
+        STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+6 direct steps</i>")
+        VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of<br/>biobakery_workflows vis.<br/><i>+5 direct steps</i>")
+    end
+    subgraph subs["subworkflows/ — reusable stages"]
+        direction TB
+        FUNCTIONAL_PROFILING("<b>FUNCTIONAL_PROFILING</b><br/>Functional profiling subworkflow:<br/>HUMAnN, then the three feature<br/>types<br/><i>10 steps</i>")
+        QUALITY_CONTROL("<b>QUALITY_CONTROL</b><br/>Quality control subworkflow: host<br/>decontamination + trimming via<br/>KneadData<br/><i>3 steps</i>")
+        REPORTING("<b>REPORTING</b><br/>Run vis and/or stats at the end of<br/>a read-based workflow.<br/><i>chains STATS + VIS</i>")
+        STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Strain profiling subworkflow:<br/>StrainPhlAn SGB-level<br/><i>2 steps</i>")
+        TAXONOMIC_PROFILING("<b>TAXONOMIC_PROFILING</b><br/>Taxonomic profiling subworkflow:<br/>MetaPhlAn per sample + merged<br/>table<br/><i>4 steps</i>")
+        VIRAL_PROFILING("<b>VIRAL_PROFILING</b><br/>Viral profiling subworkflow:<br/>BAQLaVa<br/><i>1 step</i>")
+    end
+    subgraph help["subworkflows/ — Groovy helpers, not stages"]
+        direction TB
+        mtx_common["<b>mtx_common.nf</b><br/>The KneadData reference database<br/>set for metatranscriptome reads."]
+        read_input["<b>read_input.nf</b><br/>Build an input read channel,<br/>detecting library layout from the…"]
+    end
+
+    main_nf --> ASSEMBLY
+    main_nf --> MGX
+    main_nf --> MGX_MTX
+    main_nf --> MTX
+    main_nf --> SIXTEENS
+    main_nf --> STATS
+    main_nf --> VIS
+    ASSEMBLY --> QUALITY_CONTROL
+    MGX --> QUALITY_CONTROL
+    MGX --> TAXONOMIC_PROFILING
+    MGX --> FUNCTIONAL_PROFILING
+    MGX --> VIRAL_PROFILING
+    MGX --> STRAIN_PROFILING
+    MGX --> REPORTING
+    MGX_MTX --> QUALITY_CONTROL
+    MGX_MTX --> TAXONOMIC_PROFILING
+    MGX_MTX --> FUNCTIONAL_PROFILING
+    MGX_MTX --> STRAIN_PROFILING
+    MGX_MTX --> REPORTING
+    MTX --> QUALITY_CONTROL
+    MTX --> TAXONOMIC_PROFILING
+    MTX --> FUNCTIONAL_PROFILING
+    MTX --> STRAIN_PROFILING
+    MTX --> REPORTING
+    REPORTING -.->|chained| STATS
+    REPORTING -.->|chained| VIS
+
+    style entry fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
+    style flows fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
+    style subs fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
+    style help fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
+
+    classDef router fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a
+    class main_nf router
+    classDef flow fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#1e293b
+    class ASSEMBLY,MGX,MGX_MTX,MTX,SIXTEENS,STATS,VIS flow
+    classDef arch0 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class FUNCTIONAL_PROFILING arch0
+    classDef arch1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class QUALITY_CONTROL arch1
+    classDef arch2 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class REPORTING arch2
+    classDef arch3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class STRAIN_PROFILING arch3
+    classDef arch4 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class TAXONOMIC_PROFILING arch4
+    classDef arch5 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
+    class VIRAL_PROFILING arch5
+    classDef helper fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,color:#475569
+    class mtx_common,read_input helper
+
+    linkStyle default stroke:#94a3b8,stroke-width:1.5px
+```
 
 | Workflow | `--workflow` | What it does | Steps |
 |---|---|---|---|
@@ -27,95 +137,130 @@ everything a workflow can do.
 Whole metagenome shotgun.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QUALITY_CONTROL
-        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph TAXONOMIC_PROFILING
-        v28(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v31(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v35(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v37(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip("<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)")
+        metaphlan_merge("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts("<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…")
     end
     subgraph FUNCTIONAL_PROFILING
-        v43(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v47(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v49(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v51(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v61(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v63(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v67(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v70(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v74(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v79(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge("<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…")
+        humann_log_counts("<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…")
     end
     subgraph VIRAL_PROFILING
-        v99(["baqlava<br/><i>BAQLaVa — viral profiling</i>"])
+        direction TB
+        baqlava["<b>baqlava</b><br/>BAQLaVa — viral profiling"]
     end
     subgraph STRAIN_PROFILING
-        v101(["sample2markers<br/><i>StrainPhlAn step 1: extract per-sample strain…</i>"])
-        v106(["strainphlan<br/><i>StrainPhlAn step 2: build strain phylogeny pe…</i>"])
+        direction TB
+        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
+        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
     end
     subgraph MGX
-        v113(["stage_report_input<br/><i>Build a bioBakery-standard output folder for…</i>"])
-        v139(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
     subgraph VIS
-        v116(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v124(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v125(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v131(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v134(["vis_report<br/><i>Render the visualization report.</i>"])
-        v137(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs("<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder.")
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v8 --> v20
-    v8 --> v28
-    v8 --> v43
-    v8 --> v99
-    v11 --> v20
-    v11 --> v28
-    v11 --> v43
-    v11 --> v99
-    v20 --> v113
-    v28 --> v31
-    v28 --> v35
-    v28 --> v43
-    v28 --> v99
-    v31 --> v101
-    v35 --> v37
-    v35 --> v113
-    v37 --> v113
-    v43 --> v47
-    v43 --> v49
-    v43 --> v61
-    v43 --> v63
-    v43 --> v79
-    v47 --> v61
-    v47 --> v63
-    v49 --> v51
-    v61 --> v113
-    v63 --> v67
-    v67 --> v70
-    v67 --> v113
-    v70 --> v74
-    v70 --> v113
-    v74 --> v113
-    v79 --> v113
-    v101 --> v106
-    v113 --> v116
-    v113 --> v124
-    v113 --> v125
-    v113 --> v131
-    v113 --> v134
-    v116 --> v124
-    v116 --> v125
-    v116 --> v131
-    v116 --> v134
-    v131 --> v134
-    v134 --> v137
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> metaphlan
+    paired_end_kneaddata --> humann
+    paired_end_kneaddata --> baqlava
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> metaphlan
+    single_end_kneaddata --> humann
+    single_end_kneaddata --> baqlava
+    kneaddata_read_counts --> stage_report_input
+    metaphlan --> metaphlan_bzip
+    metaphlan --> metaphlan_merge
+    metaphlan --> humann
+    metaphlan --> baqlava
+    metaphlan_bzip --> sample2markers
+    metaphlan_merge --> metaphlan_species_counts
+    metaphlan_merge --> stage_report_input
+    metaphlan_species_counts --> stage_report_input
+    humann --> humann_regroup_ecs
+    humann --> humann_regroup
+    humann --> humann_join
+    humann --> humann_renorm
+    humann --> humann_log_counts
+    humann_regroup_ecs --> humann_join
+    humann_regroup_ecs --> humann_renorm
+    humann_regroup --> humann_rename
+    humann_join --> stage_report_input
+    humann_renorm --> humann_join_relab
+    humann_join_relab --> humann_count_features
+    humann_join_relab --> stage_report_input
+    humann_count_features --> humann_feature_counts_merge
+    humann_count_features --> stage_report_input
+    humann_feature_counts_merge --> stage_report_input
+    humann_log_counts --> stage_report_input
+    sample2markers --> strainphlan
+    stage_report_input --> identify_inputs
+    stage_report_input --> feature_table
+    stage_report_input --> trim_taxonomy
+    stage_report_input --> add_ec_names
+    stage_report_input --> vis_report
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style TAXONOMIC_PROFILING fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style FUNCTIONAL_PROFILING fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style VIRAL_PROFILING fill:#ffedd522,stroke:#f97316,stroke-width:1px,stroke-dasharray:4 3,color:#f97316
+    style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
+    style MGX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage1
+    classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage2
+    classDef stage3 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
+    class baqlava stage3
+    classDef stage4 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage4
+    classDef stage5 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class stage_report_input,version_log stage5
+    classDef stage6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage6
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,3,5,6,7,8,11,12,13,15,16,25,28,30,31,32,34,35,36,37,38 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -154,89 +299,120 @@ flowchart TB
 Whole metatranscriptome shotgun.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QUALITY_CONTROL
-        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph TAXONOMIC_PROFILING
-        v28(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v31(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v35(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v37(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip("<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)")
+        metaphlan_merge("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts("<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…")
     end
     subgraph FUNCTIONAL_PROFILING
-        v43(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v47(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v49(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v51(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v61(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v63(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v67(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v70(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v74(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v79(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge("<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…")
+        humann_log_counts("<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…")
     end
     subgraph STRAIN_PROFILING
-        v95(["sample2markers<br/><i>StrainPhlAn step 1: extract per-sample strain…</i>"])
-        v100(["strainphlan<br/><i>StrainPhlAn step 2: build strain phylogeny pe…</i>"])
+        direction TB
+        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
+        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
     end
     subgraph MTX
-        v107(["stage_report_input<br/><i>Build a bioBakery-standard output folder for…</i>"])
-        v133(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
     subgraph VIS
-        v110(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v118(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v119(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v125(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v128(["vis_report<br/><i>Render the visualization report.</i>"])
-        v131(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs("<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder.")
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v8 --> v20
-    v8 --> v28
-    v8 --> v43
-    v11 --> v20
-    v11 --> v28
-    v11 --> v43
-    v20 --> v107
-    v28 --> v31
-    v28 --> v35
-    v28 --> v43
-    v31 --> v95
-    v35 --> v37
-    v35 --> v107
-    v37 --> v107
-    v43 --> v47
-    v43 --> v49
-    v43 --> v61
-    v43 --> v63
-    v43 --> v79
-    v47 --> v61
-    v47 --> v63
-    v49 --> v51
-    v61 --> v107
-    v63 --> v67
-    v67 --> v70
-    v67 --> v107
-    v70 --> v74
-    v70 --> v107
-    v74 --> v107
-    v79 --> v107
-    v95 --> v100
-    v107 --> v110
-    v107 --> v118
-    v107 --> v119
-    v107 --> v125
-    v107 --> v128
-    v110 --> v118
-    v110 --> v119
-    v110 --> v125
-    v110 --> v128
-    v125 --> v128
-    v128 --> v131
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> metaphlan
+    paired_end_kneaddata --> humann
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> metaphlan
+    single_end_kneaddata --> humann
+    kneaddata_read_counts --> stage_report_input
+    metaphlan --> metaphlan_bzip
+    metaphlan --> metaphlan_merge
+    metaphlan --> humann
+    metaphlan_bzip --> sample2markers
+    metaphlan_merge --> metaphlan_species_counts
+    metaphlan_merge --> stage_report_input
+    metaphlan_species_counts --> stage_report_input
+    humann --> humann_regroup_ecs
+    humann --> humann_regroup
+    humann --> humann_join
+    humann --> humann_renorm
+    humann --> humann_log_counts
+    humann_regroup_ecs --> humann_join
+    humann_regroup_ecs --> humann_renorm
+    humann_regroup --> humann_rename
+    humann_join --> stage_report_input
+    humann_renorm --> humann_join_relab
+    humann_join_relab --> humann_count_features
+    humann_join_relab --> stage_report_input
+    humann_count_features --> humann_feature_counts_merge
+    humann_count_features --> stage_report_input
+    humann_feature_counts_merge --> stage_report_input
+    humann_log_counts --> stage_report_input
+    sample2markers --> strainphlan
+    stage_report_input --> identify_inputs
+    stage_report_input --> feature_table
+    stage_report_input --> trim_taxonomy
+    stage_report_input --> add_ec_names
+    stage_report_input --> vis_report
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style TAXONOMIC_PROFILING fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style FUNCTIONAL_PROFILING fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
+    style MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage1
+    classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage2
+    classDef stage3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage3
+    classDef stage4 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class stage_report_input,version_log stage4
+    classDef stage5 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage5
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,4,5,6,9,10,12,13,22,25,27,28,29,31,32,33,34,35 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -274,136 +450,179 @@ flowchart TB
 Paired metagenome + metatranscriptome.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QC_MGX
-        v10(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v13(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v22(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph QC_MTX
-        v34(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v37(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v46(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata_2(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata_2(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts_2["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph TAX_MGX
-        v55(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v58(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v62(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v64(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip("<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)")
+        metaphlan_merge("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts("<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…")
     end
     subgraph TAX_MTX
-        v67(["metaphlan<br/><i>MetaPhlAn — taxonomic profiling</i>"])
-        v70(["metaphlan_bzip<br/><i>Compress MetaPhlAn SAM file (saves significan…</i>"])
-        v75(["metaphlan_merge<br/><i>Merge per-sample MetaPhlAn profiles into a si…</i>"])
-        v77(["metaphlan_species_counts<br/><i>Count the species called in each sample, from…</i>"])
+        direction TB
+        metaphlan_2("<b>metaphlan</b><br/>MetaPhlAn — taxonomic<br/>profiling")
+        metaphlan_bzip_2["<b>metaphlan_bzip</b><br/>Compress MetaPhlAn SAM file<br/>(saves significant disk space)"]
+        metaphlan_merge_2("<b>metaphlan_merge</b><br/>Merge per-sample MetaPhlAn<br/>profiles into a single table")
+        metaphlan_species_counts_2["<b>metaphlan_species_counts</b><br/>Count the species called in<br/>each sample, from the merged…"]
     end
     subgraph FUNC_MGX
-        v84(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v88(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v90(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v92(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v102(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v104(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v108(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v111(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v115(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v120(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge("<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…")
+        humann_log_counts("<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…")
     end
     subgraph FUNC_MTX
-        v138(["humann<br/><i>HUMAnN — functional profiling</i>"])
-        v142(["humann_regroup_ecs<br/><i>Regroup UniRef gene families to level-4 enzym…</i>"])
-        v144(["humann_regroup<br/><i>Regroup HUMAnN gene families to a different a…</i>"])
-        v146(["humann_rename<br/><i>Rename HUMAnN output features to human-readab…</i>"])
-        v156(["humann_join<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v158(["humann_renorm<br/><i>Renormalise a per-sample HUMAnN table from RP…</i>"])
-        v162(["humann_join_relab<br/><i>Join per-sample HUMAnN tables of one feature…</i>"])
-        v165(["humann_count_features<br/><i>Count how many features each sample has above…</i>"])
-        v169(["humann_feature_counts_merge<br/><i>Merge the three per-feature-type count tables…</i>"])
-        v174(["humann_log_counts<br/><i>Read and species counts, taken from the per-s…</i>"])
+        direction TB
+        humann_2("<b>humann</b><br/>HUMAnN — functional profiling")
+        humann_regroup_ecs_2("<b>humann_regroup_ecs</b><br/>Regroup UniRef gene families<br/>to level-4 enzyme commission…")
+        humann_regroup_2("<b>humann_regroup</b><br/>Regroup HUMAnN gene families<br/>to a different annotation…")
+        humann_rename_2["<b>humann_rename</b><br/>Rename HUMAnN output features<br/>to human-readable names"]
+        humann_join_2("<b>humann_join</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_renorm_2("<b>humann_renorm</b><br/>Renormalise a per-sample<br/>HUMAnN table from RPK to…")
+        humann_join_relab_2("<b>humann_join_relab</b><br/>Join per-sample HUMAnN tables<br/>of one feature type into a…")
+        humann_count_features_2("<b>humann_count_features</b><br/>Count how many features each<br/>sample has above zero, per…")
+        humann_feature_counts_merge_2["<b>humann_feature_counts_merge</b><br/>Merge the three<br/>per-feature-type count tables…"]
+        humann_log_counts_2["<b>humann_log_counts</b><br/>Read and species counts, taken<br/>from the per-sample HUMAnN…"]
     end
     subgraph MGX_MTX
-        v201(["rna_dna_norm<br/><i>RNA/DNA relative expression ratio for one fea…</i>"])
-        v217(["stage_report_input<br/><i>Build a bioBakery-standard output folder for…</i>"])
-        v243(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        rna_dna_norm["<b>rna_dna_norm</b><br/>RNA/DNA relative expression<br/>ratio for one feature type."]
+        stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
     subgraph STRAIN_PROFILING
-        v205(["sample2markers<br/><i>StrainPhlAn step 1: extract per-sample strain…</i>"])
-        v210(["strainphlan<br/><i>StrainPhlAn step 2: build strain phylogeny pe…</i>"])
+        direction TB
+        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
+        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
     end
     subgraph VIS
-        v220(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v228(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v229(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v235(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v238(["vis_report<br/><i>Render the visualization report.</i>"])
-        v241(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs("<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder.")
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v10 --> v22
-    v10 --> v55
-    v10 --> v84
-    v13 --> v22
-    v13 --> v55
-    v13 --> v84
-    v22 --> v217
-    v34 --> v46
-    v34 --> v67
-    v34 --> v138
-    v37 --> v46
-    v37 --> v67
-    v37 --> v138
-    v55 --> v58
-    v55 --> v62
-    v55 --> v84
-    v58 --> v205
-    v62 --> v64
-    v62 --> v217
-    v64 --> v217
-    v67 --> v70
-    v67 --> v75
-    v67 --> v138
-    v75 --> v77
-    v84 --> v88
-    v84 --> v90
-    v84 --> v102
-    v84 --> v104
-    v84 --> v120
-    v88 --> v102
-    v88 --> v104
-    v90 --> v92
-    v102 --> v201
-    v102 --> v217
-    v104 --> v108
-    v108 --> v111
-    v108 --> v217
-    v111 --> v115
-    v111 --> v217
-    v115 --> v217
-    v120 --> v217
-    v138 --> v142
-    v138 --> v144
-    v138 --> v156
-    v138 --> v158
-    v138 --> v174
-    v142 --> v156
-    v142 --> v158
-    v144 --> v146
-    v156 --> v201
-    v158 --> v162
-    v162 --> v165
-    v165 --> v169
-    v205 --> v210
-    v217 --> v220
-    v217 --> v228
-    v217 --> v229
-    v217 --> v235
-    v217 --> v238
-    v220 --> v228
-    v220 --> v229
-    v220 --> v235
-    v220 --> v238
-    v235 --> v238
-    v238 --> v241
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> metaphlan
+    paired_end_kneaddata --> humann
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> metaphlan
+    single_end_kneaddata --> humann
+    kneaddata_read_counts --> stage_report_input
+    paired_end_kneaddata_2 --> kneaddata_read_counts_2
+    paired_end_kneaddata_2 --> metaphlan_2
+    paired_end_kneaddata_2 --> humann_2
+    single_end_kneaddata_2 --> kneaddata_read_counts_2
+    single_end_kneaddata_2 --> metaphlan_2
+    single_end_kneaddata_2 --> humann_2
+    metaphlan --> metaphlan_bzip
+    metaphlan --> metaphlan_merge
+    metaphlan --> humann
+    metaphlan_bzip --> sample2markers
+    metaphlan_merge --> metaphlan_species_counts
+    metaphlan_merge --> stage_report_input
+    metaphlan_species_counts --> stage_report_input
+    metaphlan_2 --> metaphlan_bzip_2
+    metaphlan_2 --> metaphlan_merge_2
+    metaphlan_2 --> humann_2
+    metaphlan_merge_2 --> metaphlan_species_counts_2
+    humann --> humann_regroup_ecs
+    humann --> humann_regroup
+    humann --> humann_join
+    humann --> humann_renorm
+    humann --> humann_log_counts
+    humann_regroup_ecs --> humann_join
+    humann_regroup_ecs --> humann_renorm
+    humann_regroup --> humann_rename
+    humann_join --> rna_dna_norm
+    humann_join --> stage_report_input
+    humann_renorm --> humann_join_relab
+    humann_join_relab --> humann_count_features
+    humann_join_relab --> stage_report_input
+    humann_count_features --> humann_feature_counts_merge
+    humann_count_features --> stage_report_input
+    humann_feature_counts_merge --> stage_report_input
+    humann_log_counts --> stage_report_input
+    humann_2 --> humann_regroup_ecs_2
+    humann_2 --> humann_regroup_2
+    humann_2 --> humann_join_2
+    humann_2 --> humann_renorm_2
+    humann_2 --> humann_log_counts_2
+    humann_regroup_ecs_2 --> humann_join_2
+    humann_regroup_ecs_2 --> humann_renorm_2
+    humann_regroup_2 --> humann_rename_2
+    humann_join_2 --> rna_dna_norm
+    humann_renorm_2 --> humann_join_relab_2
+    humann_join_relab_2 --> humann_count_features_2
+    humann_count_features_2 --> humann_feature_counts_merge_2
+    sample2markers --> strainphlan
+    stage_report_input --> identify_inputs
+    stage_report_input --> feature_table
+    stage_report_input --> trim_taxonomy
+    stage_report_input --> add_ec_names
+    stage_report_input --> vis_report
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style QC_MGX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style QC_MTX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style TAX_MGX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style TAX_MTX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
+    style FUNC_MGX fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style FUNC_MTX fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
+    style MGX_MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage1
+    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
+    classDef stage3 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage3
+    classDef stage4 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage4
+    classDef stage5 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage5
+    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class rna_dna_norm,stage_report_input,version_log stage6
+    classDef stage7 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage7
+    classDef stage8 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage8
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,4,5,6,8,9,11,12,15,16,18,19,22,32,33,36,38,39,40,49,54,55,56,57,58 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -442,68 +661,83 @@ flowchart TB
 MAG assembly, binning and SGB clustering.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph QUALITY_CONTROL
-        v8(["paired_end_kneaddata<br/><i>KneadData QC — paired-end reads</i>"])
-        v11(["single_end_kneaddata<br/><i>KneadData QC — single-end reads</i>"])
-        v20(["kneaddata_read_counts<br/><i>Compile the per-sample KneadData logs into on…</i>"])
+        direction TB
+        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
+        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        kneaddata_read_counts["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph ASSEMBLY
-        v30(["megahit<br/><i>MEGAHIT — de novo metagenome assembly</i>"])
-        v34(["align_and_depth<br/><i>Align reads to assembled contigs and compute…</i>"])
-        v38(["metabat2<br/><i>MetaBAT2 — bin contigs into Metagenome-Assemb…</i>"])
-        v40(["checkm2<br/><i>CheckM2 — assess MAG quality (completeness &…</i>"])
-        v43(["mag_n50<br/><i>Compute N50 for each MAG bin</i>"])
-        v46(["checkm2_merge<br/><i>Merge per-sample CheckM2 quality reports into…</i>"])
-        v47(["checkm2_wrangling<br/><i>Merge CheckM2 QA with N50 stats and filter by…</i>"])
-        v48(["phylophlan_metagenomic<br/><i>PhyloPhlAn metagenomic — phylogenetic placeme…</i>"])
-        v51(["phylophlan_merge<br/><i>Merge per-sample PhyloPhlAn placements and ad…</i>"])
-        v55(["mash_list_inputs<br/><i>List qualifying MAG FASTA paths to feed into…</i>"])
-        v56(["mash_sketch<br/><i>Sketch each qualifying MAG, the first step of…</i>"])
-        v57(["mash_paste<br/><i>Paste the per-MAG Mash sketches into one refe…</i>"])
-        v58(["mash_dist<br/><i>Pairwise Mash distances between every MAG and…</i>"])
-        v59(["sgb_cluster<br/><i>Cluster MAGs into SGBs using Mash distances +…</i>"])
-        v61(["abundance<br/><i>Per-sample MAG abundance, mirroring the Calcu…</i>"])
-        v66(["merge_tax_abundance<br/><i>Merge abundance data with taxonomy and SGB as…</i>"])
-        v68(["version_log<br/><i>Capture tool versions, database paths, and wo…</i>"])
+        direction TB
+        megahit("<b>megahit</b><br/>MEGAHIT — de novo metagenome<br/>assembly")
+        align_and_depth("<b>align_and_depth</b><br/>Align reads to assembled<br/>contigs and compute contig…")
+        metabat2("<b>metabat2</b><br/>MetaBAT2 — bin contigs into<br/>Metagenome-Assembled Genomes…")
+        checkm2("<b>checkm2</b><br/>CheckM2 — assess MAG quality<br/>(completeness & contamination)")
+        mag_n50("<b>mag_n50</b><br/>Compute N50 for each MAG bin")
+        checkm2_merge("<b>checkm2_merge</b><br/>Merge per-sample CheckM2<br/>quality reports into one table")
+        checkm2_wrangling("<b>checkm2_wrangling</b><br/>Merge CheckM2 QA with N50<br/>stats and filter by…")
+        phylophlan_metagenomic("<b>phylophlan_metagenomic</b><br/>PhyloPhlAn metagenomic —<br/>phylogenetic placement of MAGs…")
+        phylophlan_merge("<b>phylophlan_merge</b><br/>Merge per-sample PhyloPhlAn<br/>placements and add taxonomic…")
+        mash_list_inputs("<b>mash_list_inputs</b><br/>List qualifying MAG FASTA<br/>paths to feed into Mash")
+        mash_sketch("<b>mash_sketch</b><br/>Sketch each qualifying MAG,<br/>the first step of the Mash…")
+        mash_paste("<b>mash_paste</b><br/>Paste the per-MAG Mash<br/>sketches into one reference…")
+        mash_dist("<b>mash_dist</b><br/>Pairwise Mash distances<br/>between every MAG and the…")
+        sgb_cluster("<b>sgb_cluster</b><br/>Cluster MAGs into SGBs using<br/>Mash distances +…")
+        abundance("<b>abundance</b><br/>Per-sample MAG abundance,<br/>mirroring the Calculate…")
+        merge_tax_abundance["<b>merge_tax_abundance</b><br/>Merge abundance data with<br/>taxonomy and SGB assignments…"]
+        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
 
-    v8 --> v20
-    v8 --> v30
-    v8 --> v34
-    v8 --> v61
-    v11 --> v20
-    v11 --> v30
-    v11 --> v34
-    v11 --> v61
-    v30 --> v34
-    v30 --> v38
-    v30 --> v61
-    v34 --> v38
-    v34 --> v61
-    v38 --> v40
-    v38 --> v43
-    v38 --> v48
-    v38 --> v55
-    v38 --> v61
-    v40 --> v46
-    v43 --> v47
-    v46 --> v47
-    v47 --> v55
-    v47 --> v59
-    v47 --> v66
-    v48 --> v51
-    v51 --> v55
-    v51 --> v59
-    v51 --> v66
-    v55 --> v56
-    v55 --> v59
-    v56 --> v57
-    v56 --> v58
-    v57 --> v58
-    v58 --> v59
-    v59 --> v66
-    v61 --> v66
+    paired_end_kneaddata --> kneaddata_read_counts
+    paired_end_kneaddata --> megahit
+    paired_end_kneaddata --> align_and_depth
+    paired_end_kneaddata --> abundance
+    single_end_kneaddata --> kneaddata_read_counts
+    single_end_kneaddata --> megahit
+    single_end_kneaddata --> align_and_depth
+    single_end_kneaddata --> abundance
+    megahit --> align_and_depth
+    megahit --> metabat2
+    megahit --> abundance
+    align_and_depth --> metabat2
+    align_and_depth --> abundance
+    metabat2 --> checkm2
+    metabat2 --> mag_n50
+    metabat2 --> phylophlan_metagenomic
+    metabat2 --> mash_list_inputs
+    metabat2 --> abundance
+    checkm2 --> checkm2_merge
+    mag_n50 --> checkm2_wrangling
+    checkm2_merge --> checkm2_wrangling
+    checkm2_wrangling --> mash_list_inputs
+    checkm2_wrangling --> sgb_cluster
+    checkm2_wrangling --> merge_tax_abundance
+    phylophlan_metagenomic --> phylophlan_merge
+    phylophlan_merge --> mash_list_inputs
+    phylophlan_merge --> sgb_cluster
+    phylophlan_merge --> merge_tax_abundance
+    mash_list_inputs --> mash_sketch
+    mash_list_inputs --> sgb_cluster
+    mash_sketch --> mash_paste
+    mash_sketch --> mash_dist
+    mash_paste --> mash_dist
+    mash_dist --> sgb_cluster
+    sgb_cluster --> merge_tax_abundance
+    abundance --> merge_tax_abundance
+
+    style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
+    style ASSEMBLY fill:#fef3c722,stroke:#d97706,stroke-width:1px,stroke-dasharray:4 3,color:#d97706
+
+    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
+    classDef stage1 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage1
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
+    linkStyle 1,2,3,5,6,7 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -534,22 +768,32 @@ flowchart TB
 Visualisation report.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph VIS
-        v3(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v11(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v12(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v18(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v21(["vis_report<br/><i>Render the visualization report.</i>"])
-        v24(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs(["<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder."])
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v3 --> v11
-    v3 --> v12
-    v3 --> v18
-    v3 --> v21
-    v18 --> v21
-    v21 --> v24
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage0
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -566,58 +810,68 @@ flowchart TB
 Statistical analysis report.
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph STATS
-        v3(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v9(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v12(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v20(["mantel_test<br/><i>Mantel test across all pairs of feature table…</i>"])
-        v22(["maaslin2<br/><i>MaAsLin2 per feature table, plus the figure t…</i>"])
-        v28(["halla_transpose_metadata<br/><i>HAllA needs the metadata with samples as colu…</i>"])
-        v34(["halla<br/><i>HAllA — hierarchical all-against-all associat…</i>"])
-        v41(["stratified_metadata<br/><i>Merge the pathway abundances with the metadat…</i>"])
-        v48(["stratified_barplot<br/><i>One barplot per (pathway rank, metadata varia…</i>"])
-        v51(["covariate_equation<br/><i>Work out the multivariate covariate equation…</i>"])
-        v55(["beta_diversity<br/><i>One beta diversity analysis for one feature t…</i>"])
-        v62(["stats_report<br/><i>Render the stats report.</i>"])
-        v65(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs(["<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder."])
+        feature_table("<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…")
+        trim_taxonomy("<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table.")
+        mantel_test("<b>mantel_test</b><br/>Mantel test across all pairs<br/>of feature tables.")
+        maaslin2("<b>maaslin2</b><br/>MaAsLin2 per feature table,<br/>plus the figure tiles shown in…")
+        halla_transpose_metadata("<b>halla_transpose_metadata</b><br/>HAllA needs the metadata with<br/>samples as columns.")
+        halla("<b>halla</b><br/>HAllA — hierarchical<br/>all-against-all association…")
+        stratified_metadata("<b>stratified_metadata</b><br/>Merge the pathway abundances<br/>with the metadata and work out…")
+        stratified_barplot("<b>stratified_barplot</b><br/>One barplot per (pathway rank,<br/>metadata variable).")
+        covariate_equation("<b>covariate_equation</b><br/>Work out the multivariate<br/>covariate equation for the…")
+        beta_diversity("<b>beta_diversity</b><br/>One beta diversity analysis<br/>for one feature table.")
+        stats_report("<b>stats_report</b><br/>Render the stats report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v3 --> v9
-    v3 --> v12
-    v3 --> v28
-    v3 --> v34
-    v3 --> v41
-    v3 --> v51
-    v3 --> v62
-    v9 --> v20
-    v9 --> v22
-    v9 --> v34
-    v9 --> v55
-    v9 --> v62
-    v12 --> v20
-    v12 --> v22
-    v12 --> v34
-    v12 --> v55
-    v12 --> v62
-    v20 --> v62
-    v22 --> v48
-    v22 --> v62
-    v28 --> v9
-    v28 --> v12
-    v28 --> v34
-    v28 --> v41
-    v28 --> v62
-    v34 --> v62
-    v41 --> v48
-    v48 --> v62
-    v51 --> v20
-    v51 --> v22
-    v51 --> v34
-    v51 --> v55
-    v51 --> v62
-    v55 --> v62
-    v62 --> v65
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> halla_transpose_metadata
+    identify_inputs --> halla
+    identify_inputs --> stratified_metadata
+    identify_inputs --> covariate_equation
+    identify_inputs --> stats_report
+    feature_table --> mantel_test
+    feature_table --> maaslin2
+    feature_table --> halla
+    feature_table --> beta_diversity
+    feature_table --> stats_report
+    trim_taxonomy --> mantel_test
+    trim_taxonomy --> maaslin2
+    trim_taxonomy --> halla
+    trim_taxonomy --> beta_diversity
+    trim_taxonomy --> stats_report
+    mantel_test --> stats_report
+    maaslin2 --> stratified_barplot
+    maaslin2 --> stats_report
+    halla_transpose_metadata --> feature_table
+    halla_transpose_metadata --> trim_taxonomy
+    halla_transpose_metadata --> halla
+    halla_transpose_metadata --> stratified_metadata
+    halla_transpose_metadata --> stats_report
+    halla --> stats_report
+    stratified_metadata --> stratified_barplot
+    stratified_barplot --> stats_report
+    covariate_equation --> mantel_test
+    covariate_equation --> maaslin2
+    covariate_equation --> halla
+    covariate_equation --> beta_diversity
+    covariate_equation --> stats_report
+    beta_diversity --> stats_report
+    stats_report --> archive_output
+
+    style STATS fill:#e0e7ff22,stroke:#6366f1,stroke-width:1px,stroke-dasharray:4 3,color:#6366f1
+
+    classDef stage0 fill:#e0e7ff,stroke:#6366f1,stroke-width:1.5px,color:#312e81
+    class identify_inputs,feature_table,trim_taxonomy,mantel_test,maaslin2,halla_transpose_metadata,halla,stratified_metadata,stratified_barplot,covariate_equation,beta_diversity,stats_report,archive_output stage0
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px
 ```
 
 | Step | What it does | Defined in | Publishes to |

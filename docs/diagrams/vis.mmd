@@ -1,16 +1,26 @@
-flowchart TB
+%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
+                        "rankSpacing": 70, "padding": 8}}}%%
+flowchart LR
     subgraph VIS
-        v3(["identify_inputs<br/><i>Identify the bioBakery data files in an input…</i>"])
-        v11(["feature_table<br/><i>Build one feature table (taxonomy, pathways o…</i>"])
-        v12(["trim_taxonomy<br/><i>Reformat a 16s taxonomy profile into a featur…</i>"])
-        v18(["add_ec_names<br/><i>Add EC names to the EC abundance table when t…</i>"])
-        v21(["vis_report<br/><i>Render the visualization report.</i>"])
-        v24(["archive_output<br/><i>Archive a report folder.</i>"])
+        direction TB
+        identify_inputs(["<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder."])
+        feature_table["<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…"]
+        trim_taxonomy["<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table."]
+        add_ec_names("<b>add_ec_names</b><br/>Add EC names to the EC<br/>abundance table when they are…")
+        vis_report("<b>vis_report</b><br/>Render the visualization<br/>report.")
+        archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
-    v3 --> v11
-    v3 --> v12
-    v3 --> v18
-    v3 --> v21
-    v18 --> v21
-    v21 --> v24
+    identify_inputs --> feature_table
+    identify_inputs --> trim_taxonomy
+    identify_inputs --> add_ec_names
+    identify_inputs --> vis_report
+    add_ec_names --> vis_report
+    vis_report --> archive_output
+
+    style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
+
+    classDef stage0 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage0
+
+    linkStyle default stroke:#cbd5e1,stroke-width:1.5px

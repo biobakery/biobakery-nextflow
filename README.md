@@ -1230,6 +1230,7 @@ biobakery-nextflow/
 │                                        #   these shadow the biobakery_workflows copies
 ├── docs/
 │   ├── workflow_reference.md            # GENERATED — diagram + step table per workflow
+│   ├── diagrams/architecture.mmd        # GENERATED — router → workflows → stages
 │   ├── diagrams/*.mmd                   # GENERATED — Nextflow's own DAG, per workflow
 │   ├── dependencies.md                  # which module provides what, and the version pins
 │   ├── architecture.md
