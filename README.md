@@ -1066,9 +1066,13 @@ The port from `biobakery_workflows` 3.2 (AnADAMA2) is **feature complete except
 and paired-end input by `tests/run_tests.sh` — 39 checks over 16 cases, all
 green as of 2026-09-02.
 
-> **The v0.0.4 cleanup changed layout, not behaviour**, but it has not been
-> through a full suite run since. What changed: `processes/` and the nf-test
-> cases deleted; `test/` and `tests/` merged; params moved out of
+> **The v0.0.4 cleanup changed layout, not behaviour.** What CI checks is green
+> on the cleaned tree as of 2026-09-17 — all four profiles resolve
+> (`nextflow config -profile local|harvard_rc|tufts_hpc|amazon`) and
+> `bin/make_diagrams.py --check` reports the step reference and all six diagrams
+> up to date — but the integration suite has not been re-run since, so the
+> 39/39 figure above still dates from before it. What changed: `processes/` and
+> the nf-test cases deleted; `test/` and `tests/` merged; params moved out of
 > `nextflow.config` into `conf/params.config`; execution reports into
 > `conf/reports.config`; site profiles reduced to real overrides;
 > `template-params.yaml` folded into `conf/harvard_rc.yaml`;

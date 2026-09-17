@@ -2,8 +2,9 @@
 
 Working notes for the port of `biobakery_workflows vis` and `stats` (3.2,
 AnADAMA2) to Nextflow, on branch `feature/standard-biobakery-workflow`. The tree
-is deployed to `lab_storage` as `rocky8/biobakery-workflows-nextflow/0.0.4`; the
-commits behind it are not yet pushed to GitHub.
+is deployed to `lab_storage` as `rocky8/biobakery-workflows-nextflow/0.0.4`.
+Everything behind that deployment is pushed; only the v0.0.4 layout cleanup is
+still local.
 
 Reference implementation being ported:
 `/n/lab_storage/huttenhower_lab/tools/biobakery_workflows/rocky8/v3.2/lib/python3.10/site-packages/biobakery_workflows/`
@@ -209,7 +210,9 @@ deleted) against the current working tree.
   upstream run to be redone first. Note that an upstream 3.2 stats run cannot
   currently complete on a standard wmgx folder (see decision 6 and issues 1–2),
   so the comparison will have to be section by section rather than a diff.
-- Chained mode (vis/stats at the end of mgx) is **not wired up**.
+- A section-by-section read of a *chained* report against a standalone one on
+  the same study. Chaining itself is wired and tested (`subworkflows/reporting.nf`,
+  tests 2, 3 and 7), but only through `report_input/` — see issue 4.
 - `--report_format pdf` has not been exercised since the link changes.
 
 ---
