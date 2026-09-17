@@ -31,7 +31,7 @@
 | Architecture diagrams | draw.io source files in `assets/diagrams/` (hand-drawn, and older than the generated ones) |
 | Demo test sample | `tests/data/single_end_rawfastq/HD32R1_subsample.fastq.gz` |
 | Integration suite | `tests/run_tests.sh` — 16 cases, 39 checks; see [tests/README.md](../tests/README.md) |
-| CI | `bin/make_diagrams.py --check` — the graphs and docs are current |
+| CI | `bin/check_profile_resources.py` — no profile has deleted a process's cpus/memory/time; `bin/make_diagrams.py --check` — the graphs and docs are current |
 
 ---
 

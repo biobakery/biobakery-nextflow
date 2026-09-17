@@ -111,7 +111,17 @@ source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
 hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
 ```
 
-`bin/make_diagrams.py` needs Nextflow and a JVM but no tools and no databases:
-it uses `nextflow run -preview`, which builds the graph without launching a
-task. That is what CI runs, and it is the only part of this repo that can be
-checked without the software above.
+`bin/make_diagrams.py` and `bin/check_profile_resources.py` need Nextflow and a
+JVM but no tools and no databases: one uses `nextflow run -preview`, which
+builds the graph without launching a task, and the other only resolves each
+profile with `nextflow config`. Those two are what CI runs, and they are the
+only part of this repo that can be checked without the software above.
+
+Running them by hand off a login node, where `hutlab load` is a shell function
+and so is not available in a script:
+
+```sh
+module load jdk/21.0.2-fasrc01
+export PATH=/n/lab_storage/huttenhower_lab/tools/nextflow/24.10.4/bin:$PATH
+bin/check_profile_resources.py && bin/make_diagrams.py --check
+```

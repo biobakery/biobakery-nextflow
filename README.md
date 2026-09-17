@@ -744,11 +744,16 @@ Two consequences worth knowing:
   configuration you must complete. Everything a FASRC run needs is already a
   default of `-profile harvard_rc`. Restating database paths there is how the
   two drift apart.
-* **A site profile should only override what genuinely differs.** Copying
-  `base.config`'s resource numbers into a profile means a fix to a figure never
-  reaches that site, and a plain `memory = '32.G'` also silently disables the
-  retry escalation, because `base.config` scales every request by
-  `task.attempt`.
+* **A site profile should only override what genuinely differs** — but a
+  `withName:` block in a profile *replaces* `base.config`'s block for the same
+  selector, so an override has to restate cpus, memory and time in full, and a
+  block that needs only a `beforeScript` should use a selector string
+  `base.config` does not also use. Leaving a directive out deletes it rather
+  than inheriting it, and the process falls back to the bare `process {}`
+  default. Keep the `* task.attempt` form as well: a plain `memory = '32.G'`
+  disables the retry escalation. `bin/check_profile_resources.py` checks all of
+  this against the resolved config, and CI runs it. See
+  [Changing Resources](#changing-resources).
 
 To see what a profile actually resolves to, ask Nextflow:
 
@@ -827,21 +832,36 @@ humann_databases --download utility_mapping full /path/to/humann_db/utility_mapp
 Per-process defaults live in `conf/base.config`. They scale with `task.attempt` (up to 2 retries).
 Override for a specific cluster in the profile config, e.g. `conf/profiles/harvard_rc.config`.
 
-**Edit a profile config** (permanent change for that cluster):
+**Edit a profile config** (permanent change for that cluster). A profile block
+must restate all three directives, because **a `withName:` block in a profile
+replaces `base.config`'s block for the same selector rather than merging into
+it**:
 
 ```groovy
 // conf/profiles/harvard_rc.config
 withName: humann {
     // the reason this site differs, in one line
     memory = { 64.GB * task.attempt }
+    // base.config's figures, restated because the block above replaces its own
+    cpus   = { check_max(16 * task.attempt, 'cpus') }
+    time   = { 12.h * task.attempt }
 }
 ```
 
+Leaving `cpus` and `time` out does not inherit them — it deletes them, and the
+process silently drops to the bare `process {}` default of 2 cpus / 4 GB / 4 h.
+That is how a 32 GB HUMAnN task came to be OOM-killed three times at 4, 8 and
+12 GB. If the profile has no resource reason at all and only needs a
+`beforeScript`, use a selector string `base.config` does not also use — two
+one-process blocks in place of one grouped block — so its block still applies.
+`bin/check_profile_resources.py` enforces both rules and CI runs it.
+
 Keep the `* task.attempt` form: a plain `memory = '64.G'` also disables the
 retry escalation from `conf/base.config`, so a task killed for running out of
-memory retries with exactly what killed it. Override only what genuinely
-differs, and leave the rest to `base.config` — that way a fix to a resource
-figure reaches every site.
+memory retries with exactly what killed it. Note that `check_max()` is a `def`
+local to `base.config` and is not in scope in a profile, so figures restated in
+a profile are not capped by `--max_memory`; keep them within what the site can
+actually schedule.
 
 **One-off override on the command line** (without editing files):
 
@@ -1041,10 +1061,17 @@ CI has no tools, no databases and no cluster, so it cannot run any of the above.
 It runs what needs none of them:
 
 ```sh
-bin/make_diagrams.py --check
+bin/check_profile_resources.py     # no profile has deleted a resource request
+bin/make_diagrams.py --check       # the diagrams and step reference are current
 ```
 
-This rebuilds every workflow's graph with `nextflow run -preview`, which
+The first resolves every profile and checks that each process still carries the
+cpus, memory and time `conf/base.config` gives it. It exists because a profile
+block replaces `base.config`'s block for the same selector instead of merging
+into it, so a block setting only `beforeScript` deletes that process's
+resources — see [Changing Resources](#changing-resources).
+
+The second rebuilds every workflow's graph with `nextflow run -preview`, which
 resolves the configuration and builds the DAG without launching a task, and
 fails if `docs/workflow_reference.md` or `docs/diagrams/*.mmd` no longer match
 the pipeline. It catches a config that does not parse, a broken `include`, a
@@ -1066,12 +1093,16 @@ The port from `biobakery_workflows` 3.2 (AnADAMA2) is **feature complete except
 and paired-end input by `tests/run_tests.sh` — 39 checks over 16 cases, all
 green as of 2026-09-02.
 
-> **The v0.0.4 cleanup changed layout, not behaviour.** What CI checks is green
-> on the cleaned tree as of 2026-09-17 — all four profiles resolve
-> (`nextflow config -profile local|harvard_rc|tufts_hpc|amazon`) and
-> `bin/make_diagrams.py --check` reports the step reference and all six diagrams
-> up to date — but the integration suite has not been re-run since, so the
-> 39/39 figure above still dates from before it. What changed: `processes/` and
+> **The v0.0.4 cleanup changed layout, and in one place behaviour.** Re-run on
+> 2026-09-17 it came back **22 passed / 17 failed**: stripping resources out of
+> `conf/profiles/harvard_rc.config` deleted them rather than inheriting them
+> from `conf/base.config` (see [Changing Resources](#changing-resources)), so
+> seven processes ran at the 2 cpu / 4 GB / 4 h default and were OOM-killed.
+> With the profile fixed the suite is **37 passed / 2 failed**; the two are
+> test 12, and they are not a pipeline fault — the shared
+> `rocky8/halla/0.8.20` install has lost numpy, scipy, pandas and matplotlib,
+> so HAllA cannot start. `bin/check_profile_resources.py` now fails in CI on
+> the mistake that caused the 17. What changed: `processes/` and
 > the nf-test cases deleted; `test/` and `tests/` merged; params moved out of
 > `nextflow.config` into `conf/params.config`; execution reports into
 > `conf/reports.config`; site profiles reduced to real overrides;
@@ -1106,7 +1137,7 @@ green as of 2026-09-02.
 | Chained `stats` at scale | the chained path is wired and covered for `vis`; chained `stats` needs a study large enough for its analyses to fit, which the test data is not. Standalone `stats` is covered |
 | MAG-level assembly test data | tests 13-14 use simulated reads from two genomes. Real multi-species data would exercise SGB clustering harder |
 | Non-FASRC profiles | only `harvard_rc` sets a software environment per process. `tufts_hpc` and `local` expect the tools on `PATH`, and `aws` has containers for six processes out of ~59. Resources now come from `conf/base.config` everywhere, so that part is no longer per-profile work |
-| Full suite run after the v0.0.4 cleanup | the cleanup is verified by `bin/make_diagrams.py --check`, the four input guards and a real `version_log` run; the 16-case suite has not been re-run since |
+| A working `rocky8/halla/0.8.20` module | the shared install lost numpy, scipy, pandas and matplotlib on 2026-09-16, so `STATS:halla` fails on import and test 12 cannot pass until it is reinstalled. Everything else in the suite is green (37/39 on 2026-09-17) |
 
 ---
 
@@ -1172,6 +1203,7 @@ biobakery-nextflow/
 │   └── tufts_hpc.yaml                   # THIS RUN — params template
 ├── bin/
 │   ├── make_diagrams.py                 # generates docs/diagrams/ + workflow_reference.md
+│   ├── check_profile_resources.py       # CI guard: no profile deletes a resource request
 │   ├── scripts/                         # Python helpers (from anadama2 assembly_tasks/)
 │   │   ├── checkm_wrangling.py
 │   │   ├── mag_n50_calc.py

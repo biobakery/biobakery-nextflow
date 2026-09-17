@@ -40,5 +40,8 @@ jobs:
             nextflow config -profile "$profile" > /dev/null
           done
 
+      - name: Check no profile has deleted a resource request
+        run: bin/check_profile_resources.py
+
       - name: Check the diagrams and the step reference are up to date
         run: bin/make_diagrams.py --check
