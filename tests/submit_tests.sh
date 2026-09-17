@@ -16,13 +16,27 @@
 # why this has to be submitted from the repo root. tests/results must exist
 # first: SLURM will not create it, and the job fails silently if it is missing.
 #
+# The repo root comes from SLURM_SUBMIT_DIR for the same reason: sbatch runs a
+# spool copy of this script, so $BASH_SOURCE points at /var/spool/slurmd/... and
+# not at the checkout. The BASH_SOURCE fallback is for running it directly.
+#
 # The suite runs about a dozen nextflow drivers at once, each its own JVM, which
 # is what the memory and cpu requests are for. The drivers only submit and wait;
 # the real work happens in the SLURM jobs they spawn.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+    REPO_ROOT="${SLURM_SUBMIT_DIR}"
+else
+    REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+
+if [[ ! -f "${REPO_ROOT}/tests/run_tests.sh" ]]; then
+    echo "Not a biobakery-nextflow checkout: ${REPO_ROOT}" >&2
+    echo "Submit this from the repo root: cd <repo> && sbatch tests/submit_tests.sh" >&2
+    exit 2
+fi
 
 source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
 module use /n/lab_storage/huttenhower_lab/tools/hutlab/src/modules_rocky8
