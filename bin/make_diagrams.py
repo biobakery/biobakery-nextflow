@@ -472,22 +472,23 @@ def _read_layer(folder):
 
 
 def _module_groups(owners_of, order):
-    """Collapse modules into one box per set of owners, in reading order.
+    """Split the modules into one box per owner, plus one box for the shared.
 
-    Thirty-four module directories in one column is a wall; the same modules
-    grouped by who calls them is a dozen boxes that each answer "what is this
-    for". Modules with one owner take that owner's colour, so the relation is
-    visible without an arrow.
+    Thirty-three module directories in a row is a wall. Grouped by who calls
+    them they are nine boxes that each answer "what is this for", and each can
+    take its owner's colour -- which shows the relation without an arrow. The
+    handful with more than one caller have no single colour to take, so they
+    share one neutral box that names each module's callers.
     """
-    by_owners = {}
-    for module, owners in owners_of.items():
-        by_owners.setdefault(frozenset(owners), []).append(module)
     rank = {name: index for index, name in enumerate(order)}
-    groups = []
-    for owners, modules in by_owners.items():
-        listed = sorted(owners, key=lambda o: rank.get(o, len(rank)))
-        groups.append((listed, sorted(modules)))
-    return sorted(groups, key=lambda g: (len(g[0]) > 1, rank.get(g[0][0], 99), g[1]))
+    owned, shared = {}, []
+    for module, owners in sorted(owners_of.items()):
+        if len(owners) == 1:
+            owned.setdefault(next(iter(owners)), []).append(module)
+        else:
+            shared.append((module, sorted(owners, key=lambda o: rank.get(o, 99))))
+    groups = [(owner, owned[owner]) for owner in sorted(owned, key=lambda o: rank.get(o, 99))]
+    return groups, shared
 
 
 def architecture_diagram():
@@ -495,7 +496,8 @@ def architecture_diagram():
 
     Read out of main.nf's router and the include statements: which workflow
     each `--workflow` token reaches, which stages that workflow reuses, and
-    which modules define the processes behind them.
+    which modules define the processes behind them. Laid out top to bottom,
+    one row per layer, so the picture reads as the call stack does.
     """
     router = _router_map()
     token_of = {name: token for token, name in router.items()}
@@ -504,7 +506,7 @@ def architecture_diagram():
     workflows, _none = _read_layer("workflows")
 
     flow_order = sorted(workflows, key=lambda w: (w not in token_of, token_of.get(w, w)))
-    stage_order = sorted(stages, key=lambda s: _stage_rank(s))
+    stage_order = sorted(stages, key=_stage_rank)
     order = flow_order + stage_order
 
     # Who calls what. A stage is named by its source name at the include, so an
@@ -531,46 +533,51 @@ def architecture_diagram():
         unit = workflows.get(name) or stages[name]
         for module in unit["modules"]:
             owners_of.setdefault(module, set()).add(name)
-    groups = _module_groups(owners_of, order)
+    groups, shared = _module_groups(owners_of, order)
+
+    def process_count(owner, module):
+        unit = workflows.get(owner) or stages[owner]
+        return len(unit["modules"].get(module, ()))
 
     out = [
-        '%%{init: {"flowchart": {"curve": "step", "nodeSpacing": 26,',
-        '                        "rankSpacing": 110, "padding": 10,',
-        '                        "useMaxWidth": true}}}%%',
-        "flowchart LR",
+        '%%{init: {"flowchart": {"curve": "step", "nodeSpacing": 30,',
+        '                        "rankSpacing": 75, "padding": 12}}}%%',
+        "flowchart TB",
     ]
 
     # ── 1 · the router ──────────────────────────────────────────────────
-    tokens = " · ".join(f"{t}" for t in sorted(router))
     out += [
-        '    subgraph L1["1 · ENTRY — main.nf"]',
-        "        direction TB",
-        f'        main_nf(["<b>main.nf</b><br/><i>the only entry point</i><br/>'
-        f'Reads --workflow and calls one<br/>workflow. Runs no step itself.'
-        f'<br/><br/>{_wrap(tokens, 40, 2)}"])',
+        '    subgraph L1["<b>1 · ENTRY</b> — main.nf<br/>'
+        '<i>Picks the pipeline. Runs no step of its own.</i>"]',
+        "        direction LR",
+        f'        main_nf(["<b>main.nf</b><br/>Reads <i>--workflow</i> and calls'
+        f'<br/>exactly one workflow below.<br/><br/>'
+        f'{_wrap(" · ".join(sorted(router)), 42, 2)}"])',
         '        howto["<b>How to read this</b><br/>'
-        'Arrows are drawn for one relation only:<br/>'
-        'which workflow a --workflow token runs.<br/>'
-        'Layers 2 → 4 are composition, not flow —<br/>'
-        'each box names who calls it, and repeats<br/>'
-        'that owner as its colour."]',
+        'Arrows are drawn for one relation only — which<br/>'
+        'workflow a --workflow token runs. Layers 2 → 4 are<br/>'
+        'composition, not flow: each box names who calls it,<br/>'
+        'and repeats that owner as its colour. <i>×n</i> is the<br/>'
+        'number of steps a module contributes to that owner."]',
         "    end",
-        '    subgraph L2["2 · WORKFLOWS — workflows/*.nf"]',
-        "        direction TB",
+        '    subgraph L2["<b>2 · WORKFLOWS</b> — workflows/*.nf<br/>'
+        '<i>One complete pipeline per --workflow token — the thing a user runs. '
+        'Wires stages, and may run steps of its own.</i>"]',
+        "        direction LR",
     ]
 
     # ── 2 · one workflow per --workflow ─────────────────────────────────
     for wf in flow_order:
         token = token_of.get(wf, "")
-        summary = _wrap(re.sub(r'["<>`]', "", workflows[wf]["summary"]), 36, 3)
-        used = sorted({s for s, _e, src in workflows[wf]["includes"]
+        summary = _wrap(re.sub(r'["<>`]', "", workflows[wf]["summary"]), 34, 3)
+        used = sorted({s for s, _e, _src in workflows[wf]["includes"]
                        if s in stages}, key=_stage_rank)
         direct = sum(len(v) for v in workflows[wf]["modules"].values())
         detail = []
         if used:
             # One stage per line: the names are long, and a wrapped run of them
-            # makes the box wider than the whole rest of the column.
-            detail.append(f"<i>wires {len(used)} stage{'s' if len(used) != 1 else ''}:</i>")
+            # makes the box wider than the whole rest of the row.
+            detail.append(f"<i>wires {len(used)} stage{'s' if len(used) != 1 else ''}</i>")
             detail += [f"· {stage}" for stage in used]
         if direct:
             detail.append(f"<i>+ {direct} step{'s' if direct != 1 else ''} of its own</i>")
@@ -578,44 +585,48 @@ def architecture_diagram():
         flag = f'<br/><i>--workflow {token}</i>' if token else ""
         out.append(f'        {wf}("<b>{wf}</b>{flag}<br/>{summary}{tail}")')
     out += ["    end",
-            '    subgraph L3["3 · STAGES — subworkflows/*.nf"]',
-            "        direction TB"]
+            '    subgraph L3["<b>3 · STAGES</b> — subworkflows/*.nf<br/>'
+            '<i>A reusable unit of pipeline, shared by several workflows. '
+            'Wires steps, and may chain another workflow.</i>"]',
+            "        direction LR"]
 
     # ── 3 · the reusable stages ─────────────────────────────────────────
     for stage in stage_order:
-        summary = _wrap(re.sub(r'["<>`]', "", stages[stage]["summary"]), 36, 3)
+        summary = _wrap(re.sub(r'["<>`]', "", stages[stage]["summary"]), 34, 3)
         count = sum(len(v) for v in stages[stage]["modules"].values())
-        detail = [f"<i>called by:</i> {', '.join(callers[stage]) or 'nothing yet'}"]
+        modules = len(stages[stage]["modules"])
+        detail = [f"<i>called by</i>"]
+        detail += [f"· {wf}" for wf in callers[stage]] or ["· nothing yet"]
         if count:
-            detail.append(f"<i>{count} step{'s' if count != 1 else ''} "
-                          f"from {len(stages[stage]['modules'])} module"
-                          f"{'s' if len(stages[stage]['modules']) != 1 else ''}</i>")
+            detail.append(f"<i>{count} step{'s' if count != 1 else ''} from "
+                          f"{modules} module{'s' if modules != 1 else ''}</i>")
         if stage in chains:
-            detail.append(f"<i>chains back into:</i> {' + '.join(chains[stage])}")
-        body = "<br/>".join(_wrap(d, 44, 3) for d in detail)
-        out.append(f'        {stage}("<b>{stage}</b><br/>{summary}<br/>{body}")')
+            detail.append(f"<i>chains {' + '.join(chains[stage])}</i>")
+        out.append(f'        {stage}("<b>{stage}</b><br/>{summary}<br/>'
+                   f'{"<br/>".join(detail)}")')
 
     for name, summary in sorted(helpers.items()):
         ident = name.replace(".nf", "")
-        out.append(f'        {ident}["<b>{name}</b> — <i>helper, not a stage</i><br/>'
-                   f'{_wrap(re.sub(chr(34), "", summary), 40, 2)}<br/>'
-                   f'<i>called by:</i> {", ".join(callers[name]) or "nothing"}"]')
+        out.append(f'        {ident}["<b>{name}</b><br/><i>Groovy helper, not a stage</i>'
+                   f'<br/>{_wrap(re.sub(chr(34), "", summary), 34, 3)}'
+                   f'<br/><i>called by</i><br/>'
+                   f'{"<br/>".join("· " + wf for wf in callers[name]) or "· nothing"}"]')
     out += ["    end",
-            '    subgraph L4["4 · STEPS — modules/**/main.nf"]',
-            "        direction TB"]
+            '    subgraph L4["<b>4 · STEPS</b> — modules/**/main.nf<br/>'
+            '<i>One tool invocation each. Every process is defined here and '
+            'nowhere else — grouped below by the workflow or stage that calls it.</i>"]',
+            "        direction LR"]
 
     # ── 4 · the modules, grouped by who calls them ──────────────────────
-    for index, (owners, modules) in enumerate(groups):
-        lines = []
-        for module in modules:
-            names = set()
-            for owner in owners:
-                unit = workflows.get(owner) or stages[owner]
-                names |= unit["modules"].get(module, set())
-            lines.append(f"{module} <i>×{len(names)}</i>")
-        head = (f"<b>for {owners[0]}</b>" if len(owners) == 1
-                else f"<b>shared by {', '.join(owners)}</b>")
-        out.append(f'        mods{index}["{head}<br/>{"<br/>".join(lines)}"]')
+    for index, (owner, modules) in enumerate(groups):
+        lines = "<br/>".join(f"{module} <i>×{process_count(owner, module)}</i>"
+                             for module in modules)
+        out.append(f'        mods{index}["<b>for {owner}</b><br/>{lines}"]')
+    if shared:
+        lines = "<br/>".join(f"{module}<br/>&nbsp;&nbsp;<i>{', '.join(owners)}</i>"
+                             for module, owners in shared)
+        out.append('        mods_shared["<b>called by more than one</b><br/>'
+                   f'{lines}"]')
     out.append("    end")
 
     # ── the only arrows: the router's choice ────────────────────────────
@@ -623,16 +634,17 @@ def architecture_diagram():
     for wf in flow_order:
         out.append(f"    main_nf --> {wf}")
 
-    # Two invisible links pin the four layers left to right; nothing else
-    # joins them, and without one the columns would stack rather than line up.
+    # Two invisible links stack the four layers; nothing else joins them, and
+    # without one the rows would drift apart rather than line up.
     out.append("")
-    out.append(f"    {flow_order[-1]} ~~~ {stage_order[0]}")
-    out.append(f"    {stage_order[-1]} ~~~ mods0")
+    out.append(f"    {flow_order[len(flow_order) // 2]} ~~~ "
+               f"{stage_order[len(stage_order) // 2]}")
+    out.append(f"    {stage_order[len(stage_order) // 2]} ~~~ mods0")
 
     out.append("")
     for layer in ("L1", "L2", "L3", "L4"):
         out.append(f"    style {layer} fill:#f8fafc00,stroke:#cbd5e1,"
-                   "stroke-width:1px,stroke-dasharray:6 4,color:#475569")
+                   "stroke-width:1px,stroke-dasharray:6 4,color:#334155")
 
     out.append("")
     out.append("    classDef router fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a")
@@ -648,12 +660,16 @@ def architecture_diagram():
                    f"stroke-width:1.5px,color:{text}")
         out.append(f"    class {name} arch{index}")
 
-    for index, (owners, _modules) in enumerate(groups):
-        fill, stroke, text = (_stage_colour(owners[0]) if len(owners) == 1
-                              else SHARED_COLOUR)
+    for index, (owner, _modules) in enumerate(groups):
+        fill, stroke, text = _stage_colour(owner)
         out.append(f"    classDef mod{index} fill:{fill}99,stroke:{stroke},"
-                   f"stroke-width:1px,stroke-dasharray:0,color:{text}")
+                   f"stroke-width:1px,color:{text}")
         out.append(f"    class mods{index} mod{index}")
+    if shared:
+        fill, stroke, text = SHARED_COLOUR
+        out.append(f"    classDef modshared fill:{fill},stroke:{stroke},"
+                   f"stroke-width:1px,stroke-dasharray:4 3,color:{text}")
+        out.append("    class mods_shared modshared")
 
     if helpers:
         idents = ",".join(sorted(n.replace(".nf", "") for n in helpers))
@@ -772,15 +788,17 @@ def reference_page(rendered, catalog, architecture):
         "and `mtx_common.nf` hold plain Groovy functions, and the diagram marks",
         "them as helpers.",
         "",
-        "The diagram below draws arrows for one relation only — which workflow",
-        "each `--workflow` token runs — because that is the only relation that",
-        "is a tree. The rest is many-to-many (three workflows share the same",
-        "five stages; a module such as `utils/version_log` is called by four",
-        "workflows), so drawing it as arrows produces a hairball. Instead each",
-        "box names who calls it, and repeats that owner as its colour: the",
-        "modules in layer 4 are grouped by which workflow or stage pulls them",
-        "in, and take that owner's colour. `×n` is how many processes that",
-        "module contributes.",
+        "The diagram below reads top to bottom, one row per layer. It draws",
+        "arrows for one relation only — which workflow each `--workflow` token",
+        "runs — because that is the only relation that is a tree. The rest is",
+        "many-to-many (three workflows share the same five stages; a module",
+        "such as `utils/version_log` is called by four workflows), so drawing",
+        "it as arrows produces a hairball. Instead each box names who calls it",
+        "and repeats that owner as its colour: the modules in row 4 are grouped",
+        "by the workflow or stage that pulls them in and take its colour, with",
+        "`×n` the number of steps that module contributes. The modules with",
+        "more than one caller have no single colour to take, so they share one",
+        "neutral box that names each one's callers.",
         "",
         "Every box carries the comment written above its `workflow` block, so",
         "the picture cannot drift from the code.",
