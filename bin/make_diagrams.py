@@ -378,11 +378,18 @@ def _render(processes, membership, edges, catalog):
 #
 # Not a DAG: this one is the shape of the code rather than of a run. It is read
 # out of main.nf's router and the include statements, so it cannot drift either.
+#
+# The three layers -- workflows, subworkflows, modules -- form a dense
+# many-to-many graph: seven workflows share six stages, and thirty-odd modules
+# are pulled in by both. Drawn as arrows that is a hairball, so only the one
+# relation that is a tree is drawn as arrows (the router choosing a workflow).
+# Every other relation is written into the box that owns it and repeated as
+# colour, which costs nothing to route and never crosses.
+
+SHARED_COLOUR = ("#f8fafc", "#94a3b8", "#334155")   # a module more than one owner calls
 
 ROUTER_CASE = re.compile(r"case\s+'([^']+)'\s*:\s*\n\s*(\w+)\s*\(", re.M)
-WORKFLOW_DECL = re.compile(r"^workflow\s+(\w+)\s*\{", re.M)
-INCLUDE = re.compile(r"include\s*\{\s*([\w\s]+?)\s*\}\s*from\s*'([^']+)'")
-FUNCTION_DECL = re.compile(r"^def\s+(\w+)\s*\(", re.M)
+INCLUDE = re.compile(r"include\s*\{\s*([\w\s;]+?)\s*\}\s*from\s*'([^']+)'")
 
 
 def _declared(path):
@@ -396,16 +403,37 @@ def _declared(path):
     return found
 
 
-def _included(path):
-    """(names, source file) pairs included by one file."""
-    text = open(path).read()
+def _includes(path):
+    """(source name, exported name, source file) for every include in a file.
+
+    `include { a; b }` is two entries, and `include { X as Y }` is one entry
+    whose source name is X and whose exported name is Y -- the distinction
+    matters, because the source name says which stage is being reused and the
+    exported name is how many steps that costs.
+    """
     out = []
-    for names, source in INCLUDE.findall(text):
-        for name in re.split(r"\s+as\s+|\s*;\s*", names.strip()):
-            name = name.strip()
-            if name:
-                out.append((name, source))
+    for names, source in INCLUDE.findall(open(path).read()):
+        for part in names.split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            bits = re.split(r"\s+as\s+", part)
+            out.append((bits[0].strip(), bits[-1].strip(), source))
     return out
+
+
+def _module_of(source):
+    """'../modules/utils/mash/main.nf' → 'utils/mash'."""
+    return os.path.dirname(source).split("modules/", 1)[1]
+
+
+def _stage_rank(name):
+    """Pipeline order for a stage, so the stage column reads like a run."""
+    for index, (prefixes, _colour) in enumerate(STAGE_COLOURS):
+        for prefix in prefixes:
+            if name == prefix or name.startswith(prefix + "_"):
+                return index
+    return len(STAGE_COLOURS)
 
 
 def _router_map():
@@ -414,119 +442,219 @@ def _router_map():
     return {token: name for token, name in ROUTER_CASE.findall(text)}
 
 
-def architecture_diagram():
-    """The entry point, the workflows, the stages they wire, and the helpers."""
-    router = _router_map()
-
-    workflows = {}
-    for name in sorted(os.listdir(os.path.join(REPO, "workflows"))):
-        if name.endswith(".nf"):
-            path = os.path.join(REPO, "workflows", name)
-            for wf, summary in _declared(path).items():
-                workflows[wf] = {"summary": summary, "includes": _included(path)}
-
-    stages, helpers = {}, {}
-    for name in sorted(os.listdir(os.path.join(REPO, "subworkflows"))):
+def _read_layer(folder):
+    """Parse one of workflows/ or subworkflows/ into units and helper files."""
+    units, helpers = {}, {}
+    for name in sorted(os.listdir(os.path.join(REPO, folder))):
         if not name.endswith(".nf"):
             continue
-        path = os.path.join(REPO, "subworkflows", name)
-        lines = open(path).read().split("\n")
+        path = os.path.join(REPO, folder, name)
+        includes = _includes(path)
         declared = _declared(path)
-        for stage, summary in declared.items():
-            included = _included(path)
-            steps = {n for n, src in included if "/modules/" in src}
-            chains = {n for n, src in included if "/workflows/" in src}
-            stages[stage] = {"summary": summary, "steps": len(steps),
-                             "chains": sorted(chains)}
+        for unit, summary in declared.items():
+            modules = {}
+            for _src, exported, source in includes:
+                if "/modules/" in source:
+                    modules.setdefault(_module_of(source), set()).add(exported)
+            units[unit] = {
+                "summary": summary,
+                "includes": includes,
+                "modules": modules,
+            }
         if not declared:
             # A Groovy helper rather than a workflow -- read_input, mtx_common.
+            lines = open(path).read().split("\n")
             for index, line in enumerate(lines):
-                match = re.match(r"^def\s+(\w+)\s*\(", line)
-                if match:
-                    helpers.setdefault(name, _comment_above(lines, index))
+                if re.match(r"^def\s+(\w+)\s*\(", line):
+                    helpers[name] = _comment_above(lines, index)
                     break
+    return units, helpers
 
+
+def _module_groups(owners_of, order):
+    """Collapse modules into one box per set of owners, in reading order.
+
+    Thirty-four module directories in one column is a wall; the same modules
+    grouped by who calls them is a dozen boxes that each answer "what is this
+    for". Modules with one owner take that owner's colour, so the relation is
+    visible without an arrow.
+    """
+    by_owners = {}
+    for module, owners in owners_of.items():
+        by_owners.setdefault(frozenset(owners), []).append(module)
+    rank = {name: index for index, name in enumerate(order)}
+    groups = []
+    for owners, modules in by_owners.items():
+        listed = sorted(owners, key=lambda o: rank.get(o, len(rank)))
+        groups.append((listed, sorted(modules)))
+    return sorted(groups, key=lambda g: (len(g[0]) > 1, rank.get(g[0][0], 99), g[1]))
+
+
+def architecture_diagram():
+    """The four layers of the code, and what each one is for.
+
+    Read out of main.nf's router and the include statements: which workflow
+    each `--workflow` token reaches, which stages that workflow reuses, and
+    which modules define the processes behind them.
+    """
+    router = _router_map()
     token_of = {name: token for token, name in router.items()}
 
+    stages, helpers = _read_layer("subworkflows")
+    workflows, _none = _read_layer("workflows")
+
+    flow_order = sorted(workflows, key=lambda w: (w not in token_of, token_of.get(w, w)))
+    stage_order = sorted(stages, key=lambda s: _stage_rank(s))
+    order = flow_order + stage_order
+
+    # Who calls what. A stage is named by its source name at the include, so an
+    # aliased reuse (`QUALITY_CONTROL as QC_MGX`) still counts as that stage.
+    callers = {name: [] for name in list(stages) + list(helpers)}
+    for wf in flow_order:
+        for src, _exported, source in workflows[wf]["includes"]:
+            if "/subworkflows/" in source:
+                key = src if src in stages else os.path.basename(source)
+                if key in callers and wf not in callers[key]:
+                    callers[key].append(wf)
+
+    # And which workflows a stage chains back into -- REPORTING runs the
+    # reporting workflows at the end of a read-based run.
+    chains = {}
+    for stage in stage_order:
+        chained = [src for src, _e, source in stages[stage]["includes"]
+                   if "/workflows/" in source]
+        if chained:
+            chains[stage] = sorted(set(chained))
+
+    owners_of = {}
+    for name in order:
+        unit = workflows.get(name) or stages[name]
+        for module in unit["modules"]:
+            owners_of.setdefault(module, set()).add(name)
+    groups = _module_groups(owners_of, order)
+
     out = [
-        '%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,',
-        '                        "rankSpacing": 90, "padding": 8}}}%%',
+        '%%{init: {"flowchart": {"curve": "step", "nodeSpacing": 26,',
+        '                        "rankSpacing": 110, "padding": 10,',
+        '                        "useMaxWidth": true}}}%%',
         "flowchart LR",
-        "    subgraph entry[\"Entry point\"]",
+    ]
+
+    # ── 1 · the router ──────────────────────────────────────────────────
+    tokens = " · ".join(f"{t}" for t in sorted(router))
+    out += [
+        '    subgraph L1["1 · ENTRY — main.nf"]',
         "        direction TB",
-        '        main_nf(["<b>main.nf</b><br/>Routes --workflow to one<br/>'
-        'entry point, and nothing else."])',
+        f'        main_nf(["<b>main.nf</b><br/><i>the only entry point</i><br/>'
+        f'Reads --workflow and calls one<br/>workflow. Runs no step itself.'
+        f'<br/><br/>{_wrap(tokens, 40, 2)}"])',
+        '        howto["<b>How to read this</b><br/>'
+        'Arrows are drawn for one relation only:<br/>'
+        'which workflow a --workflow token runs.<br/>'
+        'Layers 2 → 4 are composition, not flow —<br/>'
+        'each box names who calls it, and repeats<br/>'
+        'that owner as its colour."]',
         "    end",
-        "    subgraph flows[\"workflows/ — one per --workflow\"]",
+        '    subgraph L2["2 · WORKFLOWS — workflows/*.nf"]',
         "        direction TB",
     ]
 
-    for wf in sorted(workflows, key=lambda w: (w not in token_of, token_of.get(w, w))):
+    # ── 2 · one workflow per --workflow ─────────────────────────────────
+    for wf in flow_order:
         token = token_of.get(wf, "")
-        direct = len({n for n, src in workflows[wf]["includes"] if "/modules/" in src})
-        summary = _wrap(re.sub(r'["<>`]', "", workflows[wf]["summary"]), 34, 3)
-        extra = f"<br/><i>+{direct} direct steps</i>" if direct else ""
-        flag = f"<br/><i>--workflow {token}</i>" if token else ""
-        out.append(f'        {wf}("<b>{wf}</b>{flag}<br/>{summary}{extra}")')
-    out += ["    end", '    subgraph subs["subworkflows/ — reusable stages"]',
+        summary = _wrap(re.sub(r'["<>`]', "", workflows[wf]["summary"]), 36, 3)
+        used = sorted({s for s, _e, src in workflows[wf]["includes"]
+                       if s in stages}, key=_stage_rank)
+        direct = sum(len(v) for v in workflows[wf]["modules"].values())
+        detail = []
+        if used:
+            # One stage per line: the names are long, and a wrapped run of them
+            # makes the box wider than the whole rest of the column.
+            detail.append(f"<i>wires {len(used)} stage{'s' if len(used) != 1 else ''}:</i>")
+            detail += [f"· {stage}" for stage in used]
+        if direct:
+            detail.append(f"<i>+ {direct} step{'s' if direct != 1 else ''} of its own</i>")
+        tail = ("<br/>" + "<br/>".join(detail)) if detail else ""
+        flag = f'<br/><i>--workflow {token}</i>' if token else ""
+        out.append(f'        {wf}("<b>{wf}</b>{flag}<br/>{summary}{tail}")')
+    out += ["    end",
+            '    subgraph L3["3 · STAGES — subworkflows/*.nf"]',
             "        direction TB"]
 
-    for stage in sorted(stages):
-        summary = _wrap(re.sub(r'["<>`]', "", stages[stage]["summary"]), 34, 3)
-        count = stages[stage]["steps"]
+    # ── 3 · the reusable stages ─────────────────────────────────────────
+    for stage in stage_order:
+        summary = _wrap(re.sub(r'["<>`]', "", stages[stage]["summary"]), 36, 3)
+        count = sum(len(v) for v in stages[stage]["modules"].values())
+        detail = [f"<i>called by:</i> {', '.join(callers[stage]) or 'nothing yet'}"]
         if count:
-            tail = f"<br/><i>{count} step{'s' if count != 1 else ''}</i>"
-        elif stages[stage]["chains"]:
-            tail = f"<br/><i>chains {' + '.join(stages[stage]['chains'])}</i>"
-        else:
-            tail = ""
-        out.append(f'        {stage}("<b>{stage}</b><br/>{summary}{tail}")')
+            detail.append(f"<i>{count} step{'s' if count != 1 else ''} "
+                          f"from {len(stages[stage]['modules'])} module"
+                          f"{'s' if len(stages[stage]['modules']) != 1 else ''}</i>")
+        if stage in chains:
+            detail.append(f"<i>chains back into:</i> {' + '.join(chains[stage])}")
+        body = "<br/>".join(_wrap(d, 44, 3) for d in detail)
+        out.append(f'        {stage}("<b>{stage}</b><br/>{summary}<br/>{body}")')
+
+    for name, summary in sorted(helpers.items()):
+        ident = name.replace(".nf", "")
+        out.append(f'        {ident}["<b>{name}</b> — <i>helper, not a stage</i><br/>'
+                   f'{_wrap(re.sub(chr(34), "", summary), 40, 2)}<br/>'
+                   f'<i>called by:</i> {", ".join(callers[name]) or "nothing"}"]')
+    out += ["    end",
+            '    subgraph L4["4 · STEPS — modules/**/main.nf"]',
+            "        direction TB"]
+
+    # ── 4 · the modules, grouped by who calls them ──────────────────────
+    for index, (owners, modules) in enumerate(groups):
+        lines = []
+        for module in modules:
+            names = set()
+            for owner in owners:
+                unit = workflows.get(owner) or stages[owner]
+                names |= unit["modules"].get(module, set())
+            lines.append(f"{module} <i>×{len(names)}</i>")
+        head = (f"<b>for {owners[0]}</b>" if len(owners) == 1
+                else f"<b>shared by {', '.join(owners)}</b>")
+        out.append(f'        mods{index}["{head}<br/>{"<br/>".join(lines)}"]')
     out.append("    end")
 
-    if helpers:
-        out += ['    subgraph help["subworkflows/ — Groovy helpers, not stages"]',
-                "        direction TB"]
-        for name, summary in sorted(helpers.items()):
-            ident = name.replace(".nf", "")
-            out.append(f'        {ident}["<b>{name}</b><br/>'
-                       f'{_wrap(re.sub(chr(34), "", summary), 34)}"]')
-        out.append("    end")
-
+    # ── the only arrows: the router's choice ────────────────────────────
     out.append("")
-    for wf in sorted(workflows):
+    for wf in flow_order:
         out.append(f"    main_nf --> {wf}")
 
-    # An aliased include (`QUALITY_CONTROL as QC_MGX`) names the same stage
-    # twice, so the same pair can arrive more than once.
-    seen = set()
-    for wf in sorted(workflows):
-        for name, _source in workflows[wf]["includes"]:
-            if name in stages and (wf, name) not in seen:
-                seen.add((wf, name))
-                out.append(f"    {wf} --> {name}")
-    for stage in sorted(stages):
-        for wf in stages[stage]["chains"]:
-            if wf in workflows and (stage, wf) not in seen:
-                seen.add((stage, wf))
-                out.append(f"    {stage} -.->|chained| {wf}")
+    # Two invisible links pin the four layers left to right; nothing else
+    # joins them, and without one the columns would stack rather than line up.
+    out.append("")
+    out.append(f"    {flow_order[-1]} ~~~ {stage_order[0]}")
+    out.append(f"    {stage_order[-1]} ~~~ mods0")
 
     out.append("")
-    out.append("    style entry fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
-    out.append("    style flows fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
-    out.append("    style subs fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
-    if helpers:
-        out.append("    style help fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b")
+    for layer in ("L1", "L2", "L3", "L4"):
+        out.append(f"    style {layer} fill:#f8fafc00,stroke:#cbd5e1,"
+                   "stroke-width:1px,stroke-dasharray:6 4,color:#475569")
 
     out.append("")
     out.append("    classDef router fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a")
     out.append("    class main_nf router")
-    out.append("    classDef flow fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#1e293b")
-    out.append(f"    class {','.join(sorted(workflows))} flow")
-    for index, stage in enumerate(sorted(stages)):
-        fill, stroke, text = _stage_colour(stage)
+    out.append("    classDef note fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,"
+               "color:#64748b,stroke-dasharray:3 3")
+    out.append("    class howto note")
+
+    # Colour is the owner: a workflow, or the stage a module belongs to.
+    for index, name in enumerate(order):
+        fill, stroke, text = _stage_colour(name)
         out.append(f"    classDef arch{index} fill:{fill},stroke:{stroke},"
                    f"stroke-width:1.5px,color:{text}")
-        out.append(f"    class {stage} arch{index}")
+        out.append(f"    class {name} arch{index}")
+
+    for index, (owners, _modules) in enumerate(groups):
+        fill, stroke, text = (_stage_colour(owners[0]) if len(owners) == 1
+                              else SHARED_COLOUR)
+        out.append(f"    classDef mod{index} fill:{fill}99,stroke:{stroke},"
+                   f"stroke-width:1px,stroke-dasharray:0,color:{text}")
+        out.append(f"    class mods{index} mod{index}")
+
     if helpers:
         idents = ",".join(sorted(n.replace(".nf", "") for n in helpers))
         out.append("    classDef helper fill:#ffffff,stroke:#cbd5e1,"
@@ -535,6 +663,9 @@ def architecture_diagram():
 
     out.append("")
     out.append("    linkStyle default stroke:#94a3b8,stroke-width:1.5px")
+    # The invisible layer pins are the last two links.
+    first_pin = len(flow_order)
+    out.append(f"    linkStyle {first_pin},{first_pin + 1} stroke-width:0px")
     return "\n".join(out) + "\n"
 
 
@@ -622,12 +753,37 @@ def reference_page(rendered, catalog, architecture):
     out += [
         "## How the pieces fit",
         "",
-        "`main.nf` routes `--workflow` to one entry point under `workflows/`,",
-        "which wires the reusable stages under `subworkflows/`, which in turn",
-        "wire the processes defined under `modules/`. A process is only ever",
-        "defined in a module. Each box below carries the comment written above",
-        "its `workflow` block, and the step count is how many module processes",
-        "that stage includes.",
+        "Four layers, each with one job:",
+        "",
+        "| Layer | Lives in | What it is | What it may contain |",
+        "|---|---|---|---|",
+        "| 1 · Entry | `main.nf` | The router. Reads `--workflow` and calls "
+        "exactly one workflow. | No steps of its own. |",
+        "| 2 · Workflow | `workflows/*.nf` | One complete pipeline per "
+        "`--workflow` token — the thing a user runs. | Stages, and steps of "
+        "its own. |",
+        "| 3 · Stage | `subworkflows/*.nf` | A reusable unit of pipeline, "
+        "shared by several workflows. | Steps, and other stages. |",
+        "| 4 · Step | `modules/**/main.nf` | One tool invocation. **Every "
+        "`process` is defined here and nowhere else.** | Nothing — it is the "
+        "bottom. |",
+        "",
+        "Two files under `subworkflows/` are not stages at all: `read_input.nf`",
+        "and `mtx_common.nf` hold plain Groovy functions, and the diagram marks",
+        "them as helpers.",
+        "",
+        "The diagram below draws arrows for one relation only — which workflow",
+        "each `--workflow` token runs — because that is the only relation that",
+        "is a tree. The rest is many-to-many (three workflows share the same",
+        "five stages; a module such as `utils/version_log` is called by four",
+        "workflows), so drawing it as arrows produces a hairball. Instead each",
+        "box names who calls it, and repeats that owner as its colour: the",
+        "modules in layer 4 are grouped by which workflow or stage pulls them",
+        "in, and take that owner's colour. `×n` is how many processes that",
+        "module contributes.",
+        "",
+        "Every box carries the comment written above its `workflow` block, so",
+        "the picture cannot drift from the code.",
         "",
         "```mermaid",
         architecture.rstrip(),

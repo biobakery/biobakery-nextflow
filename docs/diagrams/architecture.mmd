@@ -1,84 +1,121 @@
-%%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
-                        "rankSpacing": 90, "padding": 8}}}%%
+%%{init: {"flowchart": {"curve": "step", "nodeSpacing": 26,
+                        "rankSpacing": 110, "padding": 10,
+                        "useMaxWidth": true}}}%%
 flowchart LR
-    subgraph entry["Entry point"]
+    subgraph L1["1 · ENTRY — main.nf"]
         direction TB
-        main_nf(["<b>main.nf</b><br/>Routes --workflow to one<br/>entry point, and nothing else."])
+        main_nf(["<b>main.nf</b><br/><i>the only entry point</i><br/>Reads --workflow and calls one<br/>workflow. Runs no step itself.<br/><br/>16s · assembly · mgx · mgx_mtx · mtx ·<br/>stats · vis"])
+        howto["<b>How to read this</b><br/>Arrows are drawn for one relation only:<br/>which workflow a --workflow token runs.<br/>Layers 2 → 4 are composition, not flow —<br/>each box names who calls it, and repeats<br/>that owner as its colour."]
     end
-    subgraph flows["workflows/ — one per --workflow"]
+    subgraph L2["2 · WORKFLOWS — workflows/*.nf"]
         direction TB
         SIXTEENS("<b>SIXTEENS</b><br/><i>--workflow 16s</i><br/>16S rRNA amplicon workflow — stub")
-        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>+17 direct steps</i>")
-        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>+3 direct steps</i>")
-        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>+6 direct steps</i>")
-        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>+3 direct steps</i>")
-        STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+6 direct steps</i>")
-        VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of<br/>biobakery_workflows vis.<br/><i>+5 direct steps</i>")
+        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 1 stage:</i><br/>· QUALITY_CONTROL<br/><i>+ 17 steps of its own</i>")
+        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 6 stages:</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
+        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 5 stages:</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
+        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 5 stages:</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
+        STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+ 14 steps of its own</i>")
+        VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of biobakery_workflows<br/>vis.<br/><i>+ 7 steps of its own</i>")
     end
-    subgraph subs["subworkflows/ — reusable stages"]
+    subgraph L3["3 · STAGES — subworkflows/*.nf"]
         direction TB
-        FUNCTIONAL_PROFILING("<b>FUNCTIONAL_PROFILING</b><br/>Functional profiling subworkflow:<br/>HUMAnN, then the three feature<br/>types<br/><i>10 steps</i>")
-        QUALITY_CONTROL("<b>QUALITY_CONTROL</b><br/>Quality control subworkflow: host<br/>decontamination + trimming via<br/>KneadData<br/><i>3 steps</i>")
-        REPORTING("<b>REPORTING</b><br/>Run vis and/or stats at the end of<br/>a read-based workflow.<br/><i>chains STATS + VIS</i>")
-        STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Strain profiling subworkflow:<br/>StrainPhlAn SGB-level<br/><i>2 steps</i>")
-        TAXONOMIC_PROFILING("<b>TAXONOMIC_PROFILING</b><br/>Taxonomic profiling subworkflow:<br/>MetaPhlAn per sample + merged<br/>table<br/><i>4 steps</i>")
-        VIRAL_PROFILING("<b>VIRAL_PROFILING</b><br/>Viral profiling subworkflow:<br/>BAQLaVa<br/><i>1 step</i>")
+        QUALITY_CONTROL("<b>QUALITY_CONTROL</b><br/>Quality control subworkflow: host<br/>decontamination + trimming via<br/>KneadData<br/><i>called by:</i> ASSEMBLY, MGX, MGX_MTX,<br/>MTX<br/><i>3 steps from 1 module</i>")
+        TAXONOMIC_PROFILING("<b>TAXONOMIC_PROFILING</b><br/>Taxonomic profiling subworkflow:<br/>MetaPhlAn per sample + merged table<br/><i>called by:</i> MGX, MGX_MTX, MTX<br/><i>4 steps from 1 module</i>")
+        FUNCTIONAL_PROFILING("<b>FUNCTIONAL_PROFILING</b><br/>Functional profiling subworkflow:<br/>HUMAnN, then the three feature types<br/><i>called by:</i> MGX, MGX_MTX, MTX<br/><i>10 steps from 5 modules</i>")
+        VIRAL_PROFILING("<b>VIRAL_PROFILING</b><br/>Viral profiling subworkflow: BAQLaVa<br/><i>called by:</i> MGX<br/><i>1 step from 1 module</i>")
+        STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Strain profiling subworkflow:<br/>StrainPhlAn SGB-level<br/><i>called by:</i> MGX, MGX_MTX, MTX<br/><i>2 steps from 1 module</i>")
+        REPORTING("<b>REPORTING</b><br/>Run vis and/or stats at the end of a<br/>read-based workflow.<br/><i>called by:</i> MGX, MGX_MTX, MTX<br/><i>chains back into:</i> STATS + VIS")
+        mtx_common["<b>mtx_common.nf</b> — <i>helper, not a stage</i><br/>The KneadData reference database set for<br/>metatranscriptome reads.<br/><i>called by:</i> MGX_MTX, MTX"]
+        read_input["<b>read_input.nf</b> — <i>helper, not a stage</i><br/>Build an input read channel, detecting<br/>library layout from the filenames<br/><i>called by:</i> ASSEMBLY, MGX, MGX_MTX, MTX"]
     end
-    subgraph help["subworkflows/ — Groovy helpers, not stages"]
+    subgraph L4["4 · STEPS — modules/**/main.nf"]
         direction TB
-        mtx_common["<b>mtx_common.nf</b><br/>The KneadData reference database<br/>set for metatranscriptome reads."]
-        read_input["<b>read_input.nf</b><br/>Build an input read channel,<br/>detecting library layout from the…"]
+        mods0["<b>for ASSEMBLY</b><br/>assembly/megahit <i>×1</i><br/>binning/metabat2 <i>×1</i><br/>phylogenomics/phylophlan_metagenomic <i>×2</i><br/>qc/checkm2 <i>×4</i><br/>utils/abundance <i>×1</i><br/>utils/align_and_depth <i>×1</i><br/>utils/mash <i>×6</i>"]
+        mods1["<b>for MGX_MTX</b><br/>utils/rna_dna_norm <i>×1</i>"]
+        mods2["<b>for STATS</b><br/>stats/beta_diversity <i>×2</i><br/>stats/covariate_equation <i>×1</i><br/>stats/halla <i>×2</i><br/>stats/maaslin2 <i>×1</i><br/>stats/mantel <i>×1</i><br/>stats/report <i>×1</i><br/>stats/stratified_pathways <i>×2</i>"]
+        mods3["<b>for VIS</b><br/>vis/add_ec_names <i>×1</i><br/>vis/alpha_diversity <i>×1</i><br/>vis/report <i>×1</i>"]
+        mods4["<b>for QUALITY_CONTROL</b><br/>kneaddata <i>×3</i>"]
+        mods5["<b>for TAXONOMIC_PROFILING</b><br/>metaphlan <i>×4</i>"]
+        mods6["<b>for FUNCTIONAL_PROFILING</b><br/>humann <i>×1</i><br/>utils/humann_merge <i>×5</i><br/>utils/humann_regroup <i>×2</i><br/>utils/humann_rename <i>×1</i><br/>utils/humann_renorm <i>×1</i>"]
+        mods7["<b>for VIRAL_PROFILING</b><br/>viral/baqlava <i>×1</i>"]
+        mods8["<b>for STRAIN_PROFILING</b><br/>strainphlan <i>×2</i>"]
+        mods9["<b>shared by ASSEMBLY, MGX, MGX_MTX, MTX</b><br/>utils/version_log <i>×1</i>"]
+        mods10["<b>shared by MGX, MGX_MTX, MTX</b><br/>utils/merge_pairs <i>×3</i><br/>utils/report_input <i>×1</i>"]
+        mods11["<b>shared by STATS, VIS</b><br/>stats/feature_table <i>×2</i><br/>utils/archive <i>×1</i><br/>vis/identify_inputs <i>×1</i>"]
     end
 
+    main_nf --> SIXTEENS
     main_nf --> ASSEMBLY
     main_nf --> MGX
     main_nf --> MGX_MTX
     main_nf --> MTX
-    main_nf --> SIXTEENS
     main_nf --> STATS
     main_nf --> VIS
-    ASSEMBLY --> QUALITY_CONTROL
-    MGX --> QUALITY_CONTROL
-    MGX --> TAXONOMIC_PROFILING
-    MGX --> FUNCTIONAL_PROFILING
-    MGX --> VIRAL_PROFILING
-    MGX --> STRAIN_PROFILING
-    MGX --> REPORTING
-    MGX_MTX --> QUALITY_CONTROL
-    MGX_MTX --> TAXONOMIC_PROFILING
-    MGX_MTX --> FUNCTIONAL_PROFILING
-    MGX_MTX --> STRAIN_PROFILING
-    MGX_MTX --> REPORTING
-    MTX --> QUALITY_CONTROL
-    MTX --> TAXONOMIC_PROFILING
-    MTX --> FUNCTIONAL_PROFILING
-    MTX --> STRAIN_PROFILING
-    MTX --> REPORTING
-    REPORTING -.->|chained| STATS
-    REPORTING -.->|chained| VIS
 
-    style entry fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
-    style flows fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
-    style subs fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
-    style help fill:#f8fafc00,stroke:#cbd5e1,stroke-dasharray:4 3,color:#64748b
+    VIS ~~~ QUALITY_CONTROL
+    REPORTING ~~~ mods0
+
+    style L1 fill:#f8fafc00,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray:6 4,color:#475569
+    style L2 fill:#f8fafc00,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray:6 4,color:#475569
+    style L3 fill:#f8fafc00,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray:6 4,color:#475569
+    style L4 fill:#f8fafc00,stroke:#cbd5e1,stroke-width:1px,stroke-dasharray:6 4,color:#475569
 
     classDef router fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a
     class main_nf router
-    classDef flow fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#1e293b
-    class ASSEMBLY,MGX,MGX_MTX,MTX,SIXTEENS,STATS,VIS flow
-    classDef arch0 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class FUNCTIONAL_PROFILING arch0
-    classDef arch1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class QUALITY_CONTROL arch1
+    classDef note fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,color:#64748b,stroke-dasharray:3 3
+    class howto note
+    classDef arch0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class SIXTEENS arch0
+    classDef arch1 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    class ASSEMBLY arch1
     classDef arch2 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class REPORTING arch2
-    classDef arch3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class STRAIN_PROFILING arch3
-    classDef arch4 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class TAXONOMIC_PROFILING arch4
-    classDef arch5 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
-    class VIRAL_PROFILING arch5
+    class MGX arch2
+    classDef arch3 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class MGX_MTX arch3
+    classDef arch4 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class MTX arch4
+    classDef arch5 fill:#e0e7ff,stroke:#6366f1,stroke-width:1.5px,color:#312e81
+    class STATS arch5
+    classDef arch6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class VIS arch6
+    classDef arch7 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class QUALITY_CONTROL arch7
+    classDef arch8 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class TAXONOMIC_PROFILING arch8
+    classDef arch9 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class FUNCTIONAL_PROFILING arch9
+    classDef arch10 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
+    class VIRAL_PROFILING arch10
+    classDef arch11 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class STRAIN_PROFILING arch11
+    classDef arch12 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class REPORTING arch12
+    classDef mod0 fill:#fef3c799,stroke:#d97706,stroke-width:1px,stroke-dasharray:0,color:#78350f
+    class mods0 mod0
+    classDef mod1 fill:#f1f5f999,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:0,color:#334155
+    class mods1 mod1
+    classDef mod2 fill:#e0e7ff99,stroke:#6366f1,stroke-width:1px,stroke-dasharray:0,color:#312e81
+    class mods2 mod2
+    classDef mod3 fill:#fce7f399,stroke:#ec4899,stroke-width:1px,stroke-dasharray:0,color:#831843
+    class mods3 mod3
+    classDef mod4 fill:#dbeafe99,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:0,color:#1e3a8a
+    class mods4 mod4
+    classDef mod5 fill:#dcfce799,stroke:#22c55e,stroke-width:1px,stroke-dasharray:0,color:#14532d
+    class mods5 mod5
+    classDef mod6 fill:#ede9fe99,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:0,color:#4c1d95
+    class mods6 mod6
+    classDef mod7 fill:#ffedd599,stroke:#f97316,stroke-width:1px,stroke-dasharray:0,color:#7c2d12
+    class mods7 mod7
+    classDef mod8 fill:#ccfbf199,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:0,color:#134e4a
+    class mods8 mod8
+    classDef mod9 fill:#f8fafc99,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:0,color:#334155
+    class mods9 mod9
+    classDef mod10 fill:#f8fafc99,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:0,color:#334155
+    class mods10 mod10
+    classDef mod11 fill:#f8fafc99,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:0,color:#334155
+    class mods11 mod11
     classDef helper fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,color:#475569
     class mtx_common,read_input helper
 
     linkStyle default stroke:#94a3b8,stroke-width:1.5px
+    linkStyle 7,8 stroke-width:0px
