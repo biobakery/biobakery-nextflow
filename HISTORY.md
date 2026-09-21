@@ -1,15 +1,5 @@
 # Release history
 
-Newest first. Hand-written, not generated — read the code at a deployment for
-the authoritative list of what it contains.
-
-> There are no `v0.0.x` git tags (`v0.1` and `v0.2` belong to the older AWS-era
-> work and don't correspond). The `0.0.x` numbers are hutlab deployment
-> numbers, and the grouping below was reconstructed from the deployment trees,
-> so treat it as close rather than exact.
-
----
-
 ## 0.0.4 — TBD
 
 Everything else in upstream 3.2, plus a layout cleanup. ~8,500 lines and 61 new
