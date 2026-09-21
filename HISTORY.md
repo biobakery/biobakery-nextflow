@@ -1,116 +1,98 @@
 # Release history
 
-Hand-written. This is the story of how the pipeline got here, not a changelog
-generated from commits — for the authoritative list of what a given version
-contains, read the code at that deployment.
+Newest first. Hand-written, not generated — read the code at a deployment for
+the authoritative list of what it contains.
 
-A note on how these versions are dated: there are no `v0.0.x` git tags. The
-only tags in the repo are `v0.1` and `v0.2`, which belong to the original
-AWS-era work and do not line up with the `0.0.x` series at all. The `0.0.x`
-numbers are *deployment* numbers — the hutlab modulefiles under
-`hutlab/src/modules_rocky8/rocky8/biobakery-workflows-nextflow/`, and the
-matching trees under `/n/lab_storage/huttenhower_lab/tools/biobakery-workflows-nextflow/`.
-The commit boundaries below were reconstructed by matching those deployment
-dates against the git log, so treat them as close rather than exact.
+> There are no `v0.0.x` git tags (`v0.1` and `v0.2` belong to the older AWS-era
+> work and don't correspond). The `0.0.x` numbers are hutlab deployment
+> numbers, and the commit boundaries below were reconstructed from deployment
+> dates, so treat them as close rather than exact.
 
 ---
 
-## 0.0.1 — June 2026, "it runs on FASRC"
+## Unreleased — the cleanup
 
-The first thing anyone else could load. It was a metagenomics pipeline and
-nothing more: KneadData, MetaPhlAn 4, HUMAnN **3**, plus the BAQLaVa viral
-step, wired up to run on Harvard FASRC. The modulefile still points at
-`humann3_databases/version_3.1/chocophlan`, which dates it precisely.
+On `feature/standard-biobakery-workflow`. Housekeeping, not features: 14
+deletions and 17 renames.
 
-There is no code directory for 0.0.1 under `tools/`, only a modulefile — you
-ran it out of a personal checkout and the module just put Nextflow 24.10.4 and
-the HUMAnN 3 database paths on your environment. That is the honest summary of
-0.0.1: a working pipeline that wasn't yet a shipped one.
+- One home per setting, so config stops being layered guesswork.
+- Diagrams and step tables are now generated — `bin/make_diagrams.py`, and
+  `--check` fails CI when they drift from the code.
+- `bin/check_profile_resources.py` added, after a site profile's `withName:`
+  block quietly replaced `base.config`'s resource requests and OOM-killed
+  seventeen checks in one go.
+- `test/` and `tests/` merged; the vestigial `processes/` directory and the
+  dead `engaging` profile removed.
+- Fixed: the site profile deleting resources it never meant to override.
+- Fixed: the repo root came from `BASH_SOURCE` instead of the submit directory.
+- Still red, and not ours: the shared `rocky8/halla/0.8.20` install lost numpy,
+  scipy, pandas and matplotlib on 16 Sep 2026, so `STATS:halla` fails on import
+  and test 12 can't pass. 37/39 green on 17 Sep 2026.
 
-## 0.0.2 — 9 July 2026, the repository gets a shape
+## 0.0.4 — 2 September 2026
 
-The commit is called "Standard repo" and that is exactly what it did. ~8,800
-lines arrived, almost all of it new files, because this is where the
-`modules/` + `subworkflows/` + `workflows/` layout was laid down and every
-tool call was moved into its own module directory. It is also the first
-version with a real tree under `tools/`, so the module now loads a *deployment*
-rather than pointing at someone's home directory.
+Everything else in upstream 3.2. ~8,500 lines, 61 new files.
 
-The assembly workflow shows up here too, though in draft form — it would take
-two more releases to actually produce MAGs on real input.
+- `vis` and `stats` ported from `biobakery_workflows` 3.2 — the bulk of it.
+- anadama2's document layer vendored rather than rewritten, which is why
+  `bin/lib/` exists.
+- `bin/scripts/` filled with Python 3 replacements for upstream scripts that
+  never worked on py3 (`norm_ratio` being the memorable one).
+- MTX and MGX+MTX ported. This is what makes `subworkflows/` earn its keep:
+  `mgx_mtx` runs QC, taxonomic and functional profiling twice over two read
+  sets, and aliased includes are the only way to do that once.
+- `vis` became chained — it runs at the end of the read-based workflows instead
+  of needing its own invocation.
+- Made to survive real input: single-end and multi-sample assembly, pairs
+  merged when QC is bypassed, the single-end glob fallback when `filepattern`
+  carries a pair identifier, HUMAnN columns named for the sample on one-sample
+  runs, and small or sparse studies no longer taking the vis report down.
+- Every workflow except 16s now tested in both library layouts.
+- Deployed twice — the 31 Aug tree is still sitting there as
+  `0.0.4.superseded-20260902`, which is the fingerprint of a release that
+  needed a second pass.
 
-## 0.0.3 — 6 August 2026, the shakedown
+## 0.0.3 — 6 August 2026
 
-Much smaller on paper — 687 insertions across 40 files, nearly all
-modifications — and much more important than it looks. This is the release
-where things that had never been run properly were run properly, and broke.
+The shakedown. Small on paper (687 insertions, nearly all modifications) and
+more important than it looks: things that had never been run properly got run
+properly, and broke.
 
-The one worth remembering: `quality_control` emitted a channel called `log`,
-but Nextflow already binds `log` to its own logger inside a workflow body, so
-declaring it as an emit made `mgx`, `mtx`, `mgx_mtx` and `assembly` all die
-with `No such variable: log` before a single task was submitted. Nothing
-consumed the emit; renaming it to `logs` fixed all four.
+- `quality_control` emitted a channel named `log`, but Nextflow binds `log` to
+  its own logger in a workflow body — so `mgx`, `mtx`, `mgx_mtx` and `assembly`
+  all died with `No such variable: log` before submitting a single task.
+  Nothing consumed the emit; renaming it to `logs` fixed all four.
+- Assembly brought in line with upstream 3.2 and finally given its per-sample
+  abundance stage.
+- `metaphlan_merge` and `metaphlan_bzip` got module environments they had been
+  silently borrowing.
+- Viral flag standardised on `run_viral_profiling`.
+- Template params trimmed to real `lab_storage` paths.
+- Stray `metaphlanstart.nf` deleted from the repo root.
 
-Alongside that: the assembly workflow was brought into line with
-upstream `biobakery_workflows` 3.2 and finally given its per-sample abundance
-stage, `metaphlan_merge` and `metaphlan_bzip` got module environments they had
-been silently borrowing, the viral flag was standardised on
-`run_viral_profiling`, the template params file was trimmed to real
-`lab_storage` paths, and a stray `metaphlanstart.nf` was deleted from the repo
-root.
+This is where the pipeline stopped working only on the machine it was written
+on.
 
-This is the point where the pipeline stopped working only on the machine it was
-written on.
+## 0.0.2 — 9 July 2026
 
-## 0.0.4 — 2 September 2026, everything else in 3.2
+"Standard repo" — the repository gets a shape. ~8,800 lines, 74 of them new
+files.
 
-The big one: another ~8,500 lines, 61 new files. Three things landed.
+- The `modules/` + `subworkflows/` + `workflows/` layout laid down, every tool
+  call moved into its own module directory.
+- First real tree under `tools/`, so the module loads a deployment instead of
+  pointing at someone's home directory.
+- Assembly workflow appears, in draft — it took two more releases to actually
+  produce MAGs on real input.
 
-**The `vis` and `stats` workflows were ported from `biobakery_workflows` 3.2.**
-This is the bulk of it, and it is also where the anadama2 problem had to be
-faced — the decision was to vendor the document layer rather than rewrite it,
-which is why `bin/lib/` exists. Several upstream scripts simply did not work
-on Python 3 (`norm_ratio` being the memorable one), so `bin/scripts/` filled
-up with py3 replacements.
+## 0.0.1 — June 2026
 
-**MTX and MGX+MTX were ported.** This is the release that made the
-`subworkflows/` layer earn its keep: `mgx_mtx` has to run quality control,
-taxonomic profiling and functional profiling twice over two different read
-sets, and aliased subworkflow includes are the only way to do that without
-three copies of the wiring.
+The first thing anyone else could load. A metagenomics pipeline and nothing
+more.
 
-**It was made to survive real input.** Single-end assembly runs, multi-sample
-assembly runs, read pairs merged when QC is bypassed, the single-end glob
-fallback when `filepattern` carries a pair identifier, merged HUMAnN columns
-named for the sample on one-sample runs, and small or sparse studies no longer
-taking the vis report down with them. `vis` also became chained — it now runs
-at the end of the read-based workflows instead of being a separate invocation.
-Every workflow except 16s is now tested in both library layouts.
-
-0.0.4 was deployed twice. The 31 August tree is still sitting there as
-`0.0.4.superseded-20260902`, which is the fingerprint of a release that needed
-a second pass.
-
-## After 0.0.4 — the cleanup, not yet deployed
-
-Currently on `feature/standard-biobakery-workflow` and not pushed: ~4,000
-lines changed, but look at the shape of it — 14 deletions and 17 renames.
-This is housekeeping, not features.
-
-The layout was consolidated (`test/` and `tests/` were one directory apart for
-no reason; a vestigial `processes/` directory went away; the dead `engaging`
-profile was removed), every setting was given exactly one home so config stops
-being layered guesswork, and the diagrams and step tables became *generated* —
-`bin/make_diagrams.py` produces them and `--check` fails CI if they drift from
-the code. `bin/check_profile_resources.py` joined it as a second guard, added
-after a site profile's `withName:` block quietly replaced `base.config`'s
-resource requests and OOM-killed seventeen checks in one go.
-
-Two bugs were fixed on the way through: the site profile deleting resources it
-had not meant to override, and the repo root being taken from `BASH_SOURCE`
-instead of the submit directory.
-
-One thing is still red and it is not ours: the shared `rocky8/halla/0.8.20`
-install lost numpy, scipy, pandas and matplotlib on 16 September 2026, so
-`STATS:halla` fails on import and suite test 12 cannot pass until somebody
-reinstalls it. 37 of 39 tests were green on 17 September 2026.
+- KneadData, MetaPhlAn 4, HUMAnN **3**, plus the BAQLaVa viral step, running on
+  Harvard FASRC.
+- No code directory under `tools/` — only a modulefile, putting Nextflow
+  24.10.4 and the HUMAnN 3 database paths on your environment. You ran it out
+  of a personal checkout.
+- A working pipeline, not yet a shipped one.
