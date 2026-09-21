@@ -1,0 +1,87 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# THIS RUN — Harvard FASRC (Cannon) params template.
+#
+# This file is for the handful of settings that belong to one run. It is
+# deliberately almost empty: everything a FASRC run needs is already a default.
+#
+#   * database paths, tool versions ....... conf/databases/harvard_rc.config
+#   * tool modules, queue, resources ...... conf/profiles/harvard_rc.config
+#   * every other parameter's default ..... conf/params.config
+#
+# All three are applied by `-profile harvard_rc`. Anything set here overrides
+# them, and anything passed as `--flag value` on the command line overrides
+# this. So the shortest correct run passes no params file at all:
+#
+#   nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
+#     --readsdir /path/to/fastqs --outdir /path/to/output -w /path/to/output/work
+#
+# Copy this file when you want those settings written down instead:
+#
+#   cp $BIOBAKERY_NF_PARAMS my-study.yaml
+#   nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
+#     -params-file my-study.yaml -w /path/to/output/work
+#
+# Keep the work directory on shared storage. Compute nodes cannot see the login
+# node's /tmp, and a work directory there fails every task with exit 127.
+#
+# Setup, once per shell:
+#   source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
+#   hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
+#
+# The full parameter list is in README.md; the steps each workflow runs are in
+# docs/workflow_reference.md.
+# ═════════════════════════════════════════════════════════════════════════════
+
+### Input and output — the two settings every run needs
+
+# readsdir: "/path/to/your/fastqs"
+# outdir:   "/path/to/output"
+
+### Which workflow
+
+# mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
+# workflow: "mgx"
+
+# mgx_mtx takes two input folders instead of readsdir, plus an optional file
+# mapping each RNA sample to its DNA sample:
+# input_metagenome:        "/path/to/dna/fastqs"
+# input_metatranscriptome: "/path/to/rna/fastqs"
+# input_mapping:           "/path/to/rna_to_dna.tsv"
+
+### Library layout
+
+# Paired-end is detected from the read filenames and is the default. Force
+# single-end, or change the mate naming convention, only if needed:
+# single_end:      true
+# pair_identifier: "_R{1,2}"
+# filepattern:     "*_R{1,2}*.fastq.gz"      # overrides pair_identifier outright
+
+### Optional stages (all default to off)
+
+# BAQLaVa viral profiling. Needs taxonomic profiling, which it consumes, and is
+# given 48 GB by the profile because it runs HUMAnN internally.
+# run_viral_profiling: true
+# baqlava_bypass_depletion: true     # only for tiny samples (0 prescreen species)
+
+# StrainPhlAn strain profiling.
+# run_strain_profiling: true
+
+# The stats report at the end of a profiling run. Needs input_metadata and
+# enough samples for MaAsLin2, HAllA and the mantel test to fit; otherwise run
+# `--workflow stats` separately. The vis report is already chained by default.
+# run_stats: true
+# input_metadata: "/path/to/metadata.tsv"
+# stats_fixed_effects: "diagnosis,age"
+
+### Non-human host
+
+# Mouse: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL"
+# host_genome: "/n/lab_storage/huttenhower_lab/data/kneaddata_databases/mouse_C57BL"
+
+### Assembly workflow
+
+# The PhyloPhlAn database is already set by the profile; these are the knobs.
+# sgb_completeness:          50          # minimum MAG completeness %
+# sgb_contamination:         10          # maximum MAG contamination %
+# megahit_min_contig_length: 2500
+# sgb_abundance_type:        "by_sample" # or by_dataset

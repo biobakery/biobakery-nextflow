@@ -1,0 +1,42 @@
+# One against all: PERMANOVA
+
+<% if vars["beta_diversity_plots"]["univariate"]: print("## Univariate") %>
+
+```{python, echo=False, results="md", name="show permanova plot" }
+utilities.show_all_permanova(vars["permanova_plots"])
+```
+
+<% if not vars["beta_diversity_plots"]["univariate"]: print("The results are visualized as a heatmap of the percentage of variation explained for each metadata variable (rows) in each meta’omic matrix tested against (columns) to highlight similarities between tests using Bray-Curtis dissimilarity. The results of each PERMANOVA are displayed in a separate barplot as well with the R-squared and FDR adjusted p-values for each metadata variable. Text files of these results are included in the output folder.") %>
+
+```{python, echo=False, results="md", name="show beta diversity plots"}
+utilities.show_all_variate_plots("univariate",vars["beta_diversity_plots"])
+```
+
+<% if vars["beta_diversity_plots"]["pairwise"] and vars["pdf_format"]: print("\clearpage") %>
+
+<% if vars["beta_diversity_plots"]["pairwise"]: print("## Pairwise") %>
+
+<% if vars["beta_diversity_plots"]["pairwise"]: print("Each categorical variable is run against all other categorical variables in a set of pairs.") %>
+
+```{python, echo=False, results="md", name="show pairwise plots"}
+utilities.show_all_variate_plots("pairwise",vars["beta_diversity_plots"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+<% if vars["beta_diversity_plots"]["multivariate"] and vars["pdf_format"]: print("\clearpage") %>
+
+<% if vars["beta_diversity_plots"]["multivariate"]: print("## Multivariate") %>
+
+```{python, echo=False, results="md"}
+vars["covariate_equation"]=utilities.get_covariate_equation("multivariate",vars["beta_diversity_plots"],vars["covariate_equation"])
+```
+
+<% if vars["beta_diversity_plots"]["multivariate"]: print("For the multivariate model, applying settings so the order of the variables does not affect the results, the following covariate equation was provided: 'bray ~ "+vars["covariate_equation"]+"' .") %>
+
+```{python, echo=False, results="md", name="show multivariate plots"}
+utilities.show_all_variate_plots("multivariate",vars["beta_diversity_plots"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+

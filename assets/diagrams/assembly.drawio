@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-09" version="21.0.0">
+  <diagram id="sgb-pipeline" name="SGB Pipeline">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="SGB Pipeline (--workflow sgb_pipeline)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="284" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Input -->
+        <mxCell id="input" value="Raw FASTQ reads&#xa;(--readsdir)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="484" y="75" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Step 1 KneadData -->
+        <mxCell id="s1" value="1. QUALITY_CONTROL&#xa;KneadData — host decontamination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="155" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Step 2 MEGAHIT -->
+        <mxCell id="s2" value="2. megahit&#xa;De novo assembly" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#16a085;strokeColor=#0d7060;fontColor=#ffffff;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="484" y="240" width="200" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ann_meg" value="--megahit_min_contig_length&#xa;--megahit_options" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="700" y="252" width="200" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Step 3 align + depth -->
+        <mxCell id="s3" value="3. align_and_depth&#xa;Bowtie2 align reads → contigs&#xa;jgi_summarize_bam_contig_depths" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#16a085;strokeColor=#0d7060;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="325" width="250" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 4 MetaBAT2 -->
+        <mxCell id="s4" value="4. metabat2&#xa;Bin contigs into MAGs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#16a085;strokeColor=#0d7060;fontColor=#ffffff;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="484" y="420" width="200" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Step 5a CheckM2 -->
+        <mxCell id="s5a" value="5a. checkm2&#xa;Completeness / contamination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#b7600e;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="515" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Step 5b mag_n50 -->
+        <mxCell id="s5b" value="5b. mag_n50&#xa;Assembly statistics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#b7600e;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="515" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Step 5c wrangling -->
+        <mxCell id="s5c" value="5c. checkm2_wrangling&#xa;Filter MAGs by quality thresholds&#xa;(--sgb_completeness / --sgb_contamination)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#b7600e;fontColor=#ffffff;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="620" width="250" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 6 PhyloPhlAn (parallel with 5c) -->
+        <mxCell id="s6" value="6. phylophlan_metagenomic&#xa;Phylogenetic placement&#xa;SGB / GGB / FGB assignment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8e44ad;strokeColor=#6c3483;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="620" width="220" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 7 Mash -->
+        <mxCell id="s7" value="7. Mash sketch → paste → dist&#xa;Pairwise genome distances" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="740" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Step 8 sgb_cluster -->
+        <mxCell id="s8" value="8. sgb_cluster&#xa;Cluster MAGs into SGBs (R)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="835" width="250" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="ann_sgb" value="--sgb_abundance_type&#xa;by_sample | by_dataset" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="724" y="848" width="200" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Step 9 merge_tax_abundance -->
+        <mxCell id="s9" value="9. merge_tax_abundance&#xa;Final SGB profile (taxonomy × abundance)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#27ae60;strokeColor=#1a7a42;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="459" y="935" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Output -->
+        <mxCell id="output" value="results/&#xa;megahit/ | metabat2/ | checkm2/&#xa;phylophlan/ | sgbs/ | pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="434" y="1030" width="300" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- version_log -->
+        <mxCell id="verlog" value="version_log → pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="750" y="935" width="190" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="input" target="s1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s1" target="s2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s2" target="s3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s3" target="s4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5a" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s4" target="s5a" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5b" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s4" target="s5b" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s4" target="s6" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="484" y="472" /><mxPoint x="230" y="472" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e5c1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s5a" target="s5c" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5c2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s5b" target="s5c" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7a" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s5c" target="s7" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7b" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s6" target="s7" parent="1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="230" y="770" /><mxPoint x="459" y="770" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e8"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s7" target="s8" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9"  style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s8" target="s9" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s9" target="output" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s9" target="verlog" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Legend -->
+        <mxCell id="leg_title" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="940" y="430" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="QC" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="465" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="Assembly / Binning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#16a085;strokeColor=#0d7060;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="498" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="Quality Assessment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e67e22;strokeColor=#b7600e;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="531" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="Phylogenomics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8e44ad;strokeColor=#6c3483;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="564" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" value="SGB Clustering" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="597" width="150" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" value="Final Output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#27ae60;strokeColor=#1a7a42;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="940" y="630" width="150" height="28" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

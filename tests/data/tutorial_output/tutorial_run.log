@@ -1,0 +1,87 @@
+[33mNextflow 26.04.3 is available - Please consider updating your version to it(B[m
+
+ N E X T F L O W   ~  version 24.10.4
+
+Launching `main.nf` [goofy_wegener] DSL2 - revision: 3bd995c189
+
+Running single_end_workflow
+[-        ] single_end_kneaddata -
+[-        ] metaphlan            -
+[-        ] metaphlan_bzip       -
+
+[-        ] single_end_kneaddata -
+[-        ] metaphlan            -
+[-        ] metaphlan_bzip       -
+[-        ] humann               -
+[-        ] baqlava              -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1
+[-        ] metaphlan                      -
+[-        ] metaphlan_bzip                 -
+[-        ] humann                         -
+[-        ] baqlava                        -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1
+[-        ] metaphlan_bzip                 -
+[-        ] humann                         -
+[-        ] baqlava                        -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[-        ] humann                         -
+[-        ] baqlava                        -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1
+[-        ] baqlava                        -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[-        ] baqlava                        -
+
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[-        ] baqlava                        | 0 of 1
+
+executor >  slurm (1)
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[80/0a7556] baq…qlava on HD32R1_subsample) | 0 of 1
+
+executor >  slurm (1)
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[80/0a7556] baq…qlava on HD32R1_subsample) | 0 of 1
+
+executor >  slurm (1)
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[80/0a7556] baq…qlava on HD32R1_subsample) | 1 of 1 ✔
+
+executor >  slurm (1)
+[3b/16a7b5] sin…neaddata HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[86/902cbc] met…phlan on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[2a/860315] met…_bzip on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[1c/9907fd] hum…umann on HD32R1_subsample) | 1 of 1, cached: 1 ✔
+[80/0a7556] baq…qlava on HD32R1_subsample) | 1 of 1 ✔
+Completed at: 11-Jun-2026 00:56:27
+Duration    : 2m 20s
+CPU hours   : 2.1 (93.5% cached)
+Succeeded   : 1
+Cached      : 4
+
+

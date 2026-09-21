@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-09" version="21.0.0">
+  <diagram id="16s-workflow" name="16S Workflow">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="750" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="16S Amplicon Workflow (--workflow 16s)  [🔜 Planned]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="234" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Status banner -->
+        <mxCell id="status" value="Status: STUB — planned implementation using DADA2 / QIIME2" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="284" y="65" width="600" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Input -->
+        <mxCell id="input" value="16S amplicon FASTQ reads&#xa;(--readsdir, paired V3-V4 region)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="125" width="300" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Step 1 QC -->
+        <mxCell id="s1" value="1. Quality filtering + trimming&#xa;(Trimmomatic / Cutadapt)&#xa;primer removal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="434" y="205" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 2 DADA2 / QIIME2 -->
+        <mxCell id="s2" value="2. Denoising / OTU clustering&#xa;DADA2 (ASV) or QIIME2 (OTU)&#xa;chimera removal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="434" y="300" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 3 taxonomy -->
+        <mxCell id="s3" value="3. Taxonomic assignment&#xa;SILVA / GreenGenes2 reference&#xa;Naive-Bayes classifier" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="434" y="395" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 4 diversity -->
+        <mxCell id="s4" value="4. Diversity analysis&#xa;α-diversity (Shannon / Chao1)&#xa;β-diversity (Bray-Curtis / UniFrac)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="434" y="490" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 5 report -->
+        <mxCell id="s5" value="5. Summary report&#xa;Feature table + taxonomy bar plots" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#27ae60;strokeColor=#1a7a42;fontColor=#ffffff;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="434" y="585" width="300" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Output -->
+        <mxCell id="output" value="results/&#xa;qiime2/ | dada2/ | taxonomy/&#xa;diversity/ | pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="434" y="670" width="300" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Note -->
+        <mxCell id="note" value="All boxes are planned.&#xa;Tool choice (DADA2 vs QIIME2) to be&#xa;configured via --sixteens_tool param." style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=left;fontSize=11;fontStyle=2;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="205" width="270" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="input" target="s1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s1"    target="s2" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s2"    target="s3" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s3"    target="s4" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s4"    target="s5" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s5"    target="output" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

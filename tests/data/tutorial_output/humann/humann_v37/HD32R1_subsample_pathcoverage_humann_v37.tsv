@@ -1,0 +1,54 @@
+# Pathway	HD32R1_subsample_Coverage
+UNMAPPED	1.0000000000
+UNINTEGRATED	1.0000000000
+UNINTEGRATED|unclassified	1.0000000000
+PWY-5686: UMP biosynthesis I	0.9999999963
+PWY-5686: UMP biosynthesis I|unclassified	0.9999999963
+PWY-7790: UMP biosynthesis II	0.9999999963
+PWY-7790: UMP biosynthesis II|unclassified	0.9999999963
+PWY-7791: UMP biosynthesis III	0.9999999963
+PWY-7791: UMP biosynthesis III|unclassified	0.9999999963
+PWY-7221: guanosine ribonucleotides de novo biosynthesis	0.9999968822
+PWY-7221: guanosine ribonucleotides de novo biosynthesis|unclassified	0.9999968822
+PWY0-1296: purine ribonucleosides degradation	0.1750825580
+PWY0-1296: purine ribonucleosides degradation|unclassified	0.1750825580
+PWY-6386: UDP-N-acetylmuramoyl-pentapeptide biosynthesis II (lysine-containing)	0.9987059701
+PWY-6386: UDP-N-acetylmuramoyl-pentapeptide biosynthesis II (lysine-containing)|unclassified	0.9987059701
+PWY-6163: chorismate biosynthesis from 3-dehydroquinate	0.9563893391
+PWY-6163: chorismate biosynthesis from 3-dehydroquinate|unclassified	0.9563893391
+PWY-6387: UDP-N-acetylmuramoyl-pentapeptide biosynthesis I (meso-diaminopimelate containing)	0.9983554902
+PWY-6387: UDP-N-acetylmuramoyl-pentapeptide biosynthesis I (meso-diaminopimelate containing)|unclassified	0.9983554902
+PWY-5695: inosine 5'-phosphate degradation	0.9862705500
+PWY-5695: inosine 5'-phosphate degradation|unclassified	0.9862705500
+PEPTIDOGLYCANSYN-PWY: peptidoglycan biosynthesis I (meso-diaminopimelate containing)	0.9886574582
+PEPTIDOGLYCANSYN-PWY: peptidoglycan biosynthesis I (meso-diaminopimelate containing)|unclassified	0.9886574582
+PWY-6385: peptidoglycan biosynthesis III (mycobacteria)	0.0123289305
+PWY-6385: peptidoglycan biosynthesis III (mycobacteria)|unclassified	0.0123289305
+PWY-6700: queuosine biosynthesis I (de novo)	0.4096504001
+PWY-6700: queuosine biosynthesis I (de novo)|unclassified	0.4096504001
+PWY-7953: UDP-N-acetylmuramoyl-pentapeptide biosynthesis III (meso-diaminopimelate containing)	0.0086622904
+PWY-7953: UDP-N-acetylmuramoyl-pentapeptide biosynthesis III (meso-diaminopimelate containing)|unclassified	0.0086622904
+NONMEVIPP-PWY: methylerythritol phosphate pathway I	0.0000000000
+NONMEVIPP-PWY: methylerythritol phosphate pathway I|unclassified	0.0000000000
+PWY-7228: superpathway of guanosine nucleotides de novo biosynthesis I	0.0000000000
+PWY-7228: superpathway of guanosine nucleotides de novo biosynthesis I|unclassified	0.0000000000
+PWY-6125: superpathway of guanosine nucleotides de novo biosynthesis II	0.0000000000
+PWY-6125: superpathway of guanosine nucleotides de novo biosynthesis II|unclassified	0.0000000000
+PWY-7220: adenosine deoxyribonucleotides de novo biosynthesis II	0.0000000000
+PWY-7220: adenosine deoxyribonucleotides de novo biosynthesis II|unclassified	0.0000000000
+PWY-7222: guanosine deoxyribonucleotides de novo biosynthesis II	0.0000000000
+PWY-7222: guanosine deoxyribonucleotides de novo biosynthesis II|unclassified	0.0000000000
+GLUTORN-PWY: L-ornithine biosynthesis I	0.0000000000
+GLUTORN-PWY: L-ornithine biosynthesis I|unclassified	0.0000000000
+PWY-6270: isoprene biosynthesis I	0.0000000000
+PWY-6270: isoprene biosynthesis I|unclassified	0.0000000000
+PWY-7560: methylerythritol phosphate pathway II	0.0000000000
+PWY-7560: methylerythritol phosphate pathway II|unclassified	0.0000000000
+PYRIDNUCSYN-PWY: NAD de novo biosynthesis I (from aspartate)	0.0000000000
+PYRIDNUCSYN-PWY: NAD de novo biosynthesis I (from aspartate)|unclassified	0.0000000000
+PWY-6609: adenine and adenosine salvage III	0.0000000000
+PWY-6609: adenine and adenosine salvage III|unclassified	0.0000000000
+PWY-6608: guanosine nucleotides degradation III	0.0000000000
+PWY-6608: guanosine nucleotides degradation III|unclassified	0.0000000000
+PWY-7761: NAD salvage pathway II (PNC IV cycle)	0.0000000000
+PWY-7761: NAD salvage pathway II (PNC IV cycle)|unclassified	0.0000000000

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-09" version="21.0.0">
+  <diagram id="mtx-workflow" name="MTX Workflow">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="MTX Workflow (--workflow mtx)  [🔜 Planned]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="234" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Status banner -->
+        <mxCell id="status" value="Status: STUB — planned implementation. Currently exits with a warning." style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="284" y="65" width="600" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Input -->
+        <mxCell id="input" value="Raw RNA FASTQ reads&#xa;(--readsdir)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="484" y="125" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Step 1 QC -->
+        <mxCell id="s1" value="1. QUALITY_CONTROL&#xa;KneadData (rRNA depletion + host removal)&#xa;(--run_qc)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="205" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 2 Tax profiling -->
+        <mxCell id="s2" value="2. TAXONOMIC_PROFILING&#xa;MetaPhlAn&#xa;(--run_taxonomic_profiling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7ab648;strokeColor=#4d8a2a;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="305" width="300" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- Step 3 Functional -->
+        <mxCell id="s3" value="3. FUNCTIONAL_PROFILING&#xa;HUMAnN (transcript-level)&#xa;→ regroup → rename → merge&#xa;(--run_functional_profiling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8a838;strokeColor=#b07820;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="405" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- version log -->
+        <mxCell id="verlog" value="version_log → pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="484" y="520" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Outputs -->
+        <mxCell id="output" value="results/&#xa;kneaddata/ | metaphlan/ | humann/&#xa;pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="434" y="595" width="300" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Note -->
+        <mxCell id="note" value="Key difference from MGX:&#xa;• KneadData uses rRNA depletion reference&#xa;• HUMAnN operates on transcripts (not DNA reads)&#xa;• Viral / strain profiling not applicable" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;fontSize=11;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="205" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="input"  target="s1"     parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s1"     target="s2"     parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s2"     target="s3"     parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s3"     target="verlog" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="verlog" target="output" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

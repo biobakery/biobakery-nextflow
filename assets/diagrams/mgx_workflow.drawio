@@ -1,0 +1,138 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="mgx-workflow" name="MGX Workflow">
+    <mxGraphModel dx="1347" dy="1557" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="scSfAwNqKPqfQNGHmQ5a-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(#FFFFFF,#1A1A1A);" value="" vertex="1">
+          <mxGeometry height="880" width="836" x="150" y="-26" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" value="MGX Workflow (--workflow mgx)" vertex="1">
+          <mxGeometry height="40" width="600" x="284" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="input" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" value="Raw FASTQ reads&#xa;(--readsdir)" vertex="1">
+          <mxGeometry height="50" width="200" x="484" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pe_dec" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="paired_end?" vertex="1">
+          <mxGeometry height="60" width="150" x="509" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="qc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=13;fontStyle=1;" value="QUALITY_CONTROL&#xa;KneadData&#xa;(--run_qc)" vertex="1">
+          <mxGeometry height="60" width="250" x="459" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="bypass_label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2;" value="bypass if run_qc=false" vertex="1">
+          <mxGeometry height="30" width="160" x="700" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="tax" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7ab648;strokeColor=#4d8a2a;fontColor=#ffffff;fontSize=13;fontStyle=1;" value="TAXONOMIC_PROFILING&#xa;MetaPhlAn + merge&#xa;(--run_taxonomic_profiling)" vertex="1">
+          <mxGeometry height="60" width="250" x="459" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="func" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8a838;strokeColor=#b07820;fontColor=#ffffff;fontSize=12;fontStyle=1;" value="FUNCTIONAL_PROFILING&#xa;HUMAnN → regroup → rename → merge&#xa;(--run_functional_profiling)" vertex="1">
+          <mxGeometry height="70" width="270" x="189" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="strain" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8e44ad;strokeColor=#6c3483;fontColor=#ffffff;fontSize=12;fontStyle=1;" value="STRAIN_PROFILING&#xa;StrainPhlAn SGB mode&#xa;(--run_strain_profiling)" vertex="1">
+          <mxGeometry height="70" width="200" x="750" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="verlog" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" value="version_log&#xa;pipeline_info/" vertex="1">
+          <mxGeometry height="50" width="200" x="484" y="675" as="geometry" />
+        </mxCell>
+        <mxCell id="outputs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="results/&#xa;kneaddata/ | metaphlan/ | humann/&#xa;baqlava/ | strainphlan/&#xa;pipeline_info/" vertex="1">
+          <mxGeometry height="70" width="350" x="409" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="input" style="edgeStyle=orthogonalEdgeStyle;" target="pe_dec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="pe_dec" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="509" y="190" />
+              <mxPoint x="415" y="190" />
+            </Array>
+            <mxPoint x="415" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2l" connectable="0" parent="e2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="true" vertex="1">
+          <mxGeometry relative="1" x="-0.1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="pe_dec" style="edgeStyle=orthogonalEdgeStyle;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="659" y="190" />
+              <mxPoint x="755" y="190" />
+            </Array>
+            <mxPoint x="755" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3l" connectable="0" parent="e3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="false" vertex="1">
+          <mxGeometry relative="1" x="-0.1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="qc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="584" y="249" />
+            </Array>
+            <mxPoint x="420" y="250" as="sourcePoint" />
+            <mxPoint x="577.9999999999998" y="279" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;" target="qc">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="584" y="250" />
+            </Array>
+            <mxPoint x="755" y="250" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="qc" style="edgeStyle=orthogonalEdgeStyle;" target="tax">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="tax" style="edgeStyle=orthogonalEdgeStyle;" target="func">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="tax" style="edgeStyle=orthogonalEdgeStyle;" target="viral">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="tax" style="edgeStyle=orthogonalEdgeStyle;" target="strain">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="func" style="edgeStyle=orthogonalEdgeStyle;" target="verlog">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="viral" style="edgeStyle=orthogonalEdgeStyle;" target="verlog">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="viral" style="edgeStyle=orthogonalEdgeStyle;" target="verlog">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="verlog" style="edgeStyle=orthogonalEdgeStyle;" target="outputs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Legend" vertex="1">
+          <mxGeometry height="30" width="80" x="204" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=11;" value="QC" vertex="1">
+          <mxGeometry height="28" width="80" x="204" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7ab648;strokeColor=#4d8a2a;fontColor=#ffffff;fontSize=11;" value="Taxonomy" vertex="1">
+          <mxGeometry height="28" width="80" x="204" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8a838;strokeColor=#b07820;fontColor=#ffffff;fontSize=11;" value="Function" vertex="1">
+          <mxGeometry height="28" width="80" x="204" y="221" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=11;" value="Viral" vertex="1">
+          <mxGeometry height="28" width="80" x="204" y="254" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8e44ad;strokeColor=#6c3483;fontColor=#ffffff;fontSize=11;" value="Strain" vertex="1">
+          <mxGeometry height="28" width="80" x="204" y="287" as="geometry" />
+        </mxCell>
+        <mxCell id="scSfAwNqKPqfQNGHmQ5a-1" edge="1" parent="1" source="strain" style="edgeStyle=orthogonalEdgeStyle;" target="viral" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="830" y="612" as="sourcePoint" />
+            <mxPoint x="584" y="650" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="viral" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=12;fontStyle=1;" value="VIRAL_PROFILING&#xa;BAQLaVa&#xa;(--run_viral_profiling)" vertex="1">
+          <mxGeometry height="70" width="200" x="484" y="580" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

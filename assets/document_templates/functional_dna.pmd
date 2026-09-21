@@ -1,0 +1,186 @@
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+# Functional Profiling of Metagenomic Reads
+
+<%= visualizations.ShotGun.captions["functional_intro"] %>
+
+```{python, echo=False, results="md", name="get top average pathways with filter"}
+dna_samples, dna_pathways, dna_data, top_names_and_descriptions = visualizations.top_average_pathways(
+    document, vars["dna_pathabundance"], vars["max_sets_heatmap"], get_all=True)
+
+dna_data_sum100 = [list(map(lambda x: x*100, i)) for i in dna_data]
+filtered_pathways, filtered_pathways_data = utilities.filter_data_abundance(dna_pathways,
+    dna_data_sum100, min_abundance=vars["min_abundance"], min_samples=vars["min_samples"])
+filtered_pathways_names = [top_names_and_descriptions[dna_pathways.index(pwy)] if pwy in dna_pathways else pwy for pwy in filtered_pathways]
+
+dna_samples, dna_top_average_pathways, dna_top_average_data, top_names_and_descriptions = visualizations.top_average_pathways(
+    document, vars["dna_pathabundance"], vars["max_sets_heatmap"])
+
+dna_samples_clustered, dna_top_average_pathways_clustered, dna_top_average_data_clustered, top_names_and_descriptions_clustered = visualizations.top_average_pathways(
+    document, vars["dna_pathabundance"], vars["max_sets_heatmap"], filter_correlation=True, correlation_threshold=vars["correlation_threshold"])
+
+print("Abundances are passed through a basic filter requiring each pathway to have at least "+str(vars["min_abundance"])+" % abundance in at least "+str(vars["min_samples"])+" % of all samples.")
+
+print("A total of "+str(len(dna_pathways))+" pathways were identified. After basic filtering "+str(len(filtered_pathways))+" pathways remained.")
+
+dna_top_average_pathways, dna_top_average_data, top_names_and_descriptions = utilities.subset_abundances(filtered_pathways, dna_top_average_pathways, dna_top_average_data, top_names_and_descriptions)
+
+if vars["dna_ecabundance"]:
+    dna_ecs_samples, dna_ecs, dna_ecs_data, top_ecs_names_and_descriptions = visualizations.top_average_pathways(
+        document, vars["dna_ecabundance"], vars["max_sets_heatmap"], get_all=True)
+
+    dna_ecs_data_sum100 = [list(map(lambda x: x*100, i)) for i in dna_ecs_data]
+    filtered_ecs, filtered_ecs_data = utilities.filter_data_abundance(dna_ecs,
+        dna_ecs_data_sum100, min_abundance=vars["min_abundance"], min_samples=vars["min_samples"])
+    filtered_ecs_names = [top_ecs_names_and_descriptions[dna_ecs.index(ec)] if ec in dna_ecs else ec for ec in filtered_ecs]
+
+    dna_ecs_samples, dna_top_average_ecs, dna_top_average_ecs_data, top_ecs_names_and_descriptions = visualizations.top_average_pathways(
+        document, vars["dna_ecabundance"], vars["max_sets_heatmap"])
+    dna_ecs_samples_clustered, dna_top_average_ecs_clustered, dna_top_average_ecs_data_clustered, top_ecs_names_and_descriptions_clustered = visualizations.top_average_pathways(
+        document, vars["dna_ecabundance"], vars["max_sets_heatmap"], filter_correlation=True, correlation_threshold=vars["correlation_threshold"])
+
+    print("A total of "+str(len(dna_ecs))+" ECs were identified. After basic filtering "+str(len(filtered_ecs))+" ECs remained.")
+
+    dna_top_average_ecs, dna_top_average_ecs_data, top_ecs_names_and_descriptions = utilities.subset_abundances(filtered_ecs, dna_top_average_ecs, dna_top_average_ecs_data, top_ecs_names_and_descriptions)
+
+```
+
+<%= "## Pathway and ECs Abundance" if vars["dna_ecabundance"] else "## Pathway Abundance" %>
+
+### Heatmaps
+
+<%= visualizations.ShotGun.format_caption("heatmap_intro",max_sets=vars["max_sets_heatmap"],type="pathways",method="Spearman and Bray-Curtis", data_type="pathways") %>
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+<% print("#### Pathways\n") %>
+
+```{python, echo=False, results="md", name="plot heatmap pathways"}
+visualizations.plot_heatmap(document,vars,dna_samples, top_names_and_descriptions, dna_top_average_data, vars["pdf_format"], "heatmap_pathways_spearman.png", "Top {} pathways by average abundance (Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+
+```{python, echo=False, results="md", name="plot heatmap pathways bray curtis"}
+visualizations.plot_heatmap(document,vars,dna_samples, top_names_and_descriptions, dna_top_average_data,vars["pdf_format"],"heatmap_pathways_bray_curtis.png","Top {} pathways by average abundance (Bray-Curtis)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],method="lbraycurtis")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap pathways zscore"}
+visualizations.plot_heatmap(document,vars,dna_samples, top_names_and_descriptions, dna_top_average_data,vars["pdf_format"],"heatmap_pathways_zscore.png","Top {} pathways by average abundance (Z-score)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],zscore=True)
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap pathways filtered spearman"}
+visualizations.plot_heatmap(document,vars,dna_samples_clustered, top_names_and_descriptions_clustered, dna_top_average_data_clustered,vars["pdf_format"],"heatmap_pathways_filtered_spearman.png","Top {} pathways by average abundance (Filtered Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+<% if vars["dna_ecabundance"]: print("#### ECs\n") %>
+
+```{python, echo=False, results="md", name="plot heatmap ecs"}
+if vars["dna_ecabundance"]:
+    visualizations.plot_heatmap(document,vars,dna_ecs_samples, top_ecs_names_and_descriptions, dna_top_average_ecs_data, vars["pdf_format"], "heatmap_ecs_spearman.png", "Top {} ECs by average abundance (Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap ecs bray curtis"}
+if vars["dna_ecabundance"]:
+    visualizations.plot_heatmap(document,vars,dna_ecs_samples, top_ecs_names_and_descriptions, dna_top_average_ecs_data,vars["pdf_format"],"heatmap_ecs_bray_curtis.png","Top {} ECs by average abundance (Bray-Curtis)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],method="lbraycurtis")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap ecs zscore"}
+if vars["dna_ecabundance"]:
+    visualizations.plot_heatmap(document,vars,dna_ecs_samples, top_ecs_names_and_descriptions, dna_top_average_ecs_data,vars["pdf_format"],"heatmap_ecs_zscore.png","Top {} ECs by average abundance (Z-score)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],zscore=True)
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap ecs filtered spearman"}
+if vars["dna_ecabundance"]:
+    visualizations.plot_heatmap(document,vars,dna_ecs_samples_clustered, top_ecs_names_and_descriptions_clustered, dna_top_average_ecs_data_clustered,vars["pdf_format"],"heatmap_ecs_filtered_spearman.png","Top {} ECs by average abundance (Filtered Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="show table top pathways"}
+pathway_file_name="top_average_pathways_names.tsv"
+average_abundance_variance=visualizations.write_pathway_average_variance_table(document, pathway_file_name, dna_top_average_data, top_names_and_descriptions)
+
+table_message=visualizations.show_table_max_rows(document, average_abundance_variance, 
+    top_names_and_descriptions, [" Average "," Variance "], 
+    "Top "+str(vars["max_sets_heatmap"])+" pathways by average abundance", pathway_file_name, font=5, outfilename=os.path.join(document.figures_folder,"pathways_table.png"))
+
+print(table_message)
+```
+
+<% visualizations.print_pathways_urls(dna_top_average_pathways,top_names_and_descriptions,3) %>
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+### Barcharts
+
+```{python, echo=False, results="md", name="plot stacked barchart pathways"}
+sorted_samples, sorted_pathways_data, top_pathways = visualizations.plot_stacked_barchart_taxonomy(document, samples, filtered_pathways_names, filtered_pathways_data, vars["max_sets_barplot"], "pathways")
+```
+
+Stacked barplot of <%= vars["max_sets_barplot"] %> most abundant pathways among samples. Samples in the plot were sorted on the pathways with the highest mean abundances among samples, in decreasing order.
+
+```{python, echo=False, results="md", name="plot grouped and average barplots pathways"}
+top_pathways_names = [top_names_and_descriptions[dna_pathways.index(pwy)] if pwy in dna_pathways else pwy for pwy in top_pathways]
+categorical_metadata = visualizations.plot_grouped_and_average_barplots_taxonomy(document, vars, sorted_samples, sorted_pathways_data, top_pathways_names, vars["max_sets_barplot"], vars["max_groups_barplot"], feature="pathways")
+```
+
+<% if categorical_metadata: print("Stacked barplot of pathways abundance grouped by metadata and pathways average abundance grouped by metadata. For cases where a variable has many levels only the first "+str(vars["max_groups_barplot"])+" grouped barplots will be shown.") %>
+
+```{python, echo=False, results="md", name="plot stacked barchart ecs"}
+if vars["dna_ecabundance"]:
+    sorted_samples, sorted_ecs_data, top_ecs = visualizations.plot_stacked_barchart_taxonomy(document, samples, filtered_ecs_names, filtered_ecs_data, vars["max_sets_barplot"], "ecs")
+```
+
+<% if vars["dna_ecabundance"]: print("Stacked barplot of "+str(vars["max_sets_barplot"])+" most abundant ECs among samples. Samples in the plot were sorted on the ECs with the highest mean abundances among samples, in decreasing order.") %>
+
+```{python, echo=False, results="md", name="plot grouped and average barplots ecs"}
+if vars["dna_ecabundance"]:
+    top_ecs_names = [top_ecs_names_and_descriptions[dna_ecs.index(ec)] if ec in dna_ecs else ec for ec in top_ecs]
+    categorical_metadata = visualizations.plot_grouped_and_average_barplots_taxonomy(document, vars, sorted_samples, sorted_ecs_data, top_ecs_names, vars["max_sets_barplot"], vars["max_groups_barplot"], feature="ECs")
+```
+
+<% if categorical_metadata and vars["dna_ecabundance"]: print("Stacked barplot of ECs abundance grouped by metadata and ECs average abundance grouped by metadata. For cases where a variable has many levels only the first "+str(vars["max_groups_barplot"])+" grouped barplots will be shown.") %>
+
+
+<% if vars["feature_counts"]: print("## Features") %>
+
+<% if vars["feature_counts"]: print(visualizations.ShotGun.format_caption("feature_detection",seq_type="metagenomic",seq_short_type="DNA")) %>
+
+```{python, echo=False, results="md", name="plot total reads by alignment method"}
+if vars["feature_counts"]:
+    total_reads, nucleotide_reads, translated_reads, genefamilies_counts, ecs_counts, pathabundance_counts = visualizations.feature_counts(
+        document, vars["read_counts"],vars["feature_counts"])
+
+    document.plot_scatter([[total_reads,nucleotide_reads],[total_reads,translated_reads]],title="Read alignment rate",
+        row_labels=["Nucleotide search","Nucleotide + translated search"],xlabel="log10(Input reads)", ylabel="log10(Aligned reads)", trendline=True)
+```
+
+<% if vars["feature_counts"]: print(visualizations.ShotGun.captions["scatter_reads_aligned"]) %> 
+
+```{python, echo=False, f_spines = False, results="md", name="plot reads by alignment method and function"}
+if vars["feature_counts"]:
+    document.plot_scatter([[nucleotide_reads,genefamilies_counts],[translated_reads,genefamilies_counts]],title="UniRef90 gene families",
+                       row_labels=["Nucleotide search","Nucleotide + translated search"],xlabel="log10(Aligned reads)", ylabel="log10(gene families)", trendline=True)
+
+    document.plot_scatter([[nucleotide_reads,ecs_counts],[translated_reads,ecs_counts]],title="Enzymes (ECs)",
+                       row_labels=["Nucleotide search","Nucleotide + translated search"],xlabel="log10(Aligned reads)", ylabel="log10(ECs)", trendline=True)
+
+    document.plot_scatter([[nucleotide_reads,pathabundance_counts],[translated_reads,pathabundance_counts]],title="Pathways",
+                       row_labels=["Nucleotide search","Nucleotide + translated search"],xlabel="log10(Aligned reads)", ylabel="log10(Pathways)", trendline=True)
+```
+
+<% if vars["feature_counts"]: print(visualizations.ShotGun.captions["scatter_features"]) %>
