@@ -29,7 +29,7 @@ workflow MTX {
     main:
     def no_file = file("${projectDir}/assets/NO_FILE")
 
-    read_ch = read_input(params.readsdir, 'mtx')
+    read_ch = read_input(params.readsdir, 'mtx', params.samplesheet, false)
 
     // ── QC (KneadData, metatranscriptome database set) ────────────────────
     if (params.run_qc) {

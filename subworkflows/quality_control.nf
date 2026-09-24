@@ -22,9 +22,18 @@ workflow QUALITY_CONTROL {
         error "ERROR: no KneadData reference database configured. Set --host_genome " +
               "(and --host_transcriptome / --rrna_db for metatranscriptome input)."
     }
-    // Pre-formed argument string: see the note in modules/kneaddata/main.nf on
-    // why a List must not be handed to a process val input.
-    def db_args = db_paths.collect { "--reference-db ${it}" }.join(' ')
+    // Make databases real Nextflow path inputs. This keeps the QC processes
+    // portable: a local/HPC directory is staged normally, while a cloud
+    // executor can localize a remote directory URI before KneadData starts.
+    // Passing the original URI as a val would instead hand KneadData a string
+    // such as dx://..., which is not a filesystem path it can open.
+    if (params.kneaddata_reference_mode == 'dxfuse') {
+        // Preserve the portable process signature without localizing the
+        // remote directory. The DNAnexus beforeScript creates the real path.
+        db_files = Channel.value([file("${projectDir}/assets/NO_FILE")])
+    } else {
+        db_files = Channel.value(db_paths.collect { file(it, checkIfExists: true) })
+    }
 
     // Split channel by library type
     paired_reads = reads
@@ -35,8 +44,8 @@ workflow QUALITY_CONTROL {
         .filter  { meta, r -> !meta.paired_end }
         .map     { meta, r -> tuple(meta.id, r) }
 
-    paired_out = paired_end_kneaddata(paired_reads, db_args, subdir)
-    single_out = single_end_kneaddata(single_reads, db_args, subdir)
+    paired_out = paired_end_kneaddata(paired_reads, db_files, subdir)
+    single_out = single_end_kneaddata(single_reads, db_files, subdir)
 
     // Re-attach meta map so downstream subworkflows get consistent channel shape
     cleaned_paired = paired_out.kneads.map { sample, reads -> [ [id: sample, paired_end: true],  reads ] }

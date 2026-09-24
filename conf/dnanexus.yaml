@@ -1,0 +1,52 @@
+# DNAnexus run template — initial MGX vertical slice
+#
+# Build the pipeline as a DNAnexus Nextflow executable and select the dnanexus
+# profile. Replace every placeholder before use. `outdir` must remain relative;
+# the job-level `--destination` selects the DNAnexus project output folder.
+#
+# Samplesheet mode is recommended on DNAnexus. Build and optionally upload one
+# with bin/build_samplesheet.py. Directory discovery remains available by
+# replacing `samplesheet` with `readsdir: dx://project-xxxx:/inputs/reads`.
+
+workflow: "mgx"
+
+# Qualified ID of the uploaded CSV samplesheet (not a dx:// URI because the
+# schema exposes this parameter as a DNAnexus file-class input).
+samplesheet: "project-xxxx:file-samplesheet"
+
+# Relative to the job's DNAnexus --destination.
+outdir: "results"
+
+# Fully qualified, immutable KneadData Docker tarball file object.
+dnanexus_container: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpK39Q0Kg1x9BZVK6J0gbfZ"
+
+# DNAnexus project folder containing the complete six-file Bowtie2 index.
+# The trailing slash identifies this as a folder URI. The first runtime pass
+# will decide whether it is localized by the executor or exposed through the
+# planned read-only dxfuse mount.
+host_genome: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/Databases/kneaddata/"
+kneaddata_reference_mode: "dxfuse"
+kneaddata_database_identity: "hg37dec_v0.1:file-JBpJzkj0Kg1x9BZVK6J0gZBy,file-JBpJzkj0Kg1x0yJKB0774vbB,file-JBpJzkj0Kg1x9BZVK6J0gZBv,file-JBpJzkj0Kg1XVj5pG9Q3qBFv,file-JBpJzkj0Kg1YX85x63ggpQ2K,file-JBpJzkj0Kg1VBFZzzPyJ7gP4"
+
+paired_end: true
+single_end: false
+pair_identifier: "_R{1,2}"
+
+run_qc: true
+stop_after_qc: true
+run_taxonomic_profiling: false
+run_functional_profiling: false
+
+# Keep non-core stages off until their containers and DNAnexus I/O have tests.
+run_vis: false
+run_stats: false
+run_strain_profiling: false
+run_viral_profiling: false
+
+log_versions: false
+
+# Ceilings, not fixed instance selections. DNAnexus maps each process's CPU and
+# memory request to an available instance type. Disk sizing is still pending.
+max_memory: "128.GB"
+max_cpus: 32
+max_time: "240.h"

@@ -13,12 +13,19 @@ include { ASSEMBLY } from './workflows/assembly.nf'
 // ── Router ─────────────────────────────────────────────────────────────────
 workflow {
 
-    // Validate required params for read-based workflows. mgx_mtx is the
-    // exception: it takes two input folders instead of one, and validates them
-    // itself, mirroring wmgx_wmtx.py replacing --input with --input-metagenome
-    // and --input-metatranscriptome.
-    if (!params.readsdir && params.workflow in ['mgx', 'mtx', '16s', 'assembly']) {
-        error "ERROR: --readsdir is required. Example: --readsdir /path/to/fastqs"
+    // Read-based workflows accept exactly one input mode. mgx_mtx validates its
+    // two-folder alternative itself because it has two assays.
+    if (params.workflow in ['mgx', 'mtx', 'assembly']) {
+        def input_modes = (params.readsdir ? 1 : 0) + (params.samplesheet ? 1 : 0)
+        if (input_modes != 1) {
+            error "ERROR: choose exactly one read input mode: --readsdir or --samplesheet."
+        }
+    }
+    if (params.stop_after_qc && !params.run_qc) {
+        error "ERROR: --stop_after_qc requires --run_qc true."
+    }
+    if (params.workflow == '16s' && !params.readsdir) {
+        error "ERROR: the current 16s stub requires --readsdir."
     }
 
     switch (params.workflow) {

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_id="${1:?usage: dnanexus_mount_kneaddata PROJECT_ID PROJECT_FOLDER INDEX_PREFIX}"
+project_folder="${2:?usage: dnanexus_mount_kneaddata PROJECT_ID PROJECT_FOLDER INDEX_PREFIX}"
+index_prefix="${3:?usage: dnanexus_mount_kneaddata PROJECT_ID PROJECT_FOLDER INDEX_PREFIX}"
+
+mount_root="${PWD}/.dxfuse"
+reference_link="${PWD}/kneaddata_reference"
+
+if ! command -v dxfuse >/dev/null 2>&1; then
+    echo "ERROR: dxfuse is not available in the KneadData task PATH." >&2
+    exit 70
+fi
+if [ ! -e /dev/fuse ]; then
+    echo "ERROR: /dev/fuse is not available to the KneadData task." >&2
+    exit 71
+fi
+
+mkdir -p "${mount_root}"
+rm -f "${reference_link}"
+
+echo "DNAnexus: mounting ${project_id}:${project_folder} read-only with dxfuse" >&2
+dxfuse -verbose 1 "${mount_root}" "${project_id}"
+
+# A single-project mount may expose project contents directly or below a
+# project-named child. Support both without embedding the mutable display name.
+reference_dir=""
+for attempt in $(seq 1 30); do
+    if [ -d "${mount_root}${project_folder}" ]; then
+        reference_dir="${mount_root}${project_folder}"
+    else
+        for candidate in "${mount_root}"/*; do
+            if [ -d "${candidate}${project_folder}" ]; then
+                reference_dir="${candidate}${project_folder}"
+                break
+            fi
+        done
+    fi
+    [ -n "${reference_dir}" ] && break
+    sleep 1
+done
+
+if [ -z "${reference_dir}" ]; then
+    echo "ERROR: dxfuse did not expose ${project_folder} beneath ${mount_root}." >&2
+    exit 72
+fi
+
+for suffix in 1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2; do
+    component="${reference_dir}/${index_prefix}.${suffix}"
+    if [ ! -r "${component}" ]; then
+        echo "ERROR: missing or unreadable Bowtie2 component: ${component}" >&2
+        exit 74
+    fi
+done
+
+ln -s "${reference_dir#${PWD}/}" "${reference_link}"
+echo "DNAnexus: verified mounted KneadData index ${index_prefix} at ${reference_dir}" >&2

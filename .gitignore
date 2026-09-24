@@ -20,3 +20,13 @@ tests/data/tutorial_output/**/.anadama/
 # python bytecode from the bin/scripts helpers
 __pycache__/
 *.pyc
+
+# Locally acquired DNAnexus container artifacts. Keep the staging directory,
+# never the multi-GB image archives or generated identity/checksum records.
+containers/*.tar
+containers/*.tar.gz
+containers/*.tgz
+containers/*.sha256
+containers/*.inspect.json
+containers/SHA256SUMS
+containers/container-lock.*

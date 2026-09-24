@@ -11,6 +11,7 @@ include { version_log }          from '../modules/utils/version_log/main.nf'
 include { stage_report_input }   from '../modules/utils/report_input/main.nf'
 include { REPORTING }            from '../subworkflows/reporting.nf'
 include { merge_pairs }          from '../modules/utils/merge_pairs/main.nf'
+include { intentional_stop_after_qc } from '../modules/utils/stop_after_qc/main.nf'
 
 // Whole Metagenome Shotgun (MGX) workflow
 workflow MGX {
@@ -19,14 +20,21 @@ workflow MGX {
     def no_file = file("${projectDir}/assets/NO_FILE")
 
     // ── Build input channel ────────────────────────────────────────────────
-    // Layout is detected from the filenames; see subworkflows/read_input.nf
-    read_ch = read_input(params.readsdir, 'mgx')
+    // Discovery and samplesheet modes emit the same canonical read channel.
+    read_ch = read_input(params.readsdir, 'mgx', params.samplesheet, false)
 
     // ── QC (KneadData) ────────────────────────────────────────────────────
     // A metagenome run decontaminates against the host genome only.
     if (params.run_qc) {
         QUALITY_CONTROL(read_ch, [params.host_genome], '')
         cleaned = QUALITY_CONTROL.out.reads
+
+        // Enabled only by an explicit bring-up profile/parameter. The input is
+        // the all-sample aggregate, so the intentional failure cannot happen
+        // until every KneadData task has completed successfully.
+        if (params.stop_after_qc) {
+            intentional_stop_after_qc(QUALITY_CONTROL.out.read_counts)
+        }
     } else {
         // Upstream bypasses quality control by merging each pair into one file
         // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
@@ -40,13 +48,13 @@ workflow MGX {
     }
 
     // ── Taxonomic profiling (MetaPhlAn) ───────────────────────────────────
-    if (params.run_taxonomic_profiling) {
+    if (!params.stop_after_qc && params.run_taxonomic_profiling) {
         TAXONOMIC_PROFILING(cleaned, '')
     }
 
     // Functional, viral and strain profiling all consume MetaPhlAn output, so
     // fail fast and consistently rather than silently skipping the stage.
-    if (!params.run_taxonomic_profiling) {
+    if (!params.stop_after_qc && !params.run_taxonomic_profiling) {
         def dependents = []
         if (params.run_functional_profiling) dependents << 'run_functional_profiling (HUMAnN needs the MetaPhlAn profile)'
         if (params.run_viral_profiling)      dependents << 'run_viral_profiling (BAQLaVa needs the MetaPhlAn profile)'
@@ -59,17 +67,17 @@ workflow MGX {
     }
 
     // ── Functional profiling (HUMAnN) ─────────────────────────────────────
-    if (params.run_functional_profiling) {
+    if (!params.stop_after_qc && params.run_functional_profiling) {
         FUNCTIONAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile, '')
     }
 
     // ── Viral profiling (BAQLaVa) ──────────────────────────────────────────
-    if (params.run_viral_profiling) {
+    if (!params.stop_after_qc && params.run_viral_profiling) {
         VIRAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile)
     }
 
     // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
-    if (params.run_strain_profiling) {
+    if (!params.stop_after_qc && params.run_strain_profiling) {
         STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
     }
 
@@ -77,7 +85,7 @@ workflow MGX {
     // ── Reports (vis / stats) ─────────────────────────────────────────────
     // Chained from the profiling channels rather than from params.outdir: see
     // modules/utils/report_input.
-    if (params.run_vis || params.run_stats) {
+    if (!params.stop_after_qc && (params.run_vis || params.run_stats)) {
         REPORTING(
             stage_report_input(
                 params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(no_file),
@@ -91,7 +99,7 @@ workflow MGX {
     }
 
     // ── Version logging ────────────────────────────────────────────────────
-    if (params.log_versions) {
+    if (!params.stop_after_qc && params.log_versions) {
         version_log()
     }
 }
