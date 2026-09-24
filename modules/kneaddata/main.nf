@@ -3,10 +3,10 @@ nextflow.enable.dsl=2
 
 // KneadData QC — single-end reads
 //
-// db_args is a pre-formed "--reference-db A --reference-db B ..." string rather
-// than a list: a Groovy List handed to a process `val` input is implicitly
-// converted with Channel.from(), which would fan the databases out into one
-// task per database instead of one task with several databases.
+// reference_dbs is a collection of staged directory inputs. Building the
+// command line inside the task ensures KneadData always receives ordinary
+// filesystem paths, regardless of whether the source was local, shared, or a
+// cloud URI handled by the active Nextflow executor.
 //
 // subdir places the published output under a per-assay folder ('' for a plain
 // mgx run, 'whole_metatranscriptome_shotgun/' for the mtx half of mgx_mtx), so
@@ -17,7 +17,7 @@ process single_end_kneaddata {
 
     input:
     tuple val(sample), path(reads)
-    val db_args
+    path reference_dbs
     val subdir
 
     output:
@@ -33,6 +33,12 @@ process single_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass      = params.kneaddata_bypass_trim               ? "--bypass-trim"                  : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"   : ""
+    def db_args = params.kneaddata_reference_mode == 'dxfuse'
+        ? "--reference-db kneaddata_reference"
+        : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
+            .collect { "--reference-db ${it}" }
+            .join(' ')
+    def db_identity = params.kneaddata_database_identity ?: 'not-declared'
     """
     kneaddata \\
         --unpaired $reads \\
@@ -44,6 +50,7 @@ process single_end_kneaddata {
         $remove_inter \\
         $extra_args
 
+    echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
     """
 }
@@ -56,7 +63,7 @@ process paired_end_kneaddata {
 
     input:
     tuple val(sample), path(reads)
-    val db_args
+    path reference_dbs
     val subdir
 
     output:
@@ -75,6 +82,12 @@ process paired_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass       = params.kneaddata_bypass_trim               ? "--bypass-trim"                 : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"  : ""
+    def db_args = params.kneaddata_reference_mode == 'dxfuse'
+        ? "--reference-db kneaddata_reference"
+        : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
+            .collect { "--reference-db ${it}" }
+            .join(' ')
+    def db_identity = params.kneaddata_database_identity ?: 'not-declared'
     """
     kneaddata \\
         -i1 ${reads[0]} \\
@@ -87,6 +100,7 @@ process paired_end_kneaddata {
         $remove_inter \\
         $extra_args
 
+    echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
 
     cat ${sample}_kneaddata_paired_1.fastq.gz \\
