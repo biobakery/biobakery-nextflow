@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://github.com/biobakery/biobakery-nextflow/nextflow_schema.json",
+  "title": "bioBakery Nextflow — DNAnexus MGX pilot",
+  "description": "Typed DNAnexus applet interface for the initial whole-metagenome profiling deployment. Samplesheet input is recommended; directory discovery remains available for compatibility.",
+  "type": "object",
+  "definitions": {
+    "input_output_options": {
+      "title": "Input and output",
+      "type": "object",
+      "properties": {
+        "workflow": {
+          "type": "string",
+          "enum": ["mgx"],
+          "default": "mgx",
+          "description": "The initial DNAnexus interface intentionally exposes only the MGX workflow."
+        },
+        "readsdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Discovery mode: DNAnexus URI for the project folder containing FASTQ files, for example dx://project-id:/inputs/reads. Mutually exclusive with samplesheet."
+        },
+        "samplesheet": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Samplesheet mode (recommended): CSV with sample, assay, read_1, and read_2 columns. Pass a qualified DNAnexus file reference such as project-id:file-id. Mutually exclusive with readsdir."
+        },
+        "outdir": {
+          "type": "string",
+          "default": "results",
+          "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*://).+$",
+          "description": "Relative publication folder beneath the DNAnexus job destination. Absolute paths and URIs are not allowed."
+        },
+        "input_metadata": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Optional study metadata file used only when reporting stages are enabled later."
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["readsdir"],
+          "not": {"required": ["samplesheet"]}
+        },
+        {
+          "required": ["samplesheet"],
+          "not": {"required": ["readsdir"]}
+        }
+      ]
+    },
+    "container_options": {
+      "title": "Container",
+      "type": "object",
+      "properties": {
+        "dnanexus_container": {
+          "type": "string",
+          "default": "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpK39Q0Kg1x9BZVK6J0gbfZ",
+          "minLength": 1,
+          "description": "Immutable KneadData Docker tarball reference. A bare file ID is resolved in the running DNAnexus project; use dx://project-id:file-id for another project."
+        }
+      },
+      "required": ["dnanexus_container"]
+    },
+    "library_options": {
+      "title": "Read layout",
+      "type": "object",
+      "properties": {
+        "paired_end": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow paired-end detection from read filenames."
+        },
+        "single_end": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force all reads to be processed as single-end."
+        },
+        "pair_identifier": {
+          "type": "string",
+          "default": "_R{1,2}",
+          "description": "Filename token used to identify read mates."
+        },
+        "filepattern": {
+          "type": "string",
+          "description": "Optional FASTQ glob overriding pair_identifier."
+        },
+        "filepattern_single": {
+          "type": "string",
+          "default": "*.fastq.gz",
+          "description": "FASTQ glob used for single-end input."
+        }
+      }
+    },
+    "stage_options": {
+      "title": "Pipeline stages",
+      "type": "object",
+      "properties": {
+        "run_qc": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run KneadData quality control and host depletion."
+        },
+        "run_taxonomic_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the KneadData-only DNAnexus slice."
+        },
+        "run_functional_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the KneadData-only DNAnexus slice."
+        },
+        "stop_after_qc": {
+          "type": "boolean",
+          "default": true,
+          "description": "Wait for every KneadData task and the aggregate read-count table, then fail intentionally before later stages."
+        },
+        "run_vis": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the first DNAnexus slice; visualization container coverage is pending."
+        },
+        "run_stats": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the first DNAnexus slice; statistics container coverage is pending."
+        },
+        "run_strain_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the first DNAnexus slice."
+        },
+        "run_viral_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disabled for the first DNAnexus slice."
+        }
+      }
+    },
+    "database_options": {
+      "title": "Reference databases",
+      "type": "object",
+      "properties": {
+        "host_genome": {
+          "type": "string",
+          "format": "directory-path",
+          "default": "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/Databases/kneaddata/",
+          "description": "KneadData host reference database directory. Required when run_qc is true."
+        },
+        "kneaddata_reference_mode": {
+          "type": "string",
+          "enum": ["staged", "dxfuse"],
+          "default": "dxfuse",
+          "description": "DNAnexus uses a task-local read-only dxfuse mount; other profiles default to ordinary Nextflow staging."
+        },
+        "kneaddata_database_identity": {
+          "type": "string",
+          "default": "hg37dec_v0.1:file-JBpJzkj0Kg1x9BZVK6J0gZBy,file-JBpJzkj0Kg1x0yJKB0774vbB,file-JBpJzkj0Kg1x9BZVK6J0gZBv,file-JBpJzkj0Kg1XVj5pG9Q3qBFv,file-JBpJzkj0Kg1YX85x63ggpQ2K,file-JBpJzkj0Kg1VBFZzzPyJ7gP4",
+          "description": "Immutable identity of the six Bowtie2 components, included in the Nextflow task command and resume hash."
+        },
+        "metaphlan_db": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "MetaPhlAn database directory. Required when taxonomic profiling is enabled."
+        },
+        "metaphlan_index": {
+          "type": "string",
+          "default": "mpa_vJun23_CHOCOPhlAnSGB_202307",
+          "description": "Exact MetaPhlAn database index identifier."
+        },
+        "humann_db": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "HUMAnN database root containing chocophlan and uniref. Required when functional profiling is enabled."
+        }
+      }
+    },
+    "tool_options": {
+      "title": "Tool contracts",
+      "type": "object",
+      "properties": {
+        "metaphlan_version": {
+          "type": "string",
+          "enum": ["metaphlan_v3", "metaphlan_v4", "metaphlan_4.0.6_fixed"],
+          "default": "metaphlan_v4",
+          "description": "MetaPhlAn command-line contract selector."
+        },
+        "metaphlan_analysis_type": {
+          "type": "string",
+          "enum": ["rel_ab", "rel_ab_w_read_stats", "marker_ab_table"],
+          "default": "rel_ab_w_read_stats"
+        },
+        "metaphlan_read_min_len": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 70
+        },
+        "humann_version": {
+          "type": "string",
+          "enum": ["humann_v37", "humann_v4a"],
+          "default": "humann_v37",
+          "description": "HUMAnN command-line contract selector."
+        },
+        "humann_bypass_prescreen": {
+          "type": "boolean",
+          "default": false
+        },
+        "humann_bypass_nucleotide_search": {
+          "type": "boolean",
+          "default": false
+        },
+        "run_humann_regroup": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_humann_rename": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_humann_merge": {
+          "type": "boolean",
+          "default": true
+        },
+        "humann_regroup_grouping": {
+          "type": "string",
+          "enum": ["uniref90_rxn", "uniref90_ko", "uniref90_eggnog", "uniref90_pfam"],
+          "default": "uniref90_rxn"
+        },
+        "kneaddata_bypass_trim": {
+          "type": "boolean",
+          "default": false
+        },
+        "kneaddata_remove_intermediate_files": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "provenance_options": {
+      "title": "Provenance",
+      "type": "object",
+      "properties": {
+        "log_versions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Record observed tool versions and run parameters."
+        }
+      }
+    },
+    "resource_options": {
+      "title": "Resource ceilings",
+      "type": "object",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "default": "128.GB",
+          "pattern": "^[1-9][0-9]*(\\.[0-9]+)?\\s*(KB|MB|GB|TB)$"
+        },
+        "max_cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 32
+        },
+        "max_time": {
+          "type": "string",
+          "default": "240.h",
+          "pattern": "^[1-9][0-9]*(\\.[0-9]+)?\\s*(ms|s|m|h|d)$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {"$ref": "#/definitions/input_output_options"},
+    {"$ref": "#/definitions/container_options"},
+    {"$ref": "#/definitions/library_options"},
+    {"$ref": "#/definitions/stage_options"},
+    {"$ref": "#/definitions/database_options"},
+    {"$ref": "#/definitions/tool_options"},
+    {"$ref": "#/definitions/provenance_options"},
+    {"$ref": "#/definitions/resource_options"}
+  ]
+}
