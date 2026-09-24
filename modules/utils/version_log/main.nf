@@ -56,6 +56,7 @@ process version_log {
         echo "----------------------------------------------------------------"
         echo "workflow:                    ${params.workflow}"
         echo "readsdir:                    ${params.readsdir}"
+        echo "samplesheet:                 ${params.samplesheet ?: '-'}"
         echo "input_metagenome:            ${params.input_metagenome ?: '-'}"
         echo "input_metatranscriptome:     ${params.input_metatranscriptome ?: '-'}"
         echo "input_mapping:               ${params.input_mapping ?: '-'}"
