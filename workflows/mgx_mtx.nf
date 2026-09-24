@@ -34,10 +34,13 @@ workflow MGX_MTX {
 
     main:
 
-    // Upstream replaces --input with two mandatory input folder options.
-    if (!params.input_metagenome || !params.input_metatranscriptome) {
-        error "ERROR: the mgx_mtx workflow needs both --input_metagenome and " +
-              "--input_metatranscriptome (folders of raw reads)."
+    // Either provide the two traditional discovery folders, or one samplesheet
+    // whose assay column separates mgx and mtx rows. Never combine the modes.
+    def any_folder = params.input_metagenome || params.input_metatranscriptome
+    def both_folders = params.input_metagenome && params.input_metatranscriptome
+    if ((params.samplesheet && any_folder) || (!params.samplesheet && !both_folders)) {
+        error "ERROR: mgx_mtx needs either --samplesheet (with assay=mgx/mtx) or " +
+              "both --input_metagenome and --input_metatranscriptome, but not both modes."
     }
 
     // Published under the same folder names biobakery_workflows 3.2 uses, so a
@@ -46,8 +49,8 @@ workflow MGX_MTX {
     def MGX_DIR = 'whole_metagenome_shotgun/'
     def MTX_DIR = 'whole_metatranscriptome_shotgun/'
 
-    mgx_reads = read_input(params.input_metagenome,        'mgx')
-    mtx_reads = read_input(params.input_metatranscriptome, 'mtx')
+    mgx_reads = read_input(params.input_metagenome,        'mgx', params.samplesheet, true)
+    mtx_reads = read_input(params.input_metatranscriptome, 'mtx', params.samplesheet, true)
 
     // ── Step 1: quality control, one database set per assay ───────────────
     if (params.run_qc) {

@@ -28,8 +28,8 @@ workflow ASSEMBLY {
     main:
 
     // ── Build input channel ───────────────────────────────────────────────
-    // Layout is detected from the filenames; see subworkflows/read_input.nf
-    reads = read_input(params.readsdir, 'assembly')
+    // Discovery and samplesheet modes emit the same canonical read channel.
+    reads = read_input(params.readsdir, 'assembly', params.samplesheet, false)
 
     // ── Step 1: Host decontamination (KneadData) ──────────────────────────
     // KneadData carries a "when: params.run_qc" guard, so with --run_qc false the
