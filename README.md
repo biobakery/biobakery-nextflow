@@ -19,6 +19,7 @@
    - [Tufts HPC](#tufts-hpc)
    - [AWS Batch](#aws-batch)
    - [Local / Docker](#local--docker)
+   - [Preparing DNAnexus container tarballs](#preparing-dnanexus-container-tarballs)
 4. [Quick Start](#quick-start)
 5. [Use Cases](#use-cases)
 6. [All Parameters](#all-parameters)
@@ -168,6 +169,123 @@ nextflow run main.nf -profile local \
 > **Note:** MetaPhlAn requires ≥ 15 GB RAM. A 16 GB laptop is often insufficient.
 > Prefer HPC or cloud for production runs.
 
+### Preparing DNAnexus container tarballs
+
+DNAnexus can run a Docker image stored as a Platform file object. The artifact
+must be the uncompressed tar archive produced by `docker image save`; do not use
+`docker export`, which loses image configuration and tag metadata. This
+repository provides `containers/` as a local staging directory, but ignores the
+large archives and generated metadata so they cannot be committed accidentally.
+
+The example below acquires the KneadData image from GHCR. Although the registry
+currently exposes it through `latest`, treat that tag only as a discovery alias:
+capture the digest resolved by this pull, verify the platform, and put the digest
+in the archive filename. Repeating the procedure later may resolve `latest` to
+different content.
+
+1. Start Docker and, for a private GHCR package, authenticate without putting a
+   token in shell history:
+
+   ```sh
+   printf '%s' "$GHCR_READ_TOKEN" | \
+     docker login ghcr.io --username "$GHCR_USER" --password-stdin
+   ```
+
+   Public packages do not require `docker login`.
+
+2. From the repository root, pull the execution architecture explicitly:
+
+   ```sh
+   IMAGE_REF='ghcr.io/klepac-ceraj-lab/kneaddata:latest'
+   IMAGE_PLATFORM='linux/amd64'
+
+   docker pull --platform "$IMAGE_PLATFORM" "$IMAGE_REF"
+   ```
+
+   Explicit `linux/amd64` is important when preparing an image on an ARM Mac.
+
+3. Capture and verify the immutable identity actually downloaded:
+
+   ```sh
+   RESOLVED_REF="$(
+     docker image inspect "$IMAGE_REF" --format '{{index .RepoDigests 0}}'
+   )"
+   IMAGE_OS="$(docker image inspect "$IMAGE_REF" --format '{{.Os}}')"
+   IMAGE_ARCH="$(docker image inspect "$IMAGE_REF" --format '{{.Architecture}}')"
+
+   case "$RESOLVED_REF" in
+     *@sha256:*) ;;
+     *) echo "Image has no resolved registry digest: $IMAGE_REF" >&2; exit 1 ;;
+   esac
+
+   if [ "$IMAGE_OS/$IMAGE_ARCH" != "$IMAGE_PLATFORM" ]; then
+     echo "Wrong image platform: $IMAGE_OS/$IMAGE_ARCH" >&2
+     exit 1
+   fi
+
+   printf 'source=%s\nresolved=%s\nplatform=%s/%s\n' \
+     "$IMAGE_REF" "$RESOLVED_REF" "$IMAGE_OS" "$IMAGE_ARCH"
+   ```
+
+4. Save the image. The filename is stable even though the acquisition alias was
+   `latest`:
+
+   ```sh
+   IMAGE_DIGEST="${RESOLVED_REF##*@sha256:}"
+   SHORT_DIGEST="$(printf '%s' "$IMAGE_DIGEST" | cut -c1-12)"
+   ARCHIVE="containers/kneaddata_${SHORT_DIGEST}_linux-amd64.tar"
+
+   docker image save --output "$ARCHIVE" "$IMAGE_REF"
+   docker image inspect "$IMAGE_REF" > "${ARCHIVE%.tar}.inspect.json"
+   ```
+
+   Keep the `.tar` uncompressed. DNAnexus documents `docker save` tarballs for
+   this runtime path and does not guarantee that a `.tar.gz` will be accepted.
+
+5. Inspect the archive and produce a checksum:
+
+   ```sh
+   tar -tf "$ARCHIVE" | sed -n '1,20p'
+   shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+   shasum -a 256 -c "$ARCHIVE.sha256"
+   ls -lh "$ARCHIVE" "$ARCHIVE.sha256" "${ARCHIVE%.tar}.inspect.json"
+   ```
+
+   A Docker image archive contains `manifest.json`, image configuration JSON,
+   repository/tag metadata, and its filesystem layers. Repeat steps 2–5 for
+   every required image, using a distinct descriptive archive prefix.
+
+6. Upload the tarball as a project-level file when ready. `/Resources/containers`
+   is our organizational convention, not DNAnexus's automatic cache directory:
+
+   ```sh
+   DX_PROJECT_ID='project-xxxx'
+
+   dx --project-context-id "$DX_PROJECT_ID" \
+     mkdir -p /Resources/containers
+
+   CONTAINER_FILE_ID="$(
+     dx --project-context-id "$DX_PROJECT_ID" \
+       upload "$ARCHIVE" \
+       --path "/Resources/containers/$(basename "$ARCHIVE")" \
+       --brief --no-progress
+   )"
+
+   printf 'container=dx://%s:%s\n' "$DX_PROJECT_ID" "$CONTAINER_FILE_ID"
+   ```
+
+   Upload the matching `.sha256` and identity JSON as provenance records. In a
+   Nextflow process, reference the tarball by its immutable file ID:
+
+   ```groovy
+   container 'dx://project-xxxx:file-yyyy'
+   ```
+
+DNAnexus's automatic `dx build --nextflow --cache-docker` mechanism instead
+uses `/.cached_docker_images/<image>/<image>_<version>`. Files uploaded under
+`/Resources/containers` are not discovered through that naming convention;
+they are deterministic manual resources and must be referenced by `dx://` ID.
+
 ---
 
 ## Quick Start
@@ -198,6 +316,85 @@ filenames, so neither flag is needed unless you want to force single-end on
 reads that do pair up. `--filepattern` is only for a naming convention the
 defaults do not match — `*.fastq.gz` for single-end and
 `*<pair_identifier>*.fastq.gz` for paired-end.
+
+### Explicit samplesheet input
+
+Read-based workflows accept exactly one input mode: `--readsdir` discovery or
+an explicit `--samplesheet`. Samplesheet mode is recommended for reproducible
+and DNAnexus runs. The CSV columns are:
+
+```csv
+sample,assay,read_1,read_2
+sample_a,mgx,/reads/sample_a_R1.fastq.gz,/reads/sample_a_R2.fastq.gz
+sample_b,mgx,/reads/sample_b.fastq.gz,
+```
+
+`assay` may be omitted for a single-assay run. It is required for `mgx_mtx`,
+where rows must use `mgx` or `mtx`. `read_2` is empty for single-end samples.
+The workflow rejects duplicate samples, duplicate read assignments, inaccessible
+files, invalid assay values, and malformed sample IDs before emitting tasks.
+
+Build a sheet independently from a local folder:
+
+```sh
+bin/build_samplesheet.py \
+  --reads-dir /path/to/fastqs \
+  --output samplesheet.csv \
+  --assay mgx
+```
+
+Or discover DNAnexus file objects and explicitly upload the completed sheet:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-xxxx:/inputs/reads \
+  --output samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_R(?P<mate>[12])(?:_001)?\.(?:fastq|fq)\.gz$' \
+  --upload-to project-xxxx:/inputs/samplesheets/
+```
+
+The upload form prints the qualified `project-...:file-...` reference to
+standard output, ready to pass as the applet's samplesheet input. It uses a
+command-scoped project context and does not run `dx select`. Generation never
+uploads unless `--upload-to` is present. Use `--layout single` to prevent mate
+detection, `--layout paired` to require every file to match a pair, or
+`--pair-regex` to state the naming convention explicitly. The expression must
+match the complete filename and define named `sample` and `mate` groups. Keep
+the expression in single quotes so the shell passes it unchanged.
+
+For Illumina-style names such as `sample_R1.fastq.gz`, `sample_R2.fastq.gz`,
+or the corresponding `_R1_001`/`_R2_001` forms:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-xxxx:/inputs/reads \
+  --output samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_R(?P<mate>[12])(?:_001)?\.(?:fastq|fq)\.gz$'
+```
+
+For SRA-style names such as `SRR27200889_1.fastq.gz` and
+`SRR27200889_2.fastq.gz`:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-JBVGpB00Kg1xBf54v05BXj6f:/Processing/rawfastq \
+  --output SRR27200889.samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_(?P<mate>[12])\.(?:fastq|fq)\.gz$'
+```
+
+Run the resulting sheet with:
+
+```sh
+nextflow run main.nf --workflow mgx \
+  --samplesheet samplesheet.csv \
+  [other required params]
+```
 
 ### Resume an interrupted run
 
@@ -563,7 +760,8 @@ the report was built from, and point a later standalone run straight at it.
 | Parameter | Default | Description |
 |---|---|---|
 | `--workflow` | `mgx` | Workflow: `mgx \| mtx \| mgx_mtx \| 16s \| vis \| stats \| assembly` |
-| `--readsdir` | *required* | Directory containing input FASTQ files (all workflows except `mgx_mtx`) |
+| `--readsdir` | *one of `readsdir` or `samplesheet`* | Discovery-mode directory containing input FASTQ files |
+| `--samplesheet` | *one of `readsdir` or `samplesheet`* | Explicit CSV assigning `sample`, optional `assay`, `read_1`, and optional `read_2` |
 | `--input_metagenome` | *required for `mgx_mtx`* | Folder of raw metagenome reads |
 | `--input_metatranscriptome` | *required for `mgx_mtx`* | Folder of raw metatranscriptome reads |
 | `--input_mapping` | `null` | `mgx_mtx` only. Tab-delimited `<rna sample>\t<dna sample>` per line, `#` comments allowed. With a mapping, RNA samples reuse the paired DNA sample's MetaPhlAn profile instead of being profiled themselves. |
@@ -579,6 +777,7 @@ the report was built from, and point a later standalone run straight at it.
 | Parameter | Default | Description |
 |---|---|---|
 | `--run_qc` | `true` | Run KneadData QC. Set `false` to start from cleaned reads. |
+| `--stop_after_qc` | `false` | Development gate: after all KneadData samples and the aggregate read-count table finish, fail intentionally without scheduling downstream stages. The initial DNAnexus profile sets this to `true`. |
 | `--run_taxonomic_profiling` | `true` | Run MetaPhlAn |
 | `--run_functional_profiling` | `true` | Run HUMAnN |
 | `--run_viral_profiling` | `false` | Run BAQLaVa viral profiling |
