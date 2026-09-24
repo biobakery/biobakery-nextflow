@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -u
+
+mount_root="${PWD}/.dxfuse"
+[ -d "${mount_root}" ] || exit 0
+
+if command -v mountpoint >/dev/null 2>&1 && ! mountpoint -q "${mount_root}"; then
+    exit 0
+fi
+
+if command -v fusermount3 >/dev/null 2>&1; then
+    fusermount3 -u "${mount_root}" || true
+elif command -v fusermount >/dev/null 2>&1; then
+    fusermount -u "${mount_root}" || true
+elif command -v umount >/dev/null 2>&1; then
+    umount "${mount_root}" || true
+fi
+
