@@ -1,0 +1,69 @@
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+# Quality Control
+
+```{python, echo=False, name="read qc counts"}
+(dna_paired_columns, dna_orphan_columns), dna_samples, (dna_paired_data, dna_orphan_data) = visualizations.qc_read_counts(document, vars["dna_read_counts"])
+```
+
+<% visualizations.ShotGun.print_qc_intro_caption(len(dna_samples), dna_paired_columns[2:], paired=True) %>
+
+## DNA Samples Quality Control
+
+### DNA Samples Tables of Filtered Reads
+
+```{python, echo=False, results="md", name="write qc table paired"}
+document.write_table(["# Sample"]+dna_paired_columns, dna_samples, dna_paired_data,
+    files.ShotGunVis.path("qc_counts_paired",document.data_folder))
+
+table_message=visualizations.show_table_max_rows(document, dna_paired_data, dna_samples,
+    dna_paired_columns, "DNA Paired end reads", files.ShotGunVis.path("qc_counts_paired"),
+    format_data_comma=True, outfilename=os.path.join(document.figures_folder,"qc_table_paired.png"))
+```        
+
+<%= table_message %>
+
+```{python, echo=False, results="md", name="write qc table orphan"}
+document.write_table(["# Sample"]+dna_orphan_columns, dna_samples, dna_orphan_data,
+    files.ShotGunVis.path("qc_counts_orphan",document.data_folder))
+
+table_message=visualizations.show_table_max_rows(document, dna_orphan_data, dna_samples,
+    dna_orphan_columns, "DNA Orphan reads", files.ShotGunVis.path("qc_counts_orphan"),
+    format_data_comma=True, outfilename=os.path.join(document.figures_folder,"qc_table_orphan.png"))
+```        
+
+<%= table_message %>  
+
+```{python, echo=False, results="md", name="compute read ratios and show table"}
+dna_microbial_reads, dna_microbial_labels = utilities.microbial_read_proportion_multiple_databases(
+    dna_paired_data, dna_paired_columns, dna_orphan_data)
+
+document.write_table(["# Sample"]+dna_microbial_labels, dna_samples, 
+    dna_microbial_reads, files.ShotGunVis.path("microbial_counts",document.data_folder))
+
+table_message=visualizations.show_table_max_rows(document, dna_microbial_reads, dna_samples,
+    dna_microbial_labels, "DNA microbial read proportion",
+    files.ShotGunVis.path("microbial_counts"), outfilename=os.path.join(document.figures_folder,"ratio_table.png"))   
+```
+        
+<%= visualizations.ShotGun.captions["microbial_ratios"] %>   
+        
+<%= table_message %>
+        
+### DNA Samples Plots of Filtered Reads
+
+```{python, echo=False, results="md", name="plot filtered read counts"}
+
+sorted_samples, sorted_all_read_data = visualizations.sort_samples_reads_decreasing(numpy.transpose(dna_paired_data), dna_samples)
+
+document.plot_grouped_barchart(sorted_all_read_data, row_labels=dna_paired_columns, 
+    column_labels=sorted_samples, title="DNA Paired end reads", ylabel="Read count (in millions)",
+    legend_title="Filter", yaxis_in_millions=True,outfilename=os.path.join(document.figures_folder,"dna_read_count.png"))
+
+sorted_samples, sorted_all_read_data = visualizations.sort_samples_reads_decreasing(numpy.transpose(dna_orphan_data), dna_samples)
+
+document.plot_grouped_barchart(sorted_all_read_data, row_labels=dna_orphan_columns, 
+    column_labels=sorted_samples, title="DNA Orphan reads", ylabel="Read count (in millions)",
+    legend_title="Filter", yaxis_in_millions=True,outfilename=os.path.join(document.figures_folder,"dna_read_count_orphan.png"))
+```

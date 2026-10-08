@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-07-09" version="21.0.0">
+  <diagram id="mgx-mtx-workflow" name="MGX+MTX Workflow">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="MGX + MTX Joint Workflow (--workflow mgx_mtx)  [🚧 Partial]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="900" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Status banner -->
+        <mxCell id="status" value="Status: PARTIAL — MGX arm fully implemented; MTX arm planned" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=center;verticalAlign=middle;fontSize=12;fontStyle=2;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="334" y="65" width="600" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Inputs -->
+        <mxCell id="mgx_in" value="MGX FASTQ reads&#xa;(DNA, --readsdir)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="200" y="125" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mtx_in" value="MTX FASTQ reads&#xa;(RNA, --mtxdir [planned])" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="900" y="125" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ── MGX arm (left) ── -->
+        <mxCell id="mgx_hdr" value="MGX arm" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#1a6aaa;" vertex="1" parent="1">
+          <mxGeometry x="175" y="190" width="250" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mgx_qc"  value="QUALITY_CONTROL&#xa;KneadData" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4a90d9;strokeColor=#1a6aaa;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="175" y="225" width="220" height="50" as="geometry" /></mxCell>
+        <mxCell id="mgx_tax" value="TAXONOMIC_PROFILING&#xa;MetaPhlAn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7ab648;strokeColor=#4d8a2a;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="175" y="305" width="220" height="50" as="geometry" /></mxCell>
+        <mxCell id="mgx_fun" value="FUNCTIONAL_PROFILING&#xa;HUMAnN (DNA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8a838;strokeColor=#b07820;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="175" y="385" width="220" height="50" as="geometry" /></mxCell>
+        <mxCell id="mgx_vir" value="VIRAL_PROFILING&#xa;BAQLaVa (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c0392b;strokeColor=#922b21;fontColor=#ffffff;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="175" y="465" width="220" height="50" as="geometry" /></mxCell>
+
+        <!-- ── MTX arm (right, planned) ── -->
+        <mxCell id="mtx_hdr" value="MTX arm (planned)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="875" y="190" width="250" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mtx_qc"  value="QUALITY_CONTROL&#xa;KneadData + rRNA depletion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="875" y="225" width="240" height="50" as="geometry" /></mxCell>
+        <mxCell id="mtx_fun" value="FUNCTIONAL_PROFILING&#xa;HUMAnN (RNA transcripts)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontColor=#333333;fontSize=12;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="875" y="305" width="240" height="50" as="geometry" /></mxCell>
+
+        <!-- ── Joint integration ── -->
+        <mxCell id="join_hdr" value="Joint integration" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1;fontColor=#27ae60;" vertex="1" parent="1">
+          <mxGeometry x="490" y="390" width="300" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="join1" value="RNA/DNA ratio calculation&#xa;(transcript-level gene activity)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#27ae60;strokeColor=#1a7a42;fontColor=#ffffff;fontSize=12;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="490" y="425" width="300" height="55" as="geometry" /></mxCell>
+        <mxCell id="join2" value="Merged community profile&#xa;(DNA taxonomy × RNA function)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#27ae60;strokeColor=#1a7a42;fontColor=#ffffff;fontSize=12;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="490" y="510" width="300" height="55" as="geometry" /></mxCell>
+
+        <!-- version log -->
+        <mxCell id="verlog" value="version_log → pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="540" y="600" width="200" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- output -->
+        <mxCell id="output" value="results/&#xa;kneaddata/ | metaphlan/ | humann_dna/ | humann_rna/&#xa;mgx_mtx_integrated/ | pipeline_info/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="670" width="400" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Edges - MGX arm -->
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mgx_in"  target="mgx_qc"  parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mgx_qc"  target="mgx_tax" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mgx_tax" target="mgx_fun" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mgx_fun" target="mgx_vir" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Edges - MTX arm -->
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mtx_in"  target="mtx_qc"  parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mtx_qc"  target="mtx_fun" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Edges - join -->
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mgx_fun" target="join1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="mtx_fun" target="join1" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="join1"  target="join2"  parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="join2"  target="verlog" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="verlog" target="output" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Planned note -->
+        <mxCell id="note" value="Dashed / italic boxes = planned, not yet implemented.&#xa;Current implementation runs the MGX arm only." style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=left;fontSize=11;fontStyle=2;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="315" width="300" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

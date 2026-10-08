@@ -1,0 +1,29 @@
+#mpa_vJun23_CHOCOPhlAnSGB_202307
+#/n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.1.1/bin/metaphlan HD32R1_subsample_kneaddata.fastq.gz -o HD32R1_subsample_profile_mpa_vJun23_CHOCOPhlAnSGB_202307.tsv --bowtie2out HD32R1_subsample_bowtie2_mpa_vJun23_CHOCOPhlAnSGB_202307.tsv --samout HD32R1_subsample_mpa_vJun23_CHOCOPhlAnSGB_202307.sam --input_type fastq --nproc 8 --bowtie2db /n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.1.1/lib/python3.10/site-packages/metaphlan/metaphlan_databases --index mpa_vJun23_CHOCOPhlAnSGB_202307 -t rel_ab_w_read_stats
+#34611 reads processed
+#Average read length 94.83066077258675
+#SampleID	Metaphlan_Analysis
+#estimated_reads_mapped_to_known_clades:6805
+#clade_name	clade_taxid	relative_abundance	coverage	estimated_number_of_reads_from_the_clade
+k__Bacteria	2	100.0	0.00163	6805
+k__Bacteria|p__Bacteroidota	2|976	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes	2|1239	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria	2|201174	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia	2|976|200643	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli	2|1239|91061	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia	2|201174|1760	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales	2|976|200643|171549	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli|o__Lactobacillales	2|1239|91061|186826	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia|o__Bifidobacteriales	2|201174|1760|85004	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae	2|976|200643|171549|815	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli|o__Lactobacillales|f__Streptococcaceae	2|1239|91061|186826|1300	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia|o__Bifidobacteriales|f__Bifidobacteriaceae	2|201174|1760|85004|31953	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae|g__Phocaeicola	2|976|200643|171549|815|909656	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli|o__Lactobacillales|f__Streptococcaceae|g__Streptococcus	2|1239|91061|186826|1300|1301	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Bifidobacterium	2|201174|1760|85004|31953|1678	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae|g__Phocaeicola|s__Phocaeicola_vulgatus	2|976|200643|171549|815|909656|821	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli|o__Lactobacillales|f__Streptococcaceae|g__Streptococcus|s__Streptococcus_salivarius	2|1239|91061|186826|1300|1301|1304	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Bifidobacterium|s__Bifidobacterium_longum	2|201174|1760|85004|31953|1678|216816	1.58636	3e-05	62
+k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales|f__Bacteroidaceae|g__Phocaeicola|s__Phocaeicola_vulgatus|t__SGB1814	2|976|200643|171549|815|909656|821|	69.27744	0.00113	5698
+k__Bacteria|p__Firmicutes|c__Bacilli|o__Lactobacillales|f__Streptococcaceae|g__Streptococcus|s__Streptococcus_salivarius|t__SGB8007_group	2|1239|91061|186826|1300|1301|1304|	29.1362	0.00047	1045
+k__Bacteria|p__Actinobacteria|c__Actinomycetia|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Bifidobacterium|s__Bifidobacterium_longum|t__SGB17248	2|201174|1760|85004|31953|1678|216816|	1.58636	3e-05	62

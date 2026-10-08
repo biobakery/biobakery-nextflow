@@ -1,0 +1,205 @@
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+# Taxonomic Profiling of Metagenomic Reads
+
+This report section contains information about the taxonomy
+for all DNA samples. These samples were
+run through [MetaPhlAn](http://huttenhower.sph.harvard.edu/metaphlan).
+
+Taxonomic abundances are passed through a basic filter requiring each species or genus to have at least <%= vars["min_abundance"] %> % abundance in at least <%= vars["min_samples"] %> % of all samples.
+
+```{python, echo=False, name="read metaphlan profile and filter"}
+samples, taxonomy, data = utilities.read_metaphlan_profile(document,vars["taxonomic_profile"])
+
+# get the filtered species
+species_taxonomy, species_data = utilities.filter_taxa_level_metaphlan_format(taxonomy,data)
+filtered_species_taxonomy, filtered_species_data = utilities.filter_taxa_level_metaphlan_format(taxonomy,
+    data, min_abundance=vars["min_abundance"], min_samples=vars["min_samples"])
+
+species_clustered_taxonomy, species_clustered_data = utilities.filter_correlation(species_taxonomy, species_data,vars["correlation_threshold"],max_return=vars["max_sets_heatmap"]*2)
+
+# get the filtered genera
+genera_taxonomy, genera_data = utilities.filter_taxa_level_metaphlan_format(taxonomy,data,level=5)
+filtered_genera_taxonomy, filtered_genera_data = utilities.filter_taxa_level_metaphlan_format(taxonomy,
+    data, min_abundance=vars["min_abundance"], min_samples=vars["min_samples"], level=5)
+
+genera_clustered_taxonomy, genera_clustered_data = utilities.filter_correlation(genera_taxonomy, genera_data,vars["correlation_threshold"],max_return=vars["max_sets_heatmap"]*2)
+```
+
+A total of <%= len(species_taxonomy) %> species and <%= len(genera_taxonomy) %> genera were identified. After basic filtering <%= len(filtered_species_taxonomy) %> species and <%= len(filtered_genera_taxonomy) %> genera remained.
+
+## Taxonomic Count Table
+
+```{python, echo=False, results="md", name="compile species and genera and show table of counts"}
+
+# compile the taxa counts for the table
+all_taxa_counts=utilities.compile_taxa_counts(species_data,filtered_species_data,genera_data,filtered_genera_data)
+
+# write a table as a file and also print table to the document
+taxa_counts_column_names = ["# Sample","Species","Species filtered","Genera","Genera filtered"]
+document.write_table(taxa_counts_column_names, samples, all_taxa_counts,
+    files.ShotGunVis.path("taxa_counts",document.data_folder))
+
+table_message=visualizations.show_table_max_rows(document, all_taxa_counts, samples,
+    taxa_counts_column_names[1:],"Total taxa per sample",files.ShotGunVis.path("taxa_counts"),outfilename=os.path.join(document.figures_folder,"taxa_table.png"))
+```
+
+<%= table_message %>
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="find alpha diversity plots"}
+# search for the alpha diversity plots
+alpha_diversity_plots_folder=utilities.find_alpha_diversity_plots(vars["alpha_diversity_plots"]) 
+```
+
+<% if alpha_diversity_plots_folder['scatterplot'] or alpha_diversity_plots_folder['boxplot']: print("## Alpha Diversity") %>
+
+<% if alpha_diversity_plots_folder['scatterplot'] or alpha_diversity_plots_folder['boxplot']: print("Alpha diversity, computed with the Inverse Simpson Index, were computed on un-filtered normalized data at the species level. Boxplots were generated for categorical/discrete variables while scatterplots were generated for continuous variables.") %> 
+
+<% if alpha_diversity_plots_folder['boxplot']: print("### Categorical variables ") %>
+
+```{python, echo=False, results="md", name="show alpha diversity boxplots"}
+utilities.show_plots(alpha_diversity_plots_folder['boxplot'])
+```
+
+<% if alpha_diversity_plots_folder['scatterplot']: print("### Continuous variables ") %>
+
+```{python, echo=False, results="md", name="show alpha diversity scatterplots"}
+utilities.show_plots(alpha_diversity_plots_folder['scatterplot'])
+```
+
+## Ordination
+
+### Species
+
+```{python, echo=False, results="md", name="show pcoa species"}
+top_taxonomy, top_data = utilities.top_rows(species_taxonomy, species_data, vars["max_sets_heatmap"], function="average")
+top_clustered_taxonomy, top_clustered_data = utilities.top_rows(species_clustered_taxonomy, species_clustered_data, vars["max_sets_heatmap"], function="average")
+
+pcoa_data=numpy.array(species_data)/100.0
+# Bind the caption before the call. pweave catches an exception inside a chunk,
+# prints it into the report and carries on, but the inline "<%= caption %>"
+# below then raises NameError and kills the whole render. show_pcoa does raise
+# on a study too small or too sparse to ordinate -- "float division by zero", or
+# its samples-as-columns check -- which is exactly when losing the entire report
+# is the worst outcome.
+caption=""
+caption=document.show_pcoa(samples,species_taxonomy,pcoa_data,"PCoA ordination of species abundance using Bray-Curtis dissimilarity",outfilename=os.path.join(document.figures_folder,"pcoa_species.png"))
+```
+
+<%= caption %>
+
+```{python, echo=False, results="md", name="show pcoa with metadata species"}
+visualizations.show_pcoa_metadata(document, vars, samples, species_taxonomy, pcoa_data, title="PCoA ordination of species abundance using Bray-Curtis dissimilarity", data_type="species")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+### Genera
+
+```{python, echo=False, results="md", name="show pcoa genera"}
+top_taxonomy_genera, top_data_genera = utilities.top_rows(genera_taxonomy, genera_data, vars["max_sets_heatmap"], function="average")
+top_clustered_taxonomy_genera, top_clustered_data_genera = utilities.top_rows(genera_clustered_taxonomy, genera_clustered_data, vars["max_sets_heatmap"], function="average")
+
+pcoa_data_genera=numpy.array(genera_data)/100.0
+caption_genera=""   # see the note on caption above
+caption_genera=document.show_pcoa(samples,genera_taxonomy,pcoa_data_genera, "PCoA ordination of genera abundance using Bray-Curtis dissimilarity",feature_types="genera",outfilename=os.path.join(document.figures_folder,"pcoa_genera.png"))
+```
+
+<%= caption_genera %>
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="show pcoa metadata genera"}
+visualizations.show_pcoa_metadata(document, vars, samples,genera_taxonomy, pcoa_data_genera, title="PCoA ordination of genera abundance using Bray-Curtis dissimilarity", data_type="genera")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+## Heatmaps
+
+
+<%= visualizations.ShotGun.format_caption("heatmap_intro",max_sets=vars["max_sets_heatmap"],type="species and genera",method="Spearman and Bray-Curtis",data_type="taxa") %>
+
+
+### Species
+
+```{python, echo=False, results="md", name="plot heatmap species spearman"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy,top_data,vars["pdf_format"], "heatmap_species_spearman.png", "Top {} species by average abundance (Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap species bray curtis"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy,top_data,vars["pdf_format"],"heatmap_species_bray_curtis.png","Top {} species by average abundance (Bray-Curtis)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],method="lbraycurtis")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap species zscore"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy,top_data,vars["pdf_format"],"heatmap_species_zscore.png","Top {} species by average abundance (Z-score)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],zscore=True)
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap species correlation"}
+visualizations.plot_heatmap(document,vars,samples,top_clustered_taxonomy,top_clustered_data,vars["pdf_format"],"heatmap_species_filtered_spearman.png","Top {} species by average abundance (Filtered Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+### Genera
+
+```{python, echo=False, results="md", name="plot heatmap genera spearman"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy_genera,top_data_genera,vars["pdf_format"],"heatmap_genus_spearman.png", "Top {} genera by average abundance (Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap genera bray curtis"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy_genera,top_data_genera,vars["pdf_format"],"heatmap_genus_bray_curtis.png","Top {} genera by average abundance (Bray-Curtis)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],method="lbraycurtis")
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap genera zscore"}
+visualizations.plot_heatmap(document,vars,samples,top_taxonomy_genera,top_data_genera,vars["pdf_format"],"heatmap_genus_zscore.png","Top {} genera by average abundance (Z-score)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"],zscore=True)
+```
+
+<% if vars["pdf_format"]: print("\clearpage") %>
+
+```{python, echo=False, results="md", name="plot heatmap genera correlation"}
+visualizations.plot_heatmap(document,vars,samples,top_clustered_taxonomy_genera,top_clustered_data_genera,vars["pdf_format"],"heatmap_genus_filtered_spearman.png","Top {} species by average abundance (Filtered Spearman)".format(vars["max_sets_heatmap"]),vars["max_sets_heatmap"])
+```
+
+## Barplot
+
+### Species
+
+```{python, echo=False, results="md", name="plot stacked barchart species"}
+sorted_samples, sorted_data, top_taxonomy = visualizations.plot_stacked_barchart_taxonomy(document, samples, species_taxonomy, species_data, vars["max_sets_barplot"], "species")
+```
+
+Stacked barplot of <%= vars["max_sets_barplot"] %> most abundant species among samples. Samples in the plot were sorted on the species with the highest mean abundances among samples, in decreasing order.
+
+```{python, echo=False, results="md", name="plot grouped and average barplots species"}
+categorical_metadata = visualizations.plot_grouped_and_average_barplots_taxonomy(document, vars, sorted_samples, sorted_data, top_taxonomy, vars["max_sets_barplot"], vars["max_groups_barplot"])
+```
+
+<% if categorical_metadata: print("Stacked barplot of species abundance grouped by metadata and species average abundance grouped by metadata. For cases where a variable has many levels only the first "+str(vars["max_groups_barplot"])+" grouped barplots will be shown.") %>
+
+
+### Genera
+
+```{python, echo=False, results="md", name="plot stacked barchart genera"}
+sorted_samples_genera, sorted_data_genera, top_taxonomy_genera = visualizations.plot_stacked_barchart_taxonomy(document, samples, genera_taxonomy, genera_data, vars["max_sets_barplot"], "genera")
+```
+
+Stacked barplot of <%= vars["max_sets_barplot"] %> most abundant genera among samples. Samples in the plot were sorted on the genera with the highest mean abundances among samples, in decreasing order.
+
+```{python, echo=False, results="md", name="plot grouped and average barplots genera"}
+categorical_metadata=visualizations.plot_grouped_and_average_barplots_taxonomy(document, vars, sorted_samples_genera, sorted_data_genera, top_taxonomy_genera, vars["max_sets_barplot"], vars["max_groups_barplot"], feature="genera")
+```
+
+<% if categorical_metadata: print("Stacked barplot of genera abundance grouped by metadata and genera average abundance grouped by metadata. For cases where a variable has many levels only the first "+str(vars["max_groups_barplot"])+" grouped barplots will be shown.") %>
+
+

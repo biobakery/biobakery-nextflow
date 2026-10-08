@@ -1,0 +1,79 @@
+06/10/2026 10:55:57 PM - kneaddata.knead_data - INFO: Running kneaddata v0.12.0
+06/10/2026 10:55:57 PM - kneaddata.knead_data - INFO: Output files will be written to: /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef
+06/10/2026 10:55:57 PM - kneaddata.knead_data - DEBUG: Running with the following arguments: 
+verbose = False
+input1 = None
+input2 = None
+unpaired = HD32R1_subsample.fastq.gz
+output_dir = /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef
+scratch_dir = 
+reference_db = /n/lab_storage/huttenhower_lab/data/kneaddata_databases/hg38/Homo_sapiens_hg38
+bypass_trim = False
+output_prefix = HD32R1_subsample_kneaddata
+threads = 8
+processes = 1
+trimmomatic_quality_scores = -phred33
+bmtagger = False
+bypass_trf = False
+run_trf = False
+fastqc_start = False
+fastqc_end = False
+store_temp_output = False
+remove_intermediate_output = False
+cat_final_output = False
+log_level = DEBUG
+log = /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.log
+trimmomatic_path = /n/lab_storage/huttenhower_lab/tools/kneaddata/rocky8/v0.12.0/bin/trimmomatic-0.33.jar
+run_trim_repetitive = False
+max_memory = 500m
+trimmomatic_options = None
+sequencer_source = NexteraPE
+bowtie2_path = /n/lab_storage/huttenhower_lab/tools/kneaddata/centos7/bin/bowtie2
+bowtie2_options = --very-sensitive-local --phred33
+decontaminate_pairs = unpaired
+reorder = False
+serial = True
+bmtagger_path = None
+trf_path = /n/lab_storage/huttenhower_lab/tools/kneaddata/trf/trf
+match = 2
+mismatch = 7
+delta = 7
+pm = 80
+pi = 10
+minscore = 50
+maxperiod = 500
+fastqc_path = None
+remove_temp_output = True
+input = /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample.fastq.gz
+discordant = True
+
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: Decompressing gzipped file ...
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: Decompressed file created: /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/decompressed_a1gt1d11_HD32R1_subsample.fastq
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: Reformatting file sequence identifiers ...
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: READ COUNT: raw single : Initial number of reads ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/reformatted_identifiersoy_fsbmv_decompressed_a1gt1d11_HD32R1_subsample ): 35200.0
+06/10/2026 10:55:57 PM - kneaddata.utilities - DEBUG: Checking input file to Trimmomatic : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/reformatted_identifiersoy_fsbmv_decompressed_a1gt1d11_HD32R1_subsample
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: Running Trimmomatic ... 
+06/10/2026 10:55:57 PM - kneaddata.utilities - INFO: Execute command: java -Xmx500m -jar /n/lab_storage/huttenhower_lab/tools/kneaddata/rocky8/v0.12.0/bin/trimmomatic-0.33.jar SE -threads 8 -phred33 /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/reformatted_identifiersoy_fsbmv_decompressed_a1gt1d11_HD32R1_subsample /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fastq MINLEN:60 ILLUMINACLIP:/n/lab_storage/huttenhower_lab/tools/kneaddata/rocky8/v0.12.0/lib/python3.10/site-packages/kneaddata/adapters/NexteraPE-PE.fa:2:30:10 SLIDINGWINDOW:4:20 MINLEN:48
+06/10/2026 10:56:00 PM - kneaddata.utilities - DEBUG: b"TrimmomaticSE: Started with arguments: -threads 8 -phred33 /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/reformatted_identifiersoy_fsbmv_decompressed_a1gt1d11_HD32R1_subsample /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fastq MINLEN:60 ILLUMINACLIP:/n/lab_storage/huttenhower_lab/tools/kneaddata/rocky8/v0.12.0/lib/python3.10/site-packages/kneaddata/adapters/NexteraPE-PE.fa:2:30:10 SLIDINGWINDOW:4:20 MINLEN:48\nUsing PrefixPair: 'AGATGTGTATAAGAGACAG' and 'AGATGTGTATAAGAGACAG'\nUsing Long Clipping Sequence: 'GTCTCGTGGGCTCGGAGATGTGTATAAGAGACAG'\nUsing Long Clipping Sequence: 'TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG'\nUsing Long Clipping Sequence: 'CTGTCTCTTATACACATCTCCGAGCCCACGAGAC'\nUsing Long Clipping Sequence: 'CTGTCTCTTATACACATCTGACGCTGCCGACGA'\nILLUMINACLIP: Using 1 prefix pairs, 4 forward/reverse sequences, 0 forward only sequences, 0 reverse only sequences\nInput Reads: 35200 Surviving: 35106 (99.73%) Dropped: 94 (0.27%)\nTrimmomaticSE: Completed successfully\n"
+06/10/2026 10:56:00 PM - kneaddata.utilities - DEBUG: Checking output file from Trimmomatic : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fastq
+06/10/2026 10:56:00 PM - kneaddata.utilities - INFO: READ COUNT: trimmed single : Total reads after trimming ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fastq ): 35106.0
+06/10/2026 10:56:01 PM - kneaddata.utilities - DEBUG: Checking input file to trf : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fasta
+06/10/2026 10:56:01 PM - kneaddata.utilities - INFO: Running trf ... 
+06/10/2026 10:56:01 PM - kneaddata.utilities - INFO: Execute command: kneaddata_trf_parallel --input /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fasta --output /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fasta.trf.parameters.2.7.7.80.10.50.500.dat --trf-path /n/lab_storage/huttenhower_lab/tools/kneaddata/trf/trf --trf-options '2 7 7 80 10 50 500 -h -ngs' --nproc 8
+06/10/2026 10:56:02 PM - kneaddata.utilities - DEBUG: 0
+06/10/2026 10:56:02 PM - kneaddata.utilities - DEBUG: Checking output file from trf : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fasta.trf.parameters.2.7.7.80.10.50.500.dat
+06/10/2026 10:56:02 PM - kneaddata.run - INFO: Total number of sequences with repeats removed from file ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.trimmed.fastq ): 2
+06/10/2026 10:56:02 PM - kneaddata.run - INFO: Decontaminating ...
+06/10/2026 10:56:02 PM - kneaddata.utilities - DEBUG: Checking input file to bowtie2 : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.repeats.removed.fastq
+06/10/2026 10:56:02 PM - kneaddata.utilities - INFO: Running bowtie2 ... 
+06/10/2026 10:56:02 PM - kneaddata.utilities - INFO: Execute command: /n/lab_storage/huttenhower_lab/tools/kneaddata/centos7/bin/bowtie2 --threads 8 --very-sensitive-local --phred33 -x /n/lab_storage/huttenhower_lab/data/kneaddata_databases/hg38/Homo_sapiens_hg38 -U /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.repeats.removed.fastq --un /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_clean.fastq --al /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_contam.fastq -S /dev/null
+06/10/2026 10:56:20 PM - kneaddata.utilities - DEBUG: b'35104 reads; of these:\n  35104 (100.00%) were unpaired; of these:\n    34617 (98.61%) aligned 0 times\n    353 (1.01%) aligned exactly 1 time\n    134 (0.38%) aligned >1 times\n1.39% overall alignment rate\n'
+06/10/2026 10:56:20 PM - kneaddata.utilities - DEBUG: Checking output file from bowtie2 : /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_clean.fastq
+06/10/2026 10:56:20 PM - kneaddata.run - INFO: Total contaminate sequences in file ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_contam.fastq ) : 487.0
+06/10/2026 10:56:20 PM - kneaddata.utilities - INFO: READ COUNT: decontaminated Homo_sapiens_hg38 single : Total reads after removing those found in reference database ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_clean.fastq ): 34617.0
+06/10/2026 10:56:20 PM - kneaddata.utilities - INFO: READ COUNT: final single : Total reads after merging results from multiple databases ( /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.fastq ): 34617.0
+06/10/2026 10:56:20 PM - kneaddata.utilities - WARNING: Unable to remove file: /n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata_Homo_sapiens_hg38_bowtie2_clean.fastq
+06/10/2026 10:56:20 PM - kneaddata.knead_data - INFO: 
+Final output file created: 
+/n/home04/smaharjan/biobakery-nextflow/work/3b/16a7b5389f50f242e42302553e3fef/HD32R1_subsample_kneaddata.fastq
+
