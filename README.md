@@ -307,7 +307,9 @@ SLURM job (2 cores, 2 GB), so a large folder is checked in parallel.
 
 **3. Standalone, without Nextflow.** `bin/check_fastq_inputs.py` needs only
 Python 3.6+, `gzip` and `awk`, so it runs on any node. It prints one line per
-file, writes the table with `--output`, and exits 1 if any sample failed:
+file, writes the table with `--output`, and exits 1 if any sample failed.
+Loading the hutlab module puts it on `PATH`, so on FASRC it is just
+`check_fastq_inputs.py`; elsewhere, call it by path as below.
 
 ```sh
 # a whole folder, 16 files at a time, printing only the failures
