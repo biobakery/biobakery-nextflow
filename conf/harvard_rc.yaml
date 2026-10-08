@@ -40,7 +40,11 @@
 ### Which workflow
 
 # mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
-# workflow: "mgx"
+# Left active on purpose, although it is the default: a params file with no
+# setting at all parses as null, and Nextflow then fails with a
+# NullPointerException before the run starts. --workflow on the command line
+# still overrides it.
+workflow: "mgx"
 
 # mgx_mtx takes two input folders instead of readsdir, plus an optional file
 # mapping each RNA sample to its DNA sample:
