@@ -7,7 +7,7 @@ were not in the repo). The nf-test cases are gone and the rest is merged.
 
 ```
 tests/
-├── run_tests.sh              the integration suite — 16 cases, 39 checks
+├── run_tests.sh              the integration suite — 18 cases, 45 checks
 ├── submit_tests.sh           run it as a SLURM job
 ├── data/
 │   ├── rawfastq/             two paired-end samples, sub-sampled ECHO reads
@@ -35,7 +35,9 @@ It covers every workflow except 16s, in both library layouts:
 | `assembly` | full MAG/SGB | full MAG/SGB |
 | `vis`, `stats` | folder input — no layout of their own | |
 
-plus the version log and the two input guards. The read-based cases are
+plus the version log, the two input guards, and the input check: a folder
+with a truncated and a mismatched pair, run in full (test 17, the bad pairs are
+dropped and the run completes) and with `--check_inputs_only` (test 18). The read-based cases are
 independent, so their Nextflow drivers run in parallel, each from its own launch
 directory with its own work directory; the checks run once they have all
 finished. Every case writes `tests/results/<name>.log` and a `.status` file, so

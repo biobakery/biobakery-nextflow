@@ -1245,8 +1245,8 @@ stack that `tests/run_tests.sh` already exercises.
 
 The port from `biobakery_workflows` 3.2 (AnADAMA2) is **feature complete except
 16s**. Every workflow below is verified on the real tool stack for single-end
-and paired-end input by `tests/run_tests.sh` — 39 checks over 16 cases, all
-green as of 2026-09-02.
+and paired-end input by `tests/run_tests.sh` — 45 checks over 18 cases, 43
+green on 2026-10-08; the two red are test 12, below.
 
 > **The v0.0.4 cleanup changed layout, and in one place behaviour.** Re-run on
 > 2026-09-17 it came back **22 passed / 17 failed**: stripping resources out of
@@ -1292,7 +1292,7 @@ green as of 2026-09-02.
 | Chained `stats` at scale | the chained path is wired and covered for `vis`; chained `stats` needs a study large enough for its analyses to fit, which the test data is not. Standalone `stats` is covered |
 | MAG-level assembly test data | tests 13-14 use simulated reads from two genomes. Real multi-species data would exercise SGB clustering harder |
 | Non-FASRC profiles | only `harvard_rc` sets a software environment per process. `tufts_hpc` and `local` expect the tools on `PATH`, and `aws` has containers for six processes out of ~59. Resources now come from `conf/base.config` everywhere, so that part is no longer per-profile work |
-| A working `rocky8/halla/0.8.20` module | the shared install lost numpy, scipy, pandas and matplotlib on 2026-09-16, so `STATS:halla` fails on import and test 12 cannot pass until it is reinstalled. Everything else in the suite is green (37/39 on 2026-09-17) |
+| A working `rocky8/halla/0.8.20` module | the shared install lost numpy, scipy, pandas and matplotlib on 2026-09-16, so `STATS:halla` fails on import and test 12 cannot pass until it is reinstalled. Everything else in the suite is green (43/45 on 2026-10-08) |
 
 ---
 
@@ -1395,7 +1395,7 @@ biobakery-nextflow/
 │   ├── architecture.md
 │   └── vis_stats_port_status.md         # vis/stats port status and known divergences
 └── tests/
-    ├── run_tests.sh                     # the integration suite (16 cases, 39 checks)
+    ├── run_tests.sh                     # the integration suite (18 cases, 45 checks)
     ├── submit_tests.sh                  # run it as a SLURM job
     └── data/                            # test FASTQ files + reference tutorial output
 ```
