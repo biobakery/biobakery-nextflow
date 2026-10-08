@@ -1,16 +1,24 @@
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_MGX
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
+    subgraph CHECK_MTX
+        direction TB
+        check_reads_2(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QC_MGX
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph QC_MTX
         direction TB
-        paired_end_kneaddata_2(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata_2(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata_2("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata_2("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts_2["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph TAX_MGX
@@ -74,6 +82,10 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
+    check_reads_2 --> paired_end_kneaddata_2
+    check_reads_2 --> single_end_kneaddata_2
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> metaphlan
     paired_end_kneaddata --> humann
@@ -140,6 +152,8 @@ flowchart LR
     add_ec_names --> vis_report
     vis_report --> archive_output
 
+    style CHECK_MGX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style CHECK_MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QC_MGX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style QC_MTX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style TAX_MGX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
@@ -150,24 +164,28 @@ flowchart LR
     style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
     style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage1
-    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
-    classDef stage3 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage3
-    classDef stage4 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage4
-    classDef stage5 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage5
-    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class rna_dna_norm,stage_report_input,version_log stage6
-    classDef stage7 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage7
-    classDef stage8 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
-    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage8
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads_2 stage1
+    classDef stage2 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage2
+    classDef stage3 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage3
+    classDef stage4 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage4
+    classDef stage5 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage5
+    classDef stage6 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage6
+    classDef stage7 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage7
+    classDef stage8 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class rna_dna_norm,stage_report_input,version_log stage8
+    classDef stage9 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage9
+    classDef stage10 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage10
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,8,9,11,12,15,16,18,19,22,32,33,36,38,39,40,49,54,55,56,57,58 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,2,3,5,6,8,9,10,12,13,15,16,19,20,22,23,26,36,37,40,42,43,44,53,58,59,60,61,62 stroke:#475569,stroke-width:2px

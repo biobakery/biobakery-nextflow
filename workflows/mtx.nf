@@ -2,6 +2,7 @@
 nextflow.enable.dsl=2
 
 include { read_input }           from '../subworkflows/read_input.nf'
+include { CHECK_INPUTS }         from '../subworkflows/check_inputs.nf'
 include { QUALITY_CONTROL }      from '../subworkflows/quality_control.nf'
 include { TAXONOMIC_PROFILING }  from '../subworkflows/taxonomic_profiling.nf'
 include { FUNCTIONAL_PROFILING } from '../subworkflows/functional_profiling.nf'
@@ -30,6 +31,14 @@ workflow MTX {
     def no_file = file("${projectDir}/assets/NO_FILE")
 
     read_ch = read_input(params.readsdir, 'mtx')
+
+    // ── Input check ───────────────────────────────────────────────────────
+    // Truncated or corrupt read files are logged and dropped here rather than
+    // failing the run; see subworkflows/check_inputs.nf.
+    read_ch = CHECK_INPUTS(read_ch, 'mtx').reads
+
+    // --check_inputs_only: the check above was the whole run.
+    if (params.check_inputs_only) return
 
     // ── QC (KneadData, metatranscriptome database set) ────────────────────
     if (params.run_qc) {

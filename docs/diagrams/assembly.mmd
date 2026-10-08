@@ -1,10 +1,14 @@
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_INPUTS
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QUALITY_CONTROL
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph ASSEMBLY
@@ -28,6 +32,8 @@ flowchart LR
         version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> megahit
     paired_end_kneaddata --> align_and_depth
@@ -65,13 +71,16 @@ flowchart LR
     sgb_cluster --> merge_tax_abundance
     abundance --> merge_tax_abundance
 
+    style CHECK_INPUTS fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style ASSEMBLY fill:#fef3c722,stroke:#d97706,stroke-width:1px,stroke-dasharray:4 3,color:#d97706
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage1
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage1
+    classDef stage2 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage2
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,3,5,6,7 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,3,4,5,7,8,9 stroke:#475569,stroke-width:2px

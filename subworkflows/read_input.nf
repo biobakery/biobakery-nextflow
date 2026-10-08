@@ -70,6 +70,19 @@ def read_input(indir, label) {
                  "naming convention, or --single_end true to silence this."
     }
 
+    // A broken symlink -- common in a folder of links gathered from several
+    // studies -- matches no glob, so it would vanish from the run unremarked.
+    // CHECK_INPUTS never sees it either; name it here.
+    def link_glob = java.nio.file.FileSystems.getDefault()
+        .getPathMatcher("glob:${use_paired ? paired_glob : single_glob}")
+    def broken = (file(readsdir).listFiles() ?: [])
+        .findAll { java.nio.file.Files.isSymbolicLink(it) && !it.exists() && link_glob.matches(it.fileName) }
+        .collect { it.name }
+    if (broken) {
+        log.warn "[${label}] ${broken.size()} read file(s) in ${readsdir} are broken symlinks and will be " +
+                 "skipped: ${broken.sort().take(10).join(', ')}${broken.size() > 10 ? ', ...' : ''}"
+    }
+
     def reads
     if (use_paired) {
         reads = Channel

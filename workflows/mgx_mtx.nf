@@ -2,6 +2,8 @@
 nextflow.enable.dsl=2
 
 include { read_input }                                     from '../subworkflows/read_input.nf'
+include { CHECK_INPUTS as CHECK_MGX }                      from '../subworkflows/check_inputs.nf'
+include { CHECK_INPUTS as CHECK_MTX }                      from '../subworkflows/check_inputs.nf'
 include { QUALITY_CONTROL as QC_MGX }                      from '../subworkflows/quality_control.nf'
 include { QUALITY_CONTROL as QC_MTX }                      from '../subworkflows/quality_control.nf'
 include { TAXONOMIC_PROFILING as TAX_MGX }                 from '../subworkflows/taxonomic_profiling.nf'
@@ -48,6 +50,17 @@ workflow MGX_MTX {
 
     mgx_reads = read_input(params.input_metagenome,        'mgx')
     mtx_reads = read_input(params.input_metatranscriptome, 'mtx')
+
+    // ── Input check ───────────────────────────────────────────────────────
+    // Truncated or corrupt read files are logged and dropped here rather than
+    // failing the run; see subworkflows/check_inputs.nf. With a mapping file,
+    // an RNA sample whose DNA sample was dropped finds no profile to borrow
+    // and is left out too.
+    mgx_reads = CHECK_MGX(mgx_reads, 'mgx').reads
+    mtx_reads = CHECK_MTX(mtx_reads, 'mtx').reads
+
+    // --check_inputs_only: the check above was the whole run.
+    if (params.check_inputs_only) return
 
     // ── Step 1: quality control, one database set per assay ───────────────
     if (params.run_qc) {

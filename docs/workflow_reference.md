@@ -69,10 +69,10 @@ flowchart TB
     subgraph L2["<b>2 · WORKFLOWS</b> — workflows/*.nf<br/><i>One complete pipeline per --workflow token — the thing a user runs. Wires stages, and may run steps of its own.</i>"]
         direction LR
         SIXTEENS("<b>SIXTEENS</b><br/><i>--workflow 16s</i><br/>16S rRNA amplicon workflow — stub")
-        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 1 stage</i><br/>· QUALITY_CONTROL<br/><i>+ 17 steps of its own</i>")
-        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
-        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 5 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
-        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 5 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
+        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 2 stages</i><br/>· QUALITY_CONTROL<br/>· CHECK_INPUTS<br/><i>+ 17 steps of its own</i>")
+        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 7 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
+        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
+        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
         STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+ 14 steps of its own</i>")
         VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of<br/>biobakery_workflows vis.<br/><i>+ 7 steps of its own</i>")
     end
@@ -83,6 +83,7 @@ flowchart TB
         FUNCTIONAL_PROFILING("<b>FUNCTIONAL_PROFILING</b><br/>Functional profiling subworkflow:<br/>HUMAnN, then the three feature<br/>types<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>10 steps from 5 modules</i>")
         VIRAL_PROFILING("<b>VIRAL_PROFILING</b><br/>Viral profiling subworkflow:<br/>BAQLaVa<br/><i>called by</i><br/>· MGX<br/><i>1 step from 1 module</i>")
         STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Strain profiling subworkflow:<br/>StrainPhlAn SGB-level<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>2 steps from 1 module</i>")
+        CHECK_INPUTS("<b>CHECK_INPUTS</b><br/>Drop samples whose raw reads are<br/>truncated or corrupt before<br/>anything<br/><i>called by</i><br/>· ASSEMBLY<br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>1 step from 1 module</i>")
         REPORTING("<b>REPORTING</b><br/>Run vis and/or stats at the end of<br/>a read-based workflow.<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>chains STATS + VIS</i>")
         mtx_common["<b>mtx_common.nf</b><br/><i>Groovy helper, not a stage</i><br/>The KneadData reference database<br/>set for metatranscriptome reads.<br/><i>called by</i><br/>· MGX_MTX<br/>· MTX"]
         read_input["<b>read_input.nf</b><br/><i>Groovy helper, not a stage</i><br/>Build an input read channel,<br/>detecting library layout from the<br/>filenames<br/><i>called by</i><br/>· ASSEMBLY<br/>· MGX<br/>· MGX_MTX<br/>· MTX"]
@@ -98,6 +99,7 @@ flowchart TB
         mods6["<b>for FUNCTIONAL_PROFILING</b><br/>humann <i>×1</i><br/>utils/humann_merge <i>×5</i><br/>utils/humann_regroup <i>×2</i><br/>utils/humann_rename <i>×1</i><br/>utils/humann_renorm <i>×1</i>"]
         mods7["<b>for VIRAL_PROFILING</b><br/>viral/baqlava <i>×1</i>"]
         mods8["<b>for STRAIN_PROFILING</b><br/>strainphlan <i>×2</i>"]
+        mods9["<b>for CHECK_INPUTS</b><br/>utils/check_reads <i>×1</i>"]
         mods_shared["<b>called by more than one</b><br/>stats/feature_table<br/>&nbsp;&nbsp;<i>STATS, VIS</i><br/>utils/archive<br/>&nbsp;&nbsp;<i>STATS, VIS</i><br/>utils/merge_pairs<br/>&nbsp;&nbsp;<i>MGX, MGX_MTX, MTX</i><br/>utils/report_input<br/>&nbsp;&nbsp;<i>MGX, MGX_MTX, MTX</i><br/>utils/version_log<br/>&nbsp;&nbsp;<i>ASSEMBLY, MGX, MGX_MTX, MTX</i><br/>vis/identify_inputs<br/>&nbsp;&nbsp;<i>STATS, VIS</i>"]
     end
 
@@ -146,7 +148,9 @@ flowchart TB
     classDef arch11 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
     class STRAIN_PROFILING arch11
     classDef arch12 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class REPORTING arch12
+    class CHECK_INPUTS arch12
+    classDef arch13 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class REPORTING arch13
     classDef mod0 fill:#fef3c799,stroke:#d97706,stroke-width:1px,color:#78350f
     class mods0 mod0
     classDef mod1 fill:#f1f5f999,stroke:#94a3b8,stroke-width:1px,color:#334155
@@ -165,6 +169,8 @@ flowchart TB
     class mods7 mod7
     classDef mod8 fill:#ccfbf199,stroke:#14b8a6,stroke-width:1px,color:#134e4a
     class mods8 mod8
+    classDef mod9 fill:#f1f5f999,stroke:#94a3b8,stroke-width:1px,color:#334155
+    class mods9 mod9
     classDef modshared fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#334155
     class mods_shared modshared
     classDef helper fill:#ffffff,stroke:#cbd5e1,stroke-width:1px,color:#475569
@@ -176,10 +182,10 @@ flowchart TB
 
 | Workflow | `--workflow` | What it does | Steps |
 |---|---|---|---|
-| [mgx](#mgx) | `mgx` | Whole metagenome shotgun | 28 |
-| [mtx](#mtx) | `mtx` | Whole metatranscriptome shotgun | 27 |
-| [mgx_mtx](#mgx_mtx) | `mgx_mtx` | Paired metagenome + metatranscriptome | 28 |
-| [assembly](#assembly) | `assembly` | MAG assembly, binning and SGB clustering | 20 |
+| [mgx](#mgx) | `mgx` | Whole metagenome shotgun | 29 |
+| [mtx](#mtx) | `mtx` | Whole metatranscriptome shotgun | 28 |
+| [mgx_mtx](#mgx_mtx) | `mgx_mtx` | Paired metagenome + metatranscriptome | 29 |
+| [assembly](#assembly) | `assembly` | MAG assembly, binning and SGB clustering | 21 |
 | [vis](#vis) | `vis` | Visualisation report | 6 |
 | [stats](#stats) | `stats` | Statistical analysis report | 13 |
 
@@ -191,10 +197,14 @@ Whole metagenome shotgun.
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_INPUTS
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QUALITY_CONTROL
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph TAXONOMIC_PROFILING
@@ -241,6 +251,8 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> metaphlan
     paired_end_kneaddata --> humann
@@ -287,6 +299,7 @@ flowchart LR
     add_ec_names --> vis_report
     vis_report --> archive_output
 
+    style CHECK_INPUTS fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style TAXONOMIC_PROFILING fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
     style FUNCTIONAL_PROFILING fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
@@ -295,23 +308,25 @@ flowchart LR
     style MGX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage1
-    classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage2
-    classDef stage3 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
-    class baqlava stage3
-    classDef stage4 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage4
-    classDef stage5 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class stage_report_input,version_log stage5
-    classDef stage6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
-    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage6
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage1
+    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
+    classDef stage3 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage3
+    classDef stage4 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
+    class baqlava stage4
+    classDef stage5 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage5
+    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class stage_report_input,version_log stage6
+    classDef stage7 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage7
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,3,5,6,7,8,11,12,13,15,16,25,28,30,31,32,34,35,36,37,38 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,3,4,5,7,8,9,10,13,14,15,17,18,27,30,32,33,34,36,37,38,39,40 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -319,6 +334,7 @@ flowchart LR
 | `add_ec_names` | Add EC names to the EC abundance table when they are missing. | `modules/vis/add_ec_names/main.nf` | `<outdir>/vis/ecs` |
 | `archive_output` | Archive a report folder. | `modules/utils/archive/main.nf` | `<outdir>` |
 | `baqlava` | BAQLaVa — viral profiling | `modules/viral/baqlava/main.nf` | `<outdir>/baqlava` |
+| `check_reads` | Check one sample's raw reads for truncation and corruption | `modules/utils/check_reads/main.nf` | `` |
 | `feature_table` | Build one feature table (taxonomy, pathways or any other data file). | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
 | `humann` | HUMAnN — functional profiling | `modules/humann/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/main` |
 | `humann_count_features` | Count how many features each sample has above zero, per feature type. | `modules/utils/humann_merge/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/counts` |
@@ -353,10 +369,14 @@ Whole metatranscriptome shotgun.
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_INPUTS
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QUALITY_CONTROL
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph TAXONOMIC_PROFILING
@@ -399,6 +419,8 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> metaphlan
     paired_end_kneaddata --> humann
@@ -442,6 +464,7 @@ flowchart LR
     add_ec_names --> vis_report
     vis_report --> archive_output
 
+    style CHECK_INPUTS fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style TAXONOMIC_PROFILING fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
     style FUNCTIONAL_PROFILING fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
@@ -449,27 +472,30 @@ flowchart LR
     style MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage1
-    classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage2
-    classDef stage3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage3
-    classDef stage4 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class stage_report_input,version_log stage4
-    classDef stage5 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
-    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage5
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage1
+    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
+    classDef stage3 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage3
+    classDef stage4 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage4
+    classDef stage5 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class stage_report_input,version_log stage5
+    classDef stage6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage6
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,9,10,12,13,22,25,27,28,29,31,32,33,34,35 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,3,4,6,7,8,11,12,14,15,24,27,29,30,31,33,34,35,36,37 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
 |---|---|---|---|
 | `add_ec_names` | Add EC names to the EC abundance table when they are missing. | `modules/vis/add_ec_names/main.nf` | `<outdir>/vis/ecs` |
 | `archive_output` | Archive a report folder. | `modules/utils/archive/main.nf` | `<outdir>` |
+| `check_reads` | Check one sample's raw reads for truncation and corruption | `modules/utils/check_reads/main.nf` | `` |
 | `feature_table` | Build one feature table (taxonomy, pathways or any other data file). | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
 | `humann` | HUMAnN — functional profiling | `modules/humann/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/main` |
 | `humann_count_features` | Count how many features each sample has above zero, per feature type. | `modules/utils/humann_merge/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/counts` |
@@ -504,16 +530,24 @@ Paired metagenome + metatranscriptome.
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_MGX
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
+    subgraph CHECK_MTX
+        direction TB
+        check_reads_2(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QC_MGX
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph QC_MTX
         direction TB
-        paired_end_kneaddata_2(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata_2(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata_2("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata_2("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts_2["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph TAX_MGX
@@ -577,6 +611,10 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
+    check_reads_2 --> paired_end_kneaddata_2
+    check_reads_2 --> single_end_kneaddata_2
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> metaphlan
     paired_end_kneaddata --> humann
@@ -643,6 +681,8 @@ flowchart LR
     add_ec_names --> vis_report
     vis_report --> archive_output
 
+    style CHECK_MGX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
+    style CHECK_MTX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QC_MGX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style QC_MTX fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style TAX_MGX fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
@@ -653,33 +693,38 @@ flowchart LR
     style STRAIN_PROFILING fill:#ccfbf122,stroke:#14b8a6,stroke-width:1px,stroke-dasharray:4 3,color:#14b8a6
     style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage1
-    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
-    classDef stage3 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage3
-    classDef stage4 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage4
-    classDef stage5 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage5
-    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class rna_dna_norm,stage_report_input,version_log stage6
-    classDef stage7 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage7
-    classDef stage8 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
-    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage8
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads_2 stage1
+    classDef stage2 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage2
+    classDef stage3 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata_2,single_end_kneaddata_2,kneaddata_read_counts_2 stage3
+    classDef stage4 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage4
+    classDef stage5 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan_2,metaphlan_bzip_2,metaphlan_merge_2,metaphlan_species_counts_2 stage5
+    classDef stage6 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage6
+    classDef stage7 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann_2,humann_regroup_ecs_2,humann_regroup_2,humann_rename_2,humann_join_2,humann_renorm_2,humann_join_relab_2,humann_count_features_2,humann_feature_counts_merge_2,humann_log_counts_2 stage7
+    classDef stage8 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class rna_dna_norm,stage_report_input,version_log stage8
+    classDef stage9 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage9
+    classDef stage10 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage10
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,8,9,11,12,15,16,18,19,22,32,33,36,38,39,40,49,54,55,56,57,58 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,2,3,5,6,8,9,10,12,13,15,16,19,20,22,23,26,36,37,40,42,43,44,53,58,59,60,61,62 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
 |---|---|---|---|
 | `add_ec_names` | Add EC names to the EC abundance table when they are missing. | `modules/vis/add_ec_names/main.nf` | `<outdir>/vis/ecs` |
 | `archive_output` | Archive a report folder. | `modules/utils/archive/main.nf` | `<outdir>` |
+| `check_reads` | Check one sample's raw reads for truncation and corruption | `modules/utils/check_reads/main.nf` | `` |
 | `feature_table` | Build one feature table (taxonomy, pathways or any other data file). | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
 | `humann` | HUMAnN — functional profiling | `modules/humann/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/main` |
 | `humann_count_features` | Count how many features each sample has above zero, per feature type. | `modules/utils/humann_merge/main.nf` | `<outdir>/<subdir>humann/<params.humann_version>/counts` |
@@ -715,10 +760,14 @@ MAG assembly, binning and SGB clustering.
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_INPUTS
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QUALITY_CONTROL
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts["<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…"]
     end
     subgraph ASSEMBLY
@@ -742,6 +791,8 @@ flowchart LR
         version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> megahit
     paired_end_kneaddata --> align_and_depth
@@ -779,22 +830,26 @@ flowchart LR
     sgb_cluster --> merge_tax_abundance
     abundance --> merge_tax_abundance
 
+    style CHECK_INPUTS fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style ASSEMBLY fill:#fef3c722,stroke:#d97706,stroke-width:1px,stroke-dasharray:4 3,color:#d97706
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage1
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage1
+    classDef stage2 fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+    class megahit,align_and_depth,metabat2,checkm2,mag_n50,checkm2_merge,checkm2_wrangling,phylophlan_metagenomic,phylophlan_merge,mash_list_inputs,mash_sketch,mash_paste,mash_dist,sgb_cluster,abundance,merge_tax_abundance,version_log stage2
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,3,5,6,7 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,3,4,5,7,8,9 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
 |---|---|---|---|
 | `abundance` | Per-sample MAG abundance, mirroring the "Calculate by-sample abundance" task of | `modules/utils/abundance/main.nf` | `<outdir>/abundance_<params.sgb_abundance_type>` |
 | `align_and_depth` | Align reads to assembled contigs and compute contig depth with jgi_summarize_bam_contig_depths | `modules/utils/align_and_depth/main.nf` | `<outdir>/assembly/contig_depths` |
+| `check_reads` | Check one sample's raw reads for truncation and corruption | `modules/utils/check_reads/main.nf` | `` |
 | `checkm2` | CheckM2 — assess MAG quality (completeness & contamination) | `modules/qc/checkm2/main.nf` | `<outdir>/checkm/<sample>` |
 | `checkm2_merge` | Merge per-sample CheckM2 quality reports into one table | `modules/qc/checkm2/main.nf` | `<outdir>/checkm` |
 | `checkm2_wrangling` | Merge CheckM2 QA with N50 stats and filter by completeness/contamination thresholds | `modules/qc/checkm2/main.nf` | `<outdir>/checkm/qa` |

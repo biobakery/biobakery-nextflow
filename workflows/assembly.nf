@@ -2,6 +2,7 @@
 nextflow.enable.dsl=2
 
 include { read_input }             from '../subworkflows/read_input.nf'
+include { CHECK_INPUTS }           from '../subworkflows/check_inputs.nf'
 include { QUALITY_CONTROL }        from '../subworkflows/quality_control.nf'
 include { megahit }                from '../modules/assembly/megahit/main.nf'
 include { align_and_depth }        from '../modules/utils/align_and_depth/main.nf'
@@ -30,6 +31,14 @@ workflow ASSEMBLY {
     // ── Build input channel ───────────────────────────────────────────────
     // Layout is detected from the filenames; see subworkflows/read_input.nf
     reads = read_input(params.readsdir, 'assembly')
+
+    // ── Input check ───────────────────────────────────────────────────────
+    // Truncated or corrupt read files are logged and dropped here rather than
+    // failing the run; see subworkflows/check_inputs.nf.
+    reads = CHECK_INPUTS(reads, 'assembly').reads
+
+    // --check_inputs_only: the check above was the whole run.
+    if (params.check_inputs_only) return
 
     // ── Step 1: Host decontamination (KneadData) ──────────────────────────
     // KneadData carries a "when: params.run_qc" guard, so with --run_qc false the

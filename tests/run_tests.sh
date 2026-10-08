@@ -181,6 +181,32 @@ nf_run test6_mtx_pe \
     --run_functional_profiling false \
     ${COMMON} ${NO_REPORTS} --log_versions false &
 
+# 17./18. the input check. One good pair, one pair with a truncated mate, one
+#    pair whose mates hold different read counts. The bad two must be logged and
+#    dropped and the run must still complete on the good one; with
+#    --check_inputs_only the same command must check and stop.
+CHK="${RESULTS_BASE}/input_check_fixture"
+rm -rf "${CHK}"; mkdir -p "${CHK}"
+for r in 1 2; do
+    cp "${REPO_ROOT}/tests/data/rawfastq/FG00004_S26_R${r}.fastq.gz" "${CHK}/good_R${r}.fastq.gz"
+done
+cp "${CHK}/good_R1.fastq.gz" "${CHK}/truncated_R1.fastq.gz"
+head -c 40000 "${CHK}/good_R2.fastq.gz" > "${CHK}/truncated_R2.fastq.gz"
+cp "${CHK}/good_R1.fastq.gz" "${CHK}/mismatched_R1.fastq.gz"
+zcat "${CHK}/good_R2.fastq.gz" | head -n 400 | gzip > "${CHK}/mismatched_R2.fastq.gz"
+
+nf_run test17_input_check \
+    --workflow mgx \
+    --readsdir "${CHK}" \
+    --run_functional_profiling false \
+    ${COMMON} ${NO_REPORTS} --log_versions false &
+
+nf_run test18_input_check_only \
+    --workflow mgx \
+    --readsdir "${CHK}" \
+    --check_inputs_only true \
+    ${COMMON} ${NO_REPORTS} --log_versions false &
+
 wait
 
 # mgx_mtx needs a second input folder, built from the same reads under
@@ -332,6 +358,31 @@ for t in test5_mtx_se test6_mtx_pe; do
         ((fail++))
     fi
 done
+
+note "Test 17: truncated and mismatched inputs are dropped, the run completes"
+check_run   test17_input_check
+check_files test17_input_check "mgx_input_check.tsv" "good_*profile*.tsv"
+if [ "$(cat "${RESULTS_BASE}/test17_input_check/input_check/mgx_failed_samples.txt" 2>/dev/null)" = \
+     "$(printf 'mismatched\ntruncated')" ] \
+   && ! find "${RESULTS_BASE}/test17_input_check" -name "truncated*profile*" -o -name "mismatched*profile*" | grep -q .
+then
+    echo "[PASS] test17_input_check: both bad samples listed and left unprofiled"
+    ((pass++))
+else
+    echo "[FAIL] test17_input_check: failed-sample list or dropped samples not as expected"
+    ((fail++))
+fi
+
+note "Test 18: --check_inputs_only checks and stops"
+check_run   test18_input_check_only
+check_files test18_input_check_only "mgx_input_check.tsv" "mgx_failed_samples.txt"
+if ! find "${RESULTS_BASE}/test18_input_check_only" -path "*metaphlan*" -o -path "*kneaddata*" | grep -q .; then
+    echo "[PASS] test18_input_check_only: nothing was profiled"
+    ((pass++))
+else
+    echo "[FAIL] test18_input_check_only: profiling ran"
+    ((fail++))
+fi
 
 note "Test 7: mgx_mtx paired-end, mapped, with the RNA/DNA ratio"
 check_run   test7_mgx_mtx_pe

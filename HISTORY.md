@@ -26,6 +26,17 @@ files for the port; the cleanup on top is 14 deletions and 17 renames.
   `0.0.4.superseded-20260902`, which is the fingerprint of a release that
   needed a second pass.
 
+**The input check**
+
+- Every raw FASTQ is now read through once before profiling. A truncated gzip,
+  a record cut short, an empty file or mates of different lengths are logged,
+  listed under `input_check/` and left out, and the run finishes on the rest.
+  Before this, a bad file was found by whichever tool hit it first, hours in,
+  and `errorStrategy 'finish'` took the whole run down with it.
+- `--check_inputs_only` vets a folder and stops; `-resume` then reuses those
+  checks. `bin/check_fastq_inputs.py` does the same without Nextflow.
+- Broken symlinks in the input folder are named instead of silently skipped.
+
 **The cleanup** — housekeeping, not features, and not yet deployed.
 
 - One home per setting, so config stops being layered guesswork.

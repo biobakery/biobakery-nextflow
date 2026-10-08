@@ -1,10 +1,14 @@
 %%{init: {"flowchart": {"curve": "basis", "nodeSpacing": 40,
                         "rankSpacing": 70, "padding": 8}}}%%
 flowchart LR
+    subgraph CHECK_INPUTS
+        direction TB
+        check_reads(["<b>check_reads</b><br/>Check one sample's raw reads<br/>for truncation and corruption"])
+    end
     subgraph QUALITY_CONTROL
         direction TB
-        paired_end_kneaddata(["<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads"])
-        single_end_kneaddata(["<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads"])
+        paired_end_kneaddata("<b>paired_end_kneaddata</b><br/>KneadData QC — paired-end<br/>reads")
+        single_end_kneaddata("<b>single_end_kneaddata</b><br/>KneadData QC — single-end<br/>reads")
         kneaddata_read_counts("<b>kneaddata_read_counts</b><br/>Compile the per-sample<br/>KneadData logs into one read…")
     end
     subgraph TAXONOMIC_PROFILING
@@ -51,6 +55,8 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    check_reads --> paired_end_kneaddata
+    check_reads --> single_end_kneaddata
     paired_end_kneaddata --> kneaddata_read_counts
     paired_end_kneaddata --> metaphlan
     paired_end_kneaddata --> humann
@@ -97,6 +103,7 @@ flowchart LR
     add_ec_names --> vis_report
     vis_report --> archive_output
 
+    style CHECK_INPUTS fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style QUALITY_CONTROL fill:#dbeafe22,stroke:#3b82f6,stroke-width:1px,stroke-dasharray:4 3,color:#3b82f6
     style TAXONOMIC_PROFILING fill:#dcfce722,stroke:#22c55e,stroke-width:1px,stroke-dasharray:4 3,color:#22c55e
     style FUNCTIONAL_PROFILING fill:#ede9fe22,stroke:#8b5cf6,stroke-width:1px,stroke-dasharray:4 3,color:#8b5cf6
@@ -105,20 +112,22 @@ flowchart LR
     style MGX fill:#f1f5f922,stroke:#94a3b8,stroke-width:1px,stroke-dasharray:4 3,color:#94a3b8
     style VIS fill:#fce7f322,stroke:#ec4899,stroke-width:1px,stroke-dasharray:4 3,color:#ec4899
 
-    classDef stage0 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
-    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage0
-    classDef stage1 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
-    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage1
-    classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
-    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage2
-    classDef stage3 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
-    class baqlava stage3
-    classDef stage4 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage4
-    classDef stage5 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
-    class stage_report_input,version_log stage5
-    classDef stage6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
-    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage6
+    classDef stage0 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class check_reads stage0
+    classDef stage1 fill:#dbeafe,stroke:#3b82f6,stroke-width:1.5px,color:#1e3a8a
+    class paired_end_kneaddata,single_end_kneaddata,kneaddata_read_counts stage1
+    classDef stage2 fill:#dcfce7,stroke:#22c55e,stroke-width:1.5px,color:#14532d
+    class metaphlan,metaphlan_bzip,metaphlan_merge,metaphlan_species_counts stage2
+    classDef stage3 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
+    class humann,humann_regroup_ecs,humann_regroup,humann_rename,humann_join,humann_renorm,humann_join_relab,humann_count_features,humann_feature_counts_merge,humann_log_counts stage3
+    classDef stage4 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
+    class baqlava stage4
+    classDef stage5 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
+    class sample2markers,strainphlan stage5
+    classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
+    class stage_report_input,version_log stage6
+    classDef stage7 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
+    class identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage7
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,3,5,6,7,8,11,12,13,15,16,25,28,30,31,32,34,35,36,37,38 stroke:#475569,stroke-width:2px
+    linkStyle 0,1,3,4,5,7,8,9,10,13,14,15,17,18,27,30,32,33,34,36,37,38,39,40 stroke:#475569,stroke-width:2px

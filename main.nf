@@ -21,6 +21,18 @@ workflow {
         error "ERROR: --readsdir is required. Example: --readsdir /path/to/fastqs"
     }
 
+    // --check_inputs_only runs the read-based workflow as far as its input
+    // check and stops there (see subworkflows/check_inputs.nf). It runs inside
+    // the workflow rather than beside it so the check tasks carry the same
+    // names, and the run that follows with -resume reuses them.
+    if (params.check_inputs_only && !(params.workflow in ['mgx', 'mtx', 'mgx_mtx', 'assembly'])) {
+        error "ERROR: --check_inputs_only applies to the read-based workflows " +
+              "(mgx | mtx | mgx_mtx | assembly), not '${params.workflow}'."
+    }
+    if (params.check_inputs_only && !params.check_inputs) {
+        error "ERROR: --check_inputs_only true needs --check_inputs true."
+    }
+
     switch (params.workflow) {
 
         case 'mgx':
