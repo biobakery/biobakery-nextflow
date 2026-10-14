@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Standalone operator utility. The Nextflow workflow does not invoke this.
 set -euo pipefail
 
 project_id="${1:?usage: dnanexus_mount_kneaddata PROJECT_ID PROJECT_FOLDER INDEX_PREFIX}"

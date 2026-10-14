@@ -286,6 +286,16 @@ uses `/.cached_docker_images/<image>/<image>_<version>`. Files uploaded under
 `/Resources/containers` are not discovered through that naming convention;
 they are deterministic manual resources and must be referenced by `dx://` ID.
 
+The DNAnexus KneadData image may include its Bowtie2 database directly. In that
+case, set `--host_genome` to the absolute database directory **inside the
+container** and use `--kneaddata_reference_mode container`. The process checks
+that directory before starting KneadData. The DNAnexus profile does not mount a
+project folder, request FUSE privileges, or run mount hooks. The `dxfuse` and
+DNAnexus mount helper programs remain in `bin/` as independent operational
+utilities, but the workflow does not invoke them. Supply the new database-bearing
+tarball explicitly with `--dnanexus_container`; the profile intentionally has
+no fallback image ID.
+
 ---
 
 ## Quick Start
@@ -792,6 +802,8 @@ the report was built from, and point a later standalone run straight at it.
 | `--host_genome` | *required* | KneadData Bowtie2 reference directory (hg38, mouse, rRNA, etc.) |
 | `--kneaddata_bypass_trim` | `false` | Skip Trimmomatic trimming step |
 | `--kneaddata_remove_intermediate_files` | `true` | Delete intermediate files to save disk |
+| `--kneaddata_reference_mode` | `staged` (`container` in the DNAnexus profile) | Stage external database paths, or use absolute paths already present in the process container |
+| `--kneaddata_database_identity` | `null` | Immutable database or database-bearing image identity included in the task command and resume hash |
 
 ### Taxonomic profiling options (MetaPhlAn)
 

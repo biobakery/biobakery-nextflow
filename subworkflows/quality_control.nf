@@ -22,18 +22,16 @@ workflow QUALITY_CONTROL {
         error "ERROR: no KneadData reference database configured. Set --host_genome " +
               "(and --host_transcriptome / --rrna_db for metatranscriptome input)."
     }
-    // Make databases real Nextflow path inputs. This keeps the QC processes
-    // portable: a local/HPC directory is staged normally, while a cloud
-    // executor can localize a remote directory URI before KneadData starts.
-    // Passing the original URI as a val would instead hand KneadData a string
-    // such as dx://..., which is not a filesystem path it can open.
-    if (params.kneaddata_reference_mode == 'dxfuse') {
-        // Preserve the portable process signature without localizing the
-        // remote directory. The DNAnexus beforeScript creates the real path.
+    // Local and HPC profiles stage databases as ordinary Nextflow paths.
+    // DNAnexus uses paths baked into the process container, so those paths are
+    // passed as values and verified from inside the running container. A
+    // harmless sentinel preserves one portable process signature.
+    if (params.kneaddata_reference_mode == 'container') {
         db_files = Channel.value([file("${projectDir}/assets/NO_FILE")])
     } else {
         db_files = Channel.value(db_paths.collect { file(it, checkIfExists: true) })
     }
+    db_path_values = Channel.value(db_paths)
 
     // Split channel by library type
     paired_reads = reads
@@ -44,8 +42,8 @@ workflow QUALITY_CONTROL {
         .filter  { meta, r -> !meta.paired_end }
         .map     { meta, r -> tuple(meta.id, r) }
 
-    paired_out = paired_end_kneaddata(paired_reads, db_files, subdir)
-    single_out = single_end_kneaddata(single_reads, db_files, subdir)
+    paired_out = paired_end_kneaddata(paired_reads, db_files, db_path_values, subdir)
+    single_out = single_end_kneaddata(single_reads, db_files, db_path_values, subdir)
 
     // Re-attach meta map so downstream subworkflows get consistent channel shape
     cleaned_paired = paired_out.kneads.map { sample, reads -> [ [id: sample, paired_end: true],  reads ] }

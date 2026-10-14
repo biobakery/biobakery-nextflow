@@ -18,6 +18,7 @@ process single_end_kneaddata {
     input:
     tuple val(sample), path(reads)
     path reference_dbs
+    val reference_db_paths
     val subdir
 
     output:
@@ -33,13 +34,18 @@ process single_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass      = params.kneaddata_bypass_trim               ? "--bypass-trim"                  : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"   : ""
-    def db_args = params.kneaddata_reference_mode == 'dxfuse'
-        ? "--reference-db kneaddata_reference"
+    def db_args = params.kneaddata_reference_mode == 'container'
+        ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
         : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
             .collect { "--reference-db ${it}" }
             .join(' ')
-    def db_identity = params.kneaddata_database_identity ?: 'not-declared'
+    def db_checks = params.kneaddata_reference_mode == 'container'
+        ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
+        : ':'
+    def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${db_checks}
+
     kneaddata \\
         --unpaired $reads \\
         $db_args \\
@@ -64,6 +70,7 @@ process paired_end_kneaddata {
     input:
     tuple val(sample), path(reads)
     path reference_dbs
+    val reference_db_paths
     val subdir
 
     output:
@@ -82,13 +89,18 @@ process paired_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass       = params.kneaddata_bypass_trim               ? "--bypass-trim"                 : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"  : ""
-    def db_args = params.kneaddata_reference_mode == 'dxfuse'
-        ? "--reference-db kneaddata_reference"
+    def db_args = params.kneaddata_reference_mode == 'container'
+        ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
         : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
             .collect { "--reference-db ${it}" }
             .join(' ')
-    def db_identity = params.kneaddata_database_identity ?: 'not-declared'
+    def db_checks = params.kneaddata_reference_mode == 'container'
+        ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
+        : ':'
+    def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${db_checks}
+
     kneaddata \\
         -i1 ${reads[0]} \\
         -i2 ${reads[1]} \\

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Standalone operator utility. The Nextflow workflow does not invoke this.
 set -u
 
 mount_root="${PWD}/.dxfuse"

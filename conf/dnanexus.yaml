@@ -17,16 +17,17 @@ samplesheet: "project-xxxx:file-samplesheet"
 # Relative to the job's DNAnexus --destination.
 outdir: "results"
 
-# Fully qualified, immutable KneadData Docker tarball file object.
-dnanexus_container: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpK39Q0Kg1x9BZVK6J0gbfZ"
+# Fully qualified, immutable, database-bearing KneadData Docker tarball.
+dnanexus_container: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-replace-with-new-image"
 
-# DNAnexus project folder containing the complete six-file Bowtie2 index.
-# The trailing slash identifies this as a folder URI. The first runtime pass
-# will decide whether it is localized by the executor or exposed through the
-# planned read-only dxfuse mount.
-host_genome: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/Databases/kneaddata/"
-kneaddata_reference_mode: "dxfuse"
-kneaddata_database_identity: "hg37dec_v0.1:file-JBpJzkj0Kg1x9BZVK6J0gZBy,file-JBpJzkj0Kg1x0yJKB0774vbB,file-JBpJzkj0Kg1x9BZVK6J0gZBv,file-JBpJzkj0Kg1XVj5pG9Q3qBFv,file-JBpJzkj0Kg1YX85x63ggpQ2K,file-JBpJzkj0Kg1VBFZzzPyJ7gP4"
+# Absolute database directory baked into the KneadData container. Replace this
+# placeholder with the image's real internal path before running.
+host_genome: "/replace/with/container/path/kneaddata/hg37dec_v0.1"
+kneaddata_reference_mode: "container"
+
+# Optional semantic database release. When omitted, the immutable
+# dnanexus_container URI is logged and included in the task command instead.
+# kneaddata_database_identity: "hg37dec-v0.1-in-image-release-id"
 
 paired_end: true
 single_end: false

@@ -54,9 +54,8 @@
       "properties": {
         "dnanexus_container": {
           "type": "string",
-          "default": "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpK39Q0Kg1x9BZVK6J0gbfZ",
           "minLength": 1,
-          "description": "Immutable KneadData Docker tarball reference. A bare file ID is resolved in the running DNAnexus project; use dx://project-id:file-id for another project."
+          "description": "Immutable database-bearing KneadData Docker tarball reference. A bare file ID is resolved in the running DNAnexus project; use dx://project-id:file-id for another project."
         }
       },
       "required": ["dnanexus_container"]
@@ -144,19 +143,17 @@
         "host_genome": {
           "type": "string",
           "format": "directory-path",
-          "default": "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/Databases/kneaddata/",
-          "description": "KneadData host reference database directory. Required when run_qc is true."
+          "description": "KneadData host reference database directory. With the DNAnexus profile, this is the absolute path baked into the KneadData container image. Required when run_qc is true."
         },
         "kneaddata_reference_mode": {
           "type": "string",
-          "enum": ["staged", "dxfuse"],
-          "default": "dxfuse",
-          "description": "DNAnexus uses a task-local read-only dxfuse mount; other profiles default to ordinary Nextflow staging."
+          "enum": ["staged", "container"],
+          "default": "container",
+          "description": "DNAnexus reads databases baked into the KneadData container; other profiles default to ordinary Nextflow staging."
         },
         "kneaddata_database_identity": {
           "type": "string",
-          "default": "hg37dec_v0.1:file-JBpJzkj0Kg1x9BZVK6J0gZBy,file-JBpJzkj0Kg1x0yJKB0774vbB,file-JBpJzkj0Kg1x9BZVK6J0gZBv,file-JBpJzkj0Kg1XVj5pG9Q3qBFv,file-JBpJzkj0Kg1YX85x63ggpQ2K,file-JBpJzkj0Kg1VBFZzzPyJ7gP4",
-          "description": "Immutable identity of the six Bowtie2 components, included in the Nextflow task command and resume hash."
+          "description": "Optional semantic database identity included in the task command and resume hash. When omitted, the immutable DNAnexus container URI is used."
         },
         "metaphlan_db": {
           "type": "string",
