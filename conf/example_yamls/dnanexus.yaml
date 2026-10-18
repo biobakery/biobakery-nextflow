@@ -23,7 +23,7 @@ dnanexus_container: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-replace-with-new
 # Absolute database directory baked into the KneadData container. Replace this
 # placeholder with the image's real internal path before running.
 host_genome: "/replace/with/container/path/kneaddata/hg37dec_v0.1"
-kneaddata_reference_mode: "container"
+kneaddata_db_location: "container"
 
 # Optional semantic database release. When omitted, the immutable
 # dnanexus_container URI is logged and included in the task command instead.

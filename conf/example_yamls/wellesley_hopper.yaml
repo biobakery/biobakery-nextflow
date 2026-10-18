@@ -1,0 +1,42 @@
+# Wellesley Hopper — analysis selections for a metagenome run.
+# nextflow run main.nf -profile wellesley_hopper -params-file conf/wellesley_hopper.yaml -resume
+# Relative database entries below resolve against the roots in the database config.
+# samplesheet is relative to the launch directory, not this YAML's directory.
+workflow: mgx
+samplesheet: samplesheet.csv
+outdir: results
+
+run_qc: true
+run_taxonomic_profiling: true
+run_functional_profiling: true
+run_viral_profiling: false
+run_strain_profiling: false
+# Enable after building/installing the dedicated stats/viz image.
+run_vis: false
+run_stats: false
+
+metaphlan_databases:
+  - metaphlan_db: mpa_vOct22_202403_default
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403
+    metaphlan_version: metaphlan_4.1.2
+  - metaphlan_db: mpa_vOct22_202403_lon_subsp
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403_lon_subsp
+    metaphlan_version: metaphlan_4.1.2
+# Both references run MetaPhlAn; only the selected one feeds downstream analyses.
+metaphlan_downstream_indices:
+  - mpa_vOct22_CHOCOPhlAnSGB_202403
+
+humann_version: humann_v4a
+run_humann_regroup: true
+run_humann_rename: true
+run_humann_merge: true
+humann_regroups:
+  - output_label: ecs
+    group_mapping_database: map_level4ec_uniclust90.txt.gz
+    renaming_database: map_level4ec_name.txt.gz
+  - output_label: kos
+    group_mapping_database: map_ko_uniref90.txt.gz
+    renaming_database: map_ko_name.txt.gz
+  - output_label: pfams
+    group_mapping_database: map_pfam_uniref90.txt.gz
+    renaming_database: map_pfam_name.txt.gz
