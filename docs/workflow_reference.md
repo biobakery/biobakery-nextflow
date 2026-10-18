@@ -940,3 +940,6 @@ flowchart LR
 | `stratified_barplot` | One barplot per (pathway rank, metadata variable). | `modules/stats/stratified_pathways/main.nf` | `<outdir>/stats/stratified_pathways` |
 | `stratified_metadata` | Merge the pathway abundances with the metadata and work out which | `modules/stats/stratified_pathways/main.nf` | `<outdir>/stats/stratified_pathways` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
+
+
+See [workflow utility dependencies](workflow_utilities.md) for bundled bioBakery helpers and remaining installation requirements.

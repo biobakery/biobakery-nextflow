@@ -306,7 +306,7 @@ nextflow run main.nf -profile harvard_rc --workflow mgx \
 nextflow run main.nf -profile harvard_rc --workflow mgx \
   --readsdir /path/to/fastqs --outdir /path/to/output \
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref
 ```
 
 ### Viral profiling options (BAQLaVa)
@@ -353,7 +353,7 @@ nextflow run main.nf -profile harvard_rc --workflow mgx \
 
 # Switch to HUMAnN4 databases
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref
 ```
 
 ### Database compatibility matrix (Harvard FASRC)
@@ -510,8 +510,8 @@ These are auto-applied when using `-profile harvard_rc`. Override any on the CLI
 | `--host_genome` (rRNA) | `/n/lab_storage/huttenhower_lab/data/kneaddata_databases/ribosomal_RNA/SILVA_128_LSUParc_SSUParc_ribosomal_RNA_v0.2` |
 | `--metaphlan_db` | `/n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.1.1/lib/python3.10/site-packages/metaphlan/metaphlan_databases` |
 | `--metaphlan_index` | `mpa_vJun23_CHOCOPhlAnSGB_202307` |
-| `--humann_db` (v3.9) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3` |
-| `--humann_db` (v4a) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4` |
+| `--humann_db_chocophlan` (v3.9) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3` |
+| `--humann_db_chocophlan` (v4a) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4` |
 | `--phylophlan_path` | Set manually if running `--workflow assembly` |
 
 ### Cluster-side files (not in repo)
