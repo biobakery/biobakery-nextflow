@@ -1,7 +1,8 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
+include { prepare_report_summaries } from '../modules/stats/prepare_summaries/main.nf' 
 
 include { identify_inputs }              from '../modules/vis/identify_inputs/main.nf'
 include { feature_table; trim_taxonomy } from '../modules/stats/feature_table/main.nf'
@@ -25,70 +26,39 @@ include { archive_output }               from '../modules/utils/archive/main.nf'
 workflow VIS {
 
     take:
-    // A value channel, so every consumer below can read it: Channel.value for a
-    // standalone run, and stage_report_input's output for a chained one, which
-    // is a value channel because all of its inputs are.
-    input_dir_ch    // the bioBakery output folder to report on
+    source_dir_ch // [database context, bioBakery output folder]; empty context for standalone runs
 
     main:
+    input_dir_ch = prepare_report_summaries(source_dir_ch).folder
     def no_file = file("${projectDir}/assets/NO_FILE")
 
     metadata_ch = params.input_metadata
         ? Channel.value(file(params.input_metadata))
         : Channel.value(no_file)
 
-    // ── Identify the input files ───────────────────────────────────────────
     identify_inputs(input_dir_ch, metadata_ch, 'vis')
-
     manifest_ch = identify_inputs.out.manifest
-    info_ch     = manifest_ch.map { json -> new JsonSlurper().parse(json.toFile()) }
+    info_ch = manifest_ch.map { db, json -> tuple(db, new JsonSlurperClassic().parse(json.toFile())) }
+    contexts = input_dir_ch.map { db, dir -> tuple(db, no_file) }
 
-    // ── Taxonomy feature table (input to the alpha diversity plots) ────────
-    // generate_alpha_diversity_plots() calls create_feature_table_inputs first;
-    // wmgx profiles go through create_feature_table.py and 16s profiles through
-    // trim_taxonomy.py.
-    // the manifest holds paths relative to the folder, so both travel together
-    taxonomy_ch = info_ch.combine(input_dir_ch)
-        .map { m, dir -> [ m.study_type, file("${dir}/${m.taxonomic_profile}") ] }
-
-    // not published: vis_report publishes the whole `vis` folder wholesale, so
-    // this stays an intermediate -- see the note in the feature_table module
-    wmgx_taxonomy_ch = taxonomy_ch
-        .filter { study_type, profile -> study_type == 'WGX' }
-        .map { study_type, profile ->
-            [ 'taxonomy', profile, "--sample-tag-column '_taxonomic_profile' --reduce-stratified-species-only", false ] }
-
-    sixteens_taxonomy_ch = taxonomy_ch
-        .filter { study_type, profile -> study_type == '16S' }
-        .map { study_type, profile -> [ 'taxonomy', profile, false ] }
-
-    features_ch = feature_table(wmgx_taxonomy_ch).features
-        .mix(trim_taxonomy(sixteens_taxonomy_ch).features)
-
-    // ── Alpha diversity plots ──────────────────────────────────────────────
-    // Only generated when metadata are provided, matching the original.
+    taxonomy_ch = info_ch.join(input_dir_ch)
+        .map { db, m, dir -> tuple(db, m.study_type, file("${dir}/${m.taxonomic_profile}")) }
+    features_ch = feature_table(taxonomy_ch.filter { db, type, f -> type == 'WGX' }
+        .map { db, type, f -> tuple(db, 'taxonomy', f, "--sample-tag-column '_taxonomic_profile' --reduce-stratified-species-only", false) }).features
+        .mix(trim_taxonomy(taxonomy_ch.filter { db, type, f -> type == '16S' }
+            .map { db, type, f -> tuple(db, 'taxonomy', f, false) }).features)
     if (params.input_metadata) {
-        alpha_diversity(features_ch, metadata_ch)
-        alpha_ch = alpha_diversity.out.plots.ifEmpty(no_file)
+        alpha_ch = alpha_diversity(features_ch, metadata_ch).plots
     } else {
-        alpha_ch = Channel.value(no_file)
+        alpha_ch = contexts
     }
-
-    // ── EC names ───────────────────────────────────────────────────────────
-    ecs_input_ch = info_ch.combine(input_dir_ch)
-        .filter { m, dir -> m.study_type == 'WGX' && m.ecsabundance }
-        .map    { m, dir -> file("${dir}/${m.ecsabundance}") }
-
-    ecs_ch = add_ec_names(ecs_input_ch).ecs.ifEmpty(no_file)
-
-    // ── Report and archive ─────────────────────────────────────────────────
-    vis_report(
-        input_dir_ch,
-        manifest_ch,
-        metadata_ch,
-        alpha_ch,
-        ecs_ch)
-
+    ecs_input_ch = info_ch.join(input_dir_ch)
+        .filter { db, m, dir -> m.study_type == 'WGX' && m.ecsabundance }
+        .map { db, m, dir -> tuple(db, file("${dir}/${m.ecsabundance}")) }
+    ecs_ch = contexts.join(add_ec_names(ecs_input_ch).ecs, remainder: true)
+        .map { db, sentinel, ecs -> tuple(db, ecs ?: sentinel) }
+    report_inputs = input_dir_ch.join(manifest_ch).join(alpha_ch).join(ecs_ch)
+    vis_report(report_inputs, metadata_ch)
     archive_output(vis_report.out.report_folder, metadata_ch, 'vis')
 
     emit:

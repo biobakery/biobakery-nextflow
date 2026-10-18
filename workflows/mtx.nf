@@ -7,7 +7,7 @@ include { TAXONOMIC_PROFILING }  from '../subworkflows/taxonomic_profiling.nf'
 include { FUNCTIONAL_PROFILING } from '../subworkflows/functional_profiling.nf'
 include { STRAIN_PROFILING }     from '../subworkflows/strain_profiling.nf'
 include { version_log }          from '../modules/utils/version_log/main.nf'
-include { stage_report_input }   from '../modules/utils/report_input/main.nf'
+include { PREPARE_REPORTS } from '../subworkflows/prepare_reports.nf'
 include { REPORTING }            from '../subworkflows/reporting.nf'
 include { mtx_kneaddata_dbs }    from '../subworkflows/mtx_common.nf'
 include { merge_pairs }          from '../modules/utils/merge_pairs/main.nf'
@@ -79,12 +79,11 @@ workflow MTX {
     // modules/utils/report_input.
     if (params.run_vis || params.run_stats) {
         REPORTING(
-            stage_report_input(
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(no_file),
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.species_counts           : Channel.value(no_file),
+            PREPARE_REPORTS(
+                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(tuple('', no_file)),
                 params.run_qc                   ? QUALITY_CONTROL.out.read_counts                  : Channel.value(no_file),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables.collect() : Channel.value([]),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.count_tables.collect()  : Channel.value([]),
+                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables : Channel.empty(),
+                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.logs  : Channel.empty(),
                 ''
             ).folder
         )

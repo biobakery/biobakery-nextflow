@@ -12,7 +12,7 @@ include { STRAIN_PROFILING }                               from '../subworkflows
 include { rna_dna_norm }                                   from '../modules/utils/rna_dna_norm/main.nf'
 include { version_log }                                    from '../modules/utils/version_log/main.nf'
 include { mtx_kneaddata_dbs }                              from '../subworkflows/mtx_common.nf'
-include { stage_report_input }                             from '../modules/utils/report_input/main.nf'
+include { PREPARE_REPORTS } from '../subworkflows/prepare_reports.nf'
 include { REPORTING }                                      from '../subworkflows/reporting.nf'
 include { merge_pairs as MERGE_MGX }                       from '../modules/utils/merge_pairs/main.nf'
 include { merge_pairs as MERGE_MTX }                       from '../modules/utils/merge_pairs/main.nf'
@@ -104,18 +104,17 @@ workflow MGX_MTX {
     // Uses the un-normalised (RPK) merged tables from each half; rna_dna_norm.py
     // normalises internally.
     if (params.run_functional_profiling && !params.bypass_norm_ratio) {
-        dna_tables = FUNC_MGX.out.merged_genefamilies.map  { f -> tuple('genes', f) }
-            .mix( FUNC_MGX.out.merged_ecs.map              { f -> tuple('ecs',   f) } )
-            .mix( FUNC_MGX.out.merged_pathabundance.map    { f -> tuple('paths', f) } )
-
-        rna_tables = FUNC_MTX.out.merged_genefamilies.map  { f -> tuple('genes', f) }
-            .mix( FUNC_MTX.out.merged_ecs.map              { f -> tuple('ecs',   f) } )
-            .mix( FUNC_MTX.out.merged_pathabundance.map    { f -> tuple('paths', f) } )
+        dna_tables = FUNC_MGX.out.merged.map { db, label, f ->
+            tuple([db, [genefamilies: 'genes', pathabundance: 'paths'].get(label, label)], f)
+        }
+        rna_tables = FUNC_MTX.out.merged.map { db, label, f ->
+            tuple([db, [genefamilies: 'genes', pathabundance: 'paths'].get(label, label)], f)
+        }
 
         mapping_file = mapping_given ? file(params.input_mapping, checkIfExists: true)
                                      : no_file
 
-        rna_dna_norm(dna_tables.join(rna_tables), mapping_file)
+        rna_dna_norm(dna_tables.join(rna_tables).map { key, dna, rna -> tuple(key[0], key[1], dna, rna) }, mapping_file)
     }
 
     // ── Step 5: strain profiling, on the metagenome half only ─────────────
@@ -138,12 +137,11 @@ workflow MGX_MTX {
     // <outdir>/whole_metatranscriptome_shotgun` runs it separately.
     if (params.run_vis || params.run_stats) {
         REPORTING(
-            stage_report_input(
+            PREPARE_REPORTS(
                 TAX_MGX.out.merged,
-                TAX_MGX.out.species_counts,
                 params.run_qc ? QC_MGX.out.read_counts : Channel.value(no_file),
-                params.run_functional_profiling ? FUNC_MGX.out.merged_tables.collect() : Channel.value([]),
-                params.run_functional_profiling ? FUNC_MGX.out.count_tables.collect()  : Channel.value([]),
+                params.run_functional_profiling ? FUNC_MGX.out.merged_tables : Channel.empty(),
+                params.run_functional_profiling ? FUNC_MGX.out.logs  : Channel.empty(),
                 ''
             ).folder
         )
@@ -213,6 +211,6 @@ def map_profiles(mtx_reads, mgx_profiles, mapping_path) {
     // join drops DNA samples with no RNA partner, which is the intended
     // behaviour: they are still profiled, they just have nothing to pair with.
     return dna_keyed
-        .join(mgx_profiles)
-        .map { dna_sample, rna_sample, profile -> tuple(rna_sample, profile) }
+        .combine(mgx_profiles.map { db, sample, profile -> tuple(sample, db, profile) }, by: 0)
+        .map { dna_sample, rna_sample, db, profile -> tuple(db, rna_sample, profile) }
 }

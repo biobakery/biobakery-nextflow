@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
+include { database_inputs } from '../subworkflows/database_access.nf'
 include { read_input }             from '../subworkflows/read_input.nf'
 include { QUALITY_CONTROL }        from '../subworkflows/quality_control.nf'
 include { megahit }                from '../modules/assembly/megahit/main.nf'
@@ -73,7 +74,8 @@ workflow ASSEMBLY {
     )
 
     // ── Step 5: MAG quality assessment (CheckM2) ──────────────────────────
-    checkm_out    = checkm2(bins_out.bins)
+    checkm_out    = checkm2(bins_out.bins, Channel.value(database_inputs(params.checkm2_db_location,
+        params.checkm2_db, file("${projectDir}/assets/NO_FILE"))))
 
     all_n50_input = bins_out.bins.map { s, b -> b }.collect()
     n50_out       = mag_n50(all_n50_input)
@@ -83,7 +85,8 @@ workflow ASSEMBLY {
     qa_n50        = checkm2_wrangling(merged_checkm.merged, n50_out.n50)
 
     // ── Step 6: Phylogenetic placement (PhyloPhlAn metagenomic) ───────────
-    phylo_out      = phylophlan_metagenomic(bins_out.bins)
+    phylo_out      = phylophlan_metagenomic(bins_out.bins, Channel.value(database_inputs(params.phylophlan_db_location,
+        params.phylophlan_path, file("${projectDir}/assets/NO_FILE"))))
     all_placements = phylo_out.placement.map { s, p -> p }.collect()
     phylo_merged   = phylophlan_merge(all_placements)
 
