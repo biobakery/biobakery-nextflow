@@ -1,6 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
+include { database_inputs } from './database_access.nf'
 include { sample2markers } from '../modules/strainphlan/main.nf'
 include { strainphlan }    from '../modules/strainphlan/main.nf'
 
@@ -9,13 +10,13 @@ include { strainphlan }    from '../modules/strainphlan/main.nf'
 workflow STRAIN_PROFILING {
 
     take:
-    sam_bzip  // Channel: [ sample, .sam.bz2 ]
+    sam_bzip  // Channel: [ database context, sample, .sam.bz2 ]
 
     main:
     markers_out = sample2markers(sam_bzip)
 
     // Collect all .pkl files for joint StrainPhlAn run
-    all_markers = markers_out.markers.map { s, pkl -> pkl }.collect()
+    all_markers = markers_out.markers.map { db, s, pkl -> tuple(db, pkl) }.groupTuple()
 
     // Build clade channel: use user-specified list or fall back to "all"
     if (params.strainphlan_clades) {
@@ -25,9 +26,10 @@ workflow STRAIN_PROFILING {
     }
 
     // Sentinel file used when no per-clade reference DB is provided
-    no_db = file('NO_DB')
+    no_db = file("${projectDir}/assets/NO_FILE")
+    references = Channel.value(database_inputs(params.strainphlan_db_location, params.strainphlan_db, no_db))
 
-    strainphlan_out = strainphlan(clades_ch, all_markers, no_db)
+    strainphlan_out = strainphlan(all_markers.combine(clades_ch).map { db, markers, clade -> tuple(db, clade, markers) }, references)
 
     emit:
     results = strainphlan_out.results

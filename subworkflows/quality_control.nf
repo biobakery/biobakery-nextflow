@@ -22,11 +22,13 @@ workflow QUALITY_CONTROL {
         error "ERROR: no KneadData reference database configured. Set --host_genome " +
               "(and --host_transcriptome / --rrna_db for metatranscriptome input)."
     }
+    if (!(params.kneaddata_db_location in ['host', 'container']))
+        error 'kneaddata_db_location must be host or container'
     // Local and HPC profiles stage databases as ordinary Nextflow paths.
     // DNAnexus uses paths baked into the process container, so those paths are
     // passed as values and verified from inside the running container. A
     // harmless sentinel preserves one portable process signature.
-    if (params.kneaddata_reference_mode == 'container') {
+    if (params.kneaddata_db_location == 'container') {
         db_files = Channel.value([file("${projectDir}/assets/NO_FILE")])
     } else {
         db_files = Channel.value(db_paths.collect { file(it, checkIfExists: true) })
