@@ -34,32 +34,23 @@ def main():
     # run_beta_diversity() is called with [multivariable_fixed_effects, fixed_effects]
     fixed_effects = [args.multivariable_fixed_effects, args.fixed_effects]
 
-    ordered_fixed_effects = list(
-        collections.OrderedDict.fromkeys(",".join(fixed_effects).split(",")).keys())
+    ordered_fixed_effects = list(collections.OrderedDict.fromkeys(
+        effect.strip() for effect in ",".join(fixed_effects).split(",")
+        if effect.strip()))
 
-    # Kept verbatim from run_beta_diversity(), including the missing separator
-    # between the first effect and the rest. When only --fixed-effects is given
-    # the joined string starts with a comma, so the first entry is "" and the
-    # equation still reads "a + b". Dropping the empty entry would silently
-    # change that to "ab", so the empty entry is deliberately left in place.
-    covariate_equation = ""
-    if len(ordered_fixed_effects) > 1:
-        covariate_equation = ordered_fixed_effects[0]
-        covariate_equation += " + ".join(ordered_fixed_effects[1:])
+    covariate_equation = " + ".join(ordered_fixed_effects)
 
     # fall back to the metadata variables when no fixed effects were given
     if not covariate_equation and len(metadata_variables) > 1:
-        metadata_variables_set = set(metadata_variables)
-        metadata_variables_set.discard("subject")
-        derived_effects = list(
-            metadata_variables_set.difference(set(args.random_effects.split(","))))
+        excluded = {"subject", *args.random_effects.split(",")}
+        derived_effects = [name for name in metadata_variables if name not in excluded]
         if len(derived_effects) > 1:
             covariate_equation = " + ".join(derived_effects)
 
     with open(args.output, "w") as file_handle:
         json.dump({"covariate_equation": covariate_equation,
                    # pairwise only runs when fixed effects were explicitly given
-                   "run_pairwise": len(ordered_fixed_effects) > 1,
+                   "run_pairwise": bool(ordered_fixed_effects),
                    "run_multivariate": bool(covariate_equation)},
                   file_handle, indent=2, sort_keys=True)
 

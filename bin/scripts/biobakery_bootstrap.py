@@ -68,7 +68,7 @@ def get_rscript(basename):
         unmodified against biobakery_workflows 3.2 and there is no reason to
         fork code that works. Only a script that has been patched lives in
         assets/Rscripts, and it shadows the package copy of the same name; the
-        rest still come from the install, so this port keeps tracking upstream.
+        remaining helpers are bundled with this pipeline as well.
 
         Each vendored script carries a header saying what was changed and why.
     """

@@ -95,3 +95,10 @@ which rebuilds every workflow's DAG with `nextflow run -preview` and fails if
 pipeline. That catches a config that does not parse, a broken `include`, a
 channel wired to nothing, and documentation that has drifted from the code —
 which is most of what changes between real test runs.
+
+### MetaPhlAn database routing
+
+`python3 -m unittest discover -s tests -p test_metaphlan_databases.py` runs local
+Nextflow integration tests with mocked bioBakery executables. It checks multiple
+databases, downstream selection and isolation, legacy settings, and validation.
+It requires Java, Nextflow, bzip2 and zip, without reference databases or a cluster.

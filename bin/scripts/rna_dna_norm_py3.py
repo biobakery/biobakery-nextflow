@@ -29,22 +29,14 @@ replacement for `rna_dna_norm.py`.
 """
 
 import os
-import shutil
 import sys
 
 UPSTREAM = "rna_dna_norm.py"
 
 
 def find_upstream():
-    """Locate the upstream script on PATH."""
-    path = shutil.which(UPSTREAM)
-    if not path:
-        sys.exit(
-            "ERROR: {0} not found on PATH. It ships with biobakery_workflows; "
-            "load the module that provides it (rocky8/biobakeryworkflows/3.2) "
-            "before running this step.".format(UPSTREAM)
-        )
-    return path
+    """Locate the pinned helper shipped alongside this compatibility wrapper."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), UPSTREAM)
 
 
 def patch(source, path):
