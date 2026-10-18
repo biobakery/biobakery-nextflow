@@ -10,17 +10,18 @@ nextflow.enable.dsl=2
 // needs the same answer at runtime, so it is emitted as JSON for the workflow
 // to branch on.
 process covariate_equation {
-    publishDir "${params.outdir}/stats", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats" }, mode: 'copy'
 
     input:
-    path manifest
+    tuple val(db), path(manifest)
 
     output:
-    path "covariate_equation.json", emit: json
+    tuple val(db), path("covariate_equation.json"), emit: json
 
     script:
     """
-    python ${projectDir}/bin/scripts/stats_covariate_equation.py \\
+    python ${params.reporting_root}/bin/scripts/stats_covariate_equation.py \\
         --manifest ${manifest} \\
         --output covariate_equation.json \\
         --fixed-effects '${params.stats_fixed_effects}' \\

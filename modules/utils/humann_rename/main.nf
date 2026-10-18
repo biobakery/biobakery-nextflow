@@ -1,45 +1,27 @@
-#!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-// Rename HUMAnN output features to human-readable names
 process humann_rename {
-    tag "$sample"
-    publishDir path: { "${params.outdir}/${subdir}humann/${params.humann_version}/renamed" }, mode: 'copy'
+    tag "${sample}:${mapping.output_label}"
+    publishDir path: { "${params.outdir}/${subdir}${db ? "databases/${db}/" : ""}humann/${params.humann_version}/renamed/${mapping.output_label}" }, mode: 'copy'
 
     input:
-    tuple val(sample), path(regrouped)
+    tuple val(db), val(sample), val(mapping), path(regrouped), path(custom_names, stageAs: 'names/*')
     val subdir
 
     output:
-    tuple val(sample), path("${sample}_${params.humann_regroup_grouping}_named_${params.humann_version}.tsv"), emit: renamed
-
-    when:
-    params.run_humann_rename
+    tuple val(db), val(sample), val(mapping), path("${sample}_${mapping.output_label}_named_${params.humann_version}.tsv"), emit: renamed
 
     script:
-    // humann_regroup_table and humann_rename_table take different vocabularies:
-    // regroup -g wants e.g. uniref90_rxn, rename -n wants one of
-    // {kegg-orthology, ec, metacyc-rxn, metacyc-pwy, pfam, eggnog, go,
-    // infogo1000, uniref90}. Passing the regroup value straight through made
-    // humann_rename_table exit on "invalid choice", so map it here.
-    // Verified against humann_regroup_table --help (the -g options) and
-    // humann_rename_table --help (the -n options); uniref90_rxn -> metacyc-rxn
-    // confirmed on real output, which renamed 3912/3916 features.
-    def rename_names = [
-        'uniref90_rxn'        : 'metacyc-rxn',
-        'uniref90_go'         : 'go',
-        'uniref90_ko'         : 'kegg-orthology',
-        'uniclust90_level4ec' : 'ec',
-        'uniref90_pfam'       : 'pfam',
-        'uniref90_eggnog'     : 'eggnog',
-    ]
-    def names = params.humann_rename_names ?:
-                rename_names[params.humann_regroup_grouping] ?:
-                params.humann_regroup_grouping
+    def mapping_file = mapping.database_location == 'container' ? mapping.renaming_database : custom_names
+    def names_arg = mapping.renaming_database ? "--custom '${mapping_file}'" : "--names '${mapping.rename}'"
+    def check_mapping = mapping.renaming_database
+        ? "test -r '${mapping_file}' || { echo 'Mapping database is not readable inside the task: ${mapping_file}' >&2; exit 1; }"
+        : ''
     """
+    ${check_mapping}
     humann_rename_table \\
-        -i ${regrouped} \\
-        -n ${names} \\
-        -o ${sample}_${params.humann_regroup_grouping}_named_${params.humann_version}.tsv
+        --input '${regrouped}' \\
+        ${names_arg} \\
+        --output '${sample}_${mapping.output_label}_named_${params.humann_version}.tsv'
     """
 }

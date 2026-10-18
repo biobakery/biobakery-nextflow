@@ -7,19 +7,20 @@ nextflow.enable.dsl=2
 // The test compares two matrices of the same dimension, so it only runs when
 // more than one data set is present. The calling workflow enforces that.
 process mantel_test {
-    publishDir "${params.outdir}/stats/mantel_test", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats/mantel_test" }, mode: 'copy'
 
     input:
-    path features
+    tuple val(db), path(features)
     path metadata
 
     output:
-    path "mantel_plot.png", emit: plot
+    tuple val(db), path("mantel_plot.png"), emit: plot
 
     script:
     def input_files = features.collect { it.toString() }.join(',')
     """
-    Rscript \$(python ${projectDir}/bin/scripts/biobakery_bootstrap.py --rscript mantel_test) \\
+    Rscript \$(python ${params.reporting_root}/bin/scripts/biobakery_bootstrap.py --rscript mantel_test) \\
         ${metadata} \\
         '${input_files}' \\
         mantel_plot.png \\

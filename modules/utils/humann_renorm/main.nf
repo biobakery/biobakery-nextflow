@@ -11,14 +11,14 @@ nextflow.enable.dsl=2
 // relative abundances are over classified features only.
 process humann_renorm {
     tag "${sample}:${feature}"
-    publishDir path: { "${params.outdir}/${subdir}humann/${params.humann_version}/relab/${feature}" }, mode: 'copy'
+    publishDir path: { "${params.outdir}/${subdir}${db ? "databases/${db}/" : ""}humann/${params.humann_version}/relab/${feature}" }, mode: 'copy'
 
     input:
-    tuple val(sample), val(feature), path(table)
+    tuple val(db), val(sample), val(feature), path(table)
     val subdir
 
     output:
-    tuple val(sample), val(feature), path("${sample}_${feature}_relab_${params.humann_version}.tsv"), emit: relab
+    tuple val(db), val(sample), val(feature), path("${sample}_${feature}_relab_${params.humann_version}.tsv"), emit: relab
 
     script:
     """

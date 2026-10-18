@@ -10,23 +10,16 @@ nextflow.enable.dsl=2
 // to this one process means the report engine can be replaced later without
 // touching the rest of the workflow.
 process vis_report {
-    publishDir "${params.outdir}", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}" }, mode: 'copy'
 
     input:
-    path input_folder, stageAs: 'input_folder'
-    path manifest
-    // Each optional input is staged under its own name. All three fall back to
-    // the same assets/NO_FILE sentinel, and staging two of them at once failed
-    // the task with "multiple input files for each of the following file names:
-    // NO_FILE" -- which is every run without metadata, since alpha diversity is
-    // then skipped too.
-    path metadata,              stageAs: 'metadata/*'
-    path alpha_diversity_plots, stageAs: 'alpha/*'
-    path ecs_file,              stageAs: 'ecs/*'
+    tuple val(db), path(input_folder, stageAs: 'input_folder'), path(manifest), path(alpha_diversity_plots, stageAs: 'alpha/*'), path(ecs_file, stageAs: 'ecs/*')
+    path metadata, stageAs: 'metadata/*'
 
     output:
-    path "vis",                    emit: report_folder
-    path "vis/*_report.{html,pdf}", emit: report
+    tuple val(db), path("vis"),                    emit: report_folder
+    tuple val(db), path("vis/*_report.{html,pdf}"), emit: report
 
     script:
     def metadata_opt   = metadata.name != 'NO_FILE' ? "--input-metadata ${metadata}" : ''
@@ -42,7 +35,7 @@ process vis_report {
     """
     mkdir -p vis
 
-    python ${projectDir}/bin/scripts/biobakery_vis_report.py \\
+    python ${params.reporting_root}/bin/scripts/biobakery_vis_report.py \\
         --input input_folder \\
         --manifest ${manifest} \\
         --output vis \\

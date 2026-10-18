@@ -6,16 +6,17 @@ nextflow.enable.dsl=2
 
 // HAllA needs the metadata with samples as columns.
 process halla_transpose_metadata {
+    label 'stats_viz'
     input:
-    path metadata
+    tuple val(db), path(metadata)
 
     output:
-    path "halla_metadata/${metadata.name}", emit: metadata
+    tuple val(db), path("halla_metadata/${metadata.name}"), emit: metadata
 
     script:
     """
     mkdir -p halla_metadata
-    python ${projectDir}/bin/scripts/transpose_table.py \\
+    python ${params.reporting_root}/bin/scripts/transpose_table.py \\
         --input ${metadata} \\
         --output halla_metadata/${metadata.name}
     """
@@ -30,15 +31,15 @@ process halla_transpose_metadata {
 // task removes a stale output folder first, which is unnecessary here because
 // every task gets a fresh work directory.
 process halla {
+    label 'stats_viz'
     tag "${feature_type}"
-    publishDir "${params.outdir}/stats", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats" }, mode: 'copy'
 
     input:
-    tuple val(feature_type), path(features)
-    path metadata
+    tuple val(db), val(feature_type), path(features), path(metadata)
 
     output:
-    tuple val(feature_type), path("halla_${feature_type}"), emit: results
+    tuple val(db), val(feature_type), path("halla_${feature_type}"), emit: results
 
     script:
     """

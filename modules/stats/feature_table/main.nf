@@ -22,18 +22,19 @@ nextflow.enable.dsl=2
 
 // Build one feature table (taxonomy, pathways or any other data file).
 process feature_table {
+    label 'stats_viz'
     tag "${feature_type}"
-    publishDir path: "${params.outdir}/stats/features", mode: 'copy', enabled: { publish }
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}/" : ""}stats/features" }, mode: 'copy', enabled: { publish }
 
     input:
-    tuple val(feature_type), path(data_file), val(options), val(publish)
+    tuple val(db), val(feature_type), path(data_file), val(options), val(publish)
 
     output:
-    tuple val(feature_type), path("${feature_type}_features.txt"), emit: features
+    tuple val(db), val(feature_type), path("${feature_type}_features.txt"), emit: features
 
     script:
     """
-    create_feature_table.py \\
+    python ${params.reporting_root}/bin/scripts/create_feature_table.py \\
         --input ${data_file} \\
         --output ${feature_type}_features.txt \\
         ${options}
@@ -42,18 +43,19 @@ process feature_table {
 
 // Reformat a 16s taxonomy profile into a feature table.
 process trim_taxonomy {
+    label 'stats_viz'
     tag "${feature_type}"
-    publishDir path: "${params.outdir}/stats/features", mode: 'copy', enabled: { publish }
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}/" : ""}stats/features" }, mode: 'copy', enabled: { publish }
 
     input:
-    tuple val(feature_type), path(data_file), val(publish)
+    tuple val(db), val(feature_type), path(data_file), val(publish)
 
     output:
-    tuple val(feature_type), path("${feature_type}_features.txt"), emit: features
+    tuple val(db), val(feature_type), path("${feature_type}_features.txt"), emit: features
 
     script:
     """
-    trim_taxonomy.py \\
+    python ${params.reporting_root}/bin/scripts/trim_taxonomy.py \\
         --input ${data_file} \\
         --output ${feature_type}_features.txt \\
         --end-taxonomy-column 0

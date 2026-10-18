@@ -10,16 +10,17 @@ nextflow.enable.dsl=2
 // a run only ever depend on that run's own figures, and a separate process
 // would have to write into its staged input folder to place them.
 process maaslin2 {
+    label 'stats_viz'
     tag "${feature_type}"
-    publishDir "${params.outdir}/stats", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats" }, mode: 'copy'
 
     input:
-    tuple val(feature_type), path(features)
+    tuple val(db), val(feature_type), path(features)
     path metadata
 
     output:
-    tuple val(feature_type), path(out_folder),                          emit: results
-    tuple val(feature_type), path("${out_folder}/significant_results.tsv"), emit: significant, optional: true
+    tuple val(db), val(feature_type), path(out_folder),                          emit: results
+    tuple val(db), val(feature_type), path("${out_folder}/significant_results.tsv"), emit: significant, optional: true
 
     script:
     out_folder = "maaslin2_${feature_type == 'taxonomy' ? 'taxa' : feature_type}"
@@ -36,11 +37,11 @@ process maaslin2 {
         optional_args += ",random_effects='${params.stats_random_effects}'"
     // MaAsLin2 1.22.0 calls labs("") and dies on ggplot2 4.x once it reaches the
     // first continuous metadata variable; the shim makes that call a no-op again
-    def labs_shim = "${projectDir}/assets/Rscripts/ggplot2_labs_shim.R"
+    def labs_shim = "${params.reporting_root}/assets/Rscripts/ggplot2_labs_shim.R"
     """
     R -e "source('${labs_shim}'); library('Maaslin2'); results <- Maaslin2('${features}','${metadata}','${out_folder}'${optional_args})"
 
-    python ${projectDir}/bin/scripts/maaslin_image_tiles.py \\
+    python ${params.reporting_root}/bin/scripts/maaslin_image_tiles.py \\
         --figures-folder ${out_folder}/figures
     """
 }

@@ -12,15 +12,16 @@ nextflow.enable.dsl=2
 // One beta diversity analysis for one feature table.
 // analysis is one of univariate | multivariate | pairwise.
 process beta_diversity {
+    label 'stats_viz'
     tag "${analysis}:${feature_type}"
-    publishDir "${params.outdir}/stats/beta_diversity", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats/beta_diversity" }, mode: 'copy'
 
     input:
-    tuple val(feature_type), path(features), val(analysis), val(covariate_equation)
+    tuple val(db), val(feature_type), path(features), val(analysis), val(covariate_equation)
     path metadata
 
     output:
-    path "${feature_type}_${analysis}.png", emit: plot
+    tuple val(db), path("${feature_type}_${analysis}.png"), emit: plot
 
     script:
     def adonis_opt = params.stats_adonis_method ? "--adonis_method ${params.stats_adonis_method}" : ''
@@ -30,7 +31,7 @@ process beta_diversity {
     else if (analysis == 'pairwise')
         analysis_opt = '--pairwise TRUE'
     """
-    Rscript \$(python ${projectDir}/bin/scripts/biobakery_bootstrap.py --rscript beta_diversity) \\
+    Rscript \$(python ${params.reporting_root}/bin/scripts/biobakery_bootstrap.py --rscript beta_diversity) \\
         ${features} \\
         ${metadata} \\
         ${feature_type}_${analysis}.png \\
@@ -43,20 +44,21 @@ process beta_diversity {
 
 // PERMANOVA across every feature table at once, for longitudinal studies.
 process permanova {
-    publishDir "${params.outdir}/stats/permanova", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats/permanova" }, mode: 'copy'
 
     input:
-    path features
+    tuple val(db), path(features)
     path metadata
 
     output:
     // the script derives permanova_<feature type>.png alongside permanova.png
-    path "permanova*.png", emit: plots
+    tuple val(db), path("permanova*.png"), emit: plots
 
     script:
     def input_files = features.collect { it.toString() }.join(',')
     """
-    Rscript \$(python ${projectDir}/bin/scripts/biobakery_bootstrap.py --rscript permanova_hmp2) \\
+    Rscript \$(python ${params.reporting_root}/bin/scripts/biobakery_bootstrap.py --rscript permanova_hmp2) \\
         '${input_files}' \\
         ${metadata} \\
         permanova.png \\

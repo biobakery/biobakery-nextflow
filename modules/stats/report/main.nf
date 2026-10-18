@@ -13,23 +13,15 @@ nextflow.enable.dsl=2
 // As with vis_report, this is the only process in the stats workflow that
 // depends on anadama2.
 process stats_report {
-    publishDir "${params.outdir}", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}" }, mode: 'copy'
 
     input:
-    path taxonomic_profile
-    path feature_tables
-    path maaslin_folders
-    path halla_folders
-    path mantel_plot
-    path beta_plots
-    path permanova_plots
-    path stratified_plots
-    val  feature_types
-    val  covariate_equation
+    tuple val(db), path(taxonomic_profile), path(feature_tables), path(maaslin_folders), path(halla_folders), path(mantel_plot), path(beta_plots), path(permanova_plots), path(stratified_plots), val(feature_types), val(covariate_equation)
 
     output:
-    path "stats",                     emit: report_folder
-    path "stats/stats_report.{html,pdf}", emit: report
+    tuple val(db), path("stats"),                     emit: report_folder
+    tuple val(db), path("stats/stats_report.{html,pdf}"), emit: report
 
     script:
     def intro_opt    = params.introduction_text ? "--introduction-text '${params.introduction_text}'" : ''
@@ -72,7 +64,7 @@ process stats_report {
         cp -L "\$plot" stats/stratified_pathways/
     done
 
-    python ${projectDir}/bin/scripts/biobakery_stats_report.py \\
+    python ${params.reporting_root}/bin/scripts/biobakery_stats_report.py \\
         --output stats \\
         --taxonomic-profile ${taxonomic_profile} \\
         --feature-types '${feature_types}' \\

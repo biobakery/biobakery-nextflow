@@ -34,12 +34,12 @@ process single_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass      = params.kneaddata_bypass_trim               ? "--bypass-trim"                  : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"   : ""
-    def db_args = params.kneaddata_reference_mode == 'container'
+    def db_args = params.kneaddata_db_location == 'container'
         ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
         : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
             .collect { "--reference-db ${it}" }
             .join(' ')
-    def db_checks = params.kneaddata_reference_mode == 'container'
+    def db_checks = params.kneaddata_db_location == 'container'
         ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
         : ':'
     def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
@@ -89,12 +89,12 @@ process paired_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass       = params.kneaddata_bypass_trim               ? "--bypass-trim"                 : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"  : ""
-    def db_args = params.kneaddata_reference_mode == 'container'
+    def db_args = params.kneaddata_db_location == 'container'
         ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
         : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
             .collect { "--reference-db ${it}" }
             .join(' ')
-    def db_checks = params.kneaddata_reference_mode == 'container'
+    def db_checks = params.kneaddata_db_location == 'container'
         ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
         : ':'
     def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'

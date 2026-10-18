@@ -9,13 +9,14 @@ nextflow.enable.dsl=2
 // the process stays a plain file-to-file transform: when the names are already
 // present the input is passed through unchanged.
 process add_ec_names {
-    publishDir "${params.outdir}/vis/ecs", mode: 'copy'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/vis/ecs" }, mode: 'copy'
 
     input:
-    path ecsabundance
+    tuple val(db), path(ecsabundance)
 
     output:
-    path "ecs/${ecsabundance.name}", emit: ecs
+    tuple val(db), path("ecs/${ecsabundance.name}"), emit: ecs
 
     script:
     """

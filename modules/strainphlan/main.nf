@@ -4,13 +4,13 @@ nextflow.enable.dsl=2
 // StrainPhlAn step 1: extract per-sample strain markers from MetaPhlAn SAM output
 process sample2markers {
     tag "$sample"
-    publishDir "${params.outdir}/strainphlan/markers", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}/" : ""}strainphlan/markers" }, mode: 'copy'
 
     input:
-    tuple val(sample), path(sam_bz2)
+    tuple val(db), val(sample), path(sam_bz2)
 
     output:
-    tuple val(sample), path("${sample}.pkl"), emit: markers
+    tuple val(db), val(sample), path("${sample}.pkl"), emit: markers
 
     when:
     params.run_strain_profiling
@@ -27,23 +27,23 @@ process sample2markers {
 // StrainPhlAn step 2: build strain phylogeny per clade
 process strainphlan {
     tag "$clade"
-    publishDir "${params.outdir}/strainphlan/${clade}", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}/" : ""}strainphlan/${clade}" }, mode: 'copy'
 
     input:
-    val  clade
-    path markers       // collected *.pkl files from all samples
-    path db_clade      // clade-specific reference marker file; pass file('NO_DB') if absent
+    tuple val(db), val(clade), path(markers) // collected *.pkl files for one database
+    path reference_files      // clade-specific reference marker file; pass file('NO_DB') if absent
 
     output:
-    path "output/",       emit: results
-    path "output/*.tre",  emit: tree,  optional: true
-    path "output/*.tsv",  emit: table, optional: true
+    tuple val(db), path("output/"),       emit: results
+    tuple val(db), path("output/*.tre"),  emit: tree,  optional: true
+    tuple val(db), path("output/*.tsv"),  emit: table, optional: true
 
     when:
     params.run_strain_profiling
 
     script:
-    def db_flag     = (db_clade.name != 'NO_DB')                  ? "--database ${db_clade}"                                          : ""
+    def db_clade = params.strainphlan_db_location == 'host' ? reference_files[0] : params.strainphlan_db
+    def db_flag     = (params.strainphlan_db != null)                  ? "--database ${db_clade}"                                          : ""
     def phylo_flag  = params.strainphlan_phylophlan_mode           ? "--phylophlan-mode ${params.strainphlan_phylophlan_mode}"          : ""
     def min_samples = params.strainphlan_marker_in_n_samples       ? "--marker-in-n-samples ${params.strainphlan_marker_in_n_samples}"  : ""
     def extra_args  = params.strainphlan_options ?: ""

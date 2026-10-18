@@ -13,22 +13,23 @@ nextflow.enable.dsl=2
 // Merge the pathway abundances with the metadata and work out which
 // (pathway rank, metadata variable) pairs to plot.
 process stratified_metadata {
-    publishDir "${params.outdir}/stats/stratified_pathways", mode: 'copy', pattern: '*.tsv'
+    label 'stats_viz'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats/stratified_pathways" }, mode: 'copy', pattern: '*.tsv'
 
     input:
-    path pathabundance
+    tuple val(db), path(pathabundance)
     path metadata
 
     output:
-    path "merged_data_metadata_input.tsv", emit: merged
-    path "stratified_plan.json",           emit: plan
+    tuple val(db), path("merged_data_metadata_input.tsv"), emit: merged
+    tuple val(db), path("stratified_plan.json"),           emit: plan
 
     script:
     def categorical = optionList(params.metadata_categorical, '--metadata-categorical')
     def continuous  = optionList(params.metadata_continuous,  '--metadata-continuous')
     def exclude     = optionList(params.metadata_exclude,     '--metadata-exclude')
     """
-    python ${projectDir}/bin/scripts/stats_stratified_metadata.py \\
+    python ${params.reporting_root}/bin/scripts/stats_stratified_metadata.py \\
         --pathabundance ${pathabundance} \\
         --input-metadata ${metadata} \\
         --output merged_data_metadata_input.tsv \\
@@ -42,18 +43,19 @@ process stratified_metadata {
 // The plot is deliberately empty when there is no significant association --
 // the report template treats a zero-size plot as "no association found".
 process stratified_barplot {
+    label 'stats_viz'
     tag "${number}_${variable}"
-    publishDir "${params.outdir}/stats/stratified_pathways", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats/stratified_pathways" }, mode: 'copy'
 
     input:
-    tuple val(number), val(variable), val(metadata_end), path(significant_results), path(merged)
+    tuple val(db), val(number), val(variable), val(metadata_end), path(significant_results), path(merged)
 
     output:
-    path "stratified_pathways_${number}_${variable}.png", emit: plot
+    tuple val(db), path("stratified_pathways_${number}_${variable}.png"), emit: plot
 
     script:
     """
-    python ${projectDir}/bin/scripts/stats_humann_barplot.py \\
+    python ${params.reporting_root}/bin/scripts/stats_humann_barplot.py \\
         --significant-results ${significant_results} \\
         --merged-data ${merged} \\
         --output stratified_pathways_${number}_${variable}.png \\

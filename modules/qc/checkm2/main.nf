@@ -8,15 +8,18 @@ process checkm2 {
 
     input:
     tuple val(sample), path(bins_dir)
+    path reference_files
 
     output:
     tuple val(sample), path("quality_report.tsv"), emit: quality
 
     script:
+    def database = params.checkm2_db_location == 'host' ? reference_files[0] : params.checkm2_db
+    def database_arg = params.checkm2_db ? "--database_path '${database}'" : ''
     def extra = params.checkm_predict_options ?: ""
     """
     if ls ${bins_dir}/*.bin.[0-9]*.fa 2>/dev/null | grep -q .; then
-        checkm2 predict \\
+        checkm2 predict ${database_arg} \\
             -x fa \\
             --input ${bins_dir} \\
             --output-directory checkm2_out/ \\

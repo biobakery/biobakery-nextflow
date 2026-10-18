@@ -11,6 +11,10 @@ process version_log {
     script:
     def baqlava_db_str     = params.baqlava_db     ?: 'default (bundled)'
     def strainphlan_db_str = params.strainphlan_db  ?: 'auto-resolved from metaphlan_db'
+    def metaphlan_config = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+        metaphlan_databases: params.metaphlan_databases,
+        metaphlan_downstream_indices: params.metaphlan_downstream_indices
+    ]))
     def phylophlan_str     = params.phylophlan_path ?: 'not set'
     """
     {
@@ -43,9 +47,14 @@ process version_log {
         echo "  Database Paths"
         echo "----------------------------------------------------------------"
         echo "host_genome:     ${params.host_genome}"
+        cat <<'METAPHLAN_CONFIG'
+${metaphlan_config}
+METAPHLAN_CONFIG
         echo "metaphlan_db:     ${params.metaphlan_db}"
         echo "metaphlan_index:  ${params.metaphlan_index}"
-        echo "humann_db:        ${params.humann_db}"
+        echo "humann_db_chocophlan:     ${params.humann_db_chocophlan}"
+        echo "humann_db_utilitymapping: ${params.humann_db_utilitymapping}"
+        echo "humann_db_protein:        ${params.humann_db_protein}"
         echo "baqlava_db:       ${baqlava_db_str}"
         echo "strainphlan_db:   ${strainphlan_db_str}"
         echo "phylophlan_path:  ${phylophlan_str}"
@@ -81,7 +90,7 @@ process version_log {
         echo "  humann_bypass_prescreen:           ${params.humann_bypass_prescreen}"
         echo "  humann_bypass_nucleotide_search:   ${params.humann_bypass_nucleotide_search}"
         echo "  run_humann_regroup:                ${params.run_humann_regroup}"
-        echo "  humann_regroup_grouping:           ${params.humann_regroup_grouping}"
+        echo '  humann_regroups: ${groovy.json.JsonOutput.toJson(params.humann_regroups)}'
         echo "  run_humann_rename:                 ${params.run_humann_rename}"
         echo "  run_humann_merge:                  ${params.run_humann_merge}"
         echo "  bypass_norm_ratio (mgx_mtx):       ${params.bypass_norm_ratio}"

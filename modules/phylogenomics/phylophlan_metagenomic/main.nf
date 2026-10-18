@@ -8,13 +8,14 @@ process phylophlan_metagenomic {
 
     input:
     tuple val(sample), path(bins_dir)
+    path reference_files
 
     output:
     tuple val(sample), path("phylophlan_out.tsv"), emit: placement
 
     script:
-    def db_folder = params.phylophlan_path
-    def db        = file(params.phylophlan_path).list()?.find { it.count('.') == 1 } ?: ""
+    def db_folder = params.phylophlan_db_location == 'host' ? reference_files[0] : params.phylophlan_path
+
     def extra     = params.phylophlan_metagenomic_options ?: ""
     """
     if ls ${bins_dir}/*.bin.[0-9]*.fa 2>/dev/null | grep -q .; then
@@ -23,13 +24,16 @@ process phylophlan_metagenomic {
         # and mash cannot sketch a zero-byte file: phylophlan reports
         # "error while sketching ... expected str, bytes or os.PathLike object,
         # not NoneType" and exits.
+        # Discover the reference inside the task, including image-bundled databases.
+        db=\$(find '${db_folder}' -maxdepth 1 -type f -name '*.*' -printf '%f\\n' | awk -F. 'NF == 2 {print; exit}')
+        test -n "\$db" || { echo 'No PhyloPhlAn reference found in ${db_folder}' >&2; exit 1; }
         mkdir -p numbered_bins
         cp ${bins_dir}/*.bin.[0-9]*.fa numbered_bins/
         phylophlan_assign_sgbs_legacy \\
             -i numbered_bins \\
             -n 1 \\
             --add_ggb --add_fgb \\
-            -d ${db} \\
+            -d "\$db" \\
             -o phylophlan_out \\
             --nproc ${task.cpus} \\
             --verbose \\
