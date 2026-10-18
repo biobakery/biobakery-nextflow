@@ -163,7 +163,7 @@ nextflow run main.nf -profile local \
   --outdir   /path/to/results \
   --host_genome  /path/to/kneaddata/hg38 \
   --metaphlan_db  /path/to/metaphlan_db \
-  --humann_db     /path/to/humann_db
+  --humann_db_chocophlan /path/to/humann_db/chocophlan --humann_db_utilitymapping /path/to/humann_db/utility_mapping --humann_db_protein /path/to/humann_db/uniref
 ```
 
 > **Note:** MetaPhlAn requires ≥ 15 GB RAM. A 16 GB laptop is often insufficient.
@@ -288,7 +288,7 @@ they are deterministic manual resources and must be referenced by `dx://` ID.
 
 The DNAnexus KneadData image may include its Bowtie2 database directly. In that
 case, set `--host_genome` to the absolute database directory **inside the
-container** and use `--kneaddata_reference_mode container`. The process checks
+container** and use `--kneaddata_db_location container`. The process checks
 that directory before starting KneadData. The DNAnexus profile does not mount a
 project folder, request FUSE privileges, or run mount hooks. The `dxfuse` and
 DNAnexus mount helper programs remain in `bin/` as independent operational
@@ -309,7 +309,7 @@ nextflow run main.nf \
   --outdir       results \
   --host_genome /path/to/kneaddata/hg38 \
   --metaphlan_db /path/to/metaphlan_db \
-  --humann_db    /path/to/humann_db
+  --humann_db_chocophlan /path/to/humann_db/chocophlan --humann_db_utilitymapping /path/to/humann_db/utility_mapping --humann_db_protein /path/to/humann_db/uniref
 ```
 
 ### Single-end reads
@@ -461,16 +461,16 @@ nextflow run main.nf -profile harvard_rc \
   --run_functional_profiling false \
   --metaphlan_read_min_len 100
 
-# Switch to a different MetaPhlAn database index
+# Select database arrays and downstream indices from a run-specific params file
 nextflow run main.nf -profile harvard_rc \
   --readsdir /path/to/fastqs \
-  --outdir   results \
-  --metaphlan_db   /path/to/other/metaphlan_databases \
-  --metaphlan_index mpa_vOct22_CHOCOPhlAnSGB_202403 \
-  --metaphlan_version metaphlan_v4
+  --outdir results \
+  -params-file my-databases.yaml
 ```
 
-> On Harvard FASRC hutlab builds, pass `--metaphlan_version metaphlan_v3` — the hutlab binary uses v3-style CLI flags (`--bowtie2db`) even though it is MetaPhlAn 4.
+Use `metaphlan_databases` to run each sample against multiple databases, and
+`metaphlan_downstream_indices` to choose one or more for downstream profiling
+and reports. See [database configuration examples](docs/metaphlan_databases.md).
 
 ---
 
@@ -483,7 +483,7 @@ Tune the regrouping target, skip internal searches, or disable post-processing:
 nextflow run main.nf -profile harvard_rc \
   --readsdir /path/to/fastqs \
   --outdir   results \
-  --humann_regroup_grouping uniref90_ko
+  -params-file humann-mappings.yaml
 
 # Available groupings: uniref90_rxn | uniref90_ko | uniref90_eggnog | uniref90_pfam
 
@@ -621,7 +621,7 @@ Switch both the software module and the database:
 ```sh
 nextflow run main.nf -profile harvard_rc \
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4 \
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref \
   --readsdir /path/to/fastqs \
   --outdir   results
 ```
@@ -802,7 +802,7 @@ the report was built from, and point a later standalone run straight at it.
 | `--host_genome` | *required* | KneadData Bowtie2 reference directory (hg38, mouse, rRNA, etc.) |
 | `--kneaddata_bypass_trim` | `false` | Skip Trimmomatic trimming step |
 | `--kneaddata_remove_intermediate_files` | `true` | Delete intermediate files to save disk |
-| `--kneaddata_reference_mode` | `staged` (`container` in the DNAnexus profile) | Stage external database paths, or use absolute paths already present in the process container |
+| `--kneaddata_db_location` | `host` (`container` in the DNAnexus profile) | Stage external database paths, or use absolute paths already present in the process container |
 | `--kneaddata_database_identity` | `null` | Immutable database or database-bearing image identity included in the task command and resume hash |
 
 ### Taxonomic profiling options (MetaPhlAn)
@@ -819,12 +819,14 @@ the report was built from, and point a later standalone run straight at it.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--humann_db` | *required* | Parent directory; pipeline appends `/chocophlan`, `/uniref`, `/utility_mapping` |
+| `--humann_db_chocophlan` | *required* | Exact nucleotide database directory |
+| `--humann_db_utilitymapping` | *required for HUMAnN 4* | Exact utility mapping directory |
+| `--humann_db_protein` | *required* | Exact protein database directory |
 | `--humann_version` | `humann_v37` | Output naming: `humann_v37` or `humann_v4a` |
 | `--humann_bypass_prescreen` | `false` | Skip MetaPhlAn-based taxonomic prescreen |
 | `--humann_bypass_nucleotide_search` | `false` | Skip nucleotide (ChocoPhlAn) search |
 | `--run_humann_regroup` | `true` | Regroup gene families (`humann_regroup_table`) |
-| `--humann_regroup_grouping` | `uniref90_rxn` | Target grouping: `uniref90_rxn \| uniref90_ko \| uniref90_eggnog \| uniref90_pfam` |
+| `--humann_regroups` | reactions mapping | Array of mappings with unique `output_label`, either `groups` or `group_mapping_database`, and optional `rename`; `[]` disables all regrouping |
 | `--run_humann_rename` | `true` | Add human-readable names (`humann_rename_table`) |
 | `--run_humann_merge` | `true` | Merge per-sample tables into one matrix (`humann_join_tables`) |
 
@@ -1468,3 +1470,65 @@ There was also a top-level `processes/` directory up to v0.0.4, holding an
 earlier flat copy of the KneadData, MetaPhlAn, HUMAnN and BAQLaVa processes. It
 had been superseded by `modules/`, was imported by nothing, and is now deleted —
 there is one definition of each process again.
+
+
+HUMAnN mappings are configured independently in a parameter file:
+
+```yaml
+humann_regroups:
+  - output_label: rxn
+    groups: uniref90_rxn
+    rename: metacyc-rxn
+  - output_label: ko
+    groups: uniref90_ko
+  - output_label: custom_pathways
+    group_mapping_database: /path/to/mapping.tsv.gz
+```
+
+Run with `-params-file humann-mappings.yaml`. Omit `rename` (or use null) to
+skip naming for that mapping. Use `humann_regroups: []` to run no regroups.
+The global `run_humann_regroup` and `run_humann_rename` switches remain master
+disable switches. The former single `humann_regroup_grouping` and
+`humann_rename_names` parameters are replaced by this array.
+
+No EC regroup is imposed. To request EC tables, configure a supported mapping
+with `output_label: ecs`, either a built-in `groups` name supported by your HUMAnN image
+or a `group_mapping_database` mapping file. Built-in availability depends on the image and its
+installed utility mappings; the pipeline does not infer it from the version.
+
+Each mapping gets per-sample outputs under `regrouped/<output_label>/`, optional named
+copies under `renamed/<output_label>/`, and raw and relative abundance merged matrices.
+Named copies are companions; merging and RNA/DNA ratios retain stable feature
+identifiers. All configured mappings participate in the RNA/DNA ratio when it
+is enabled, independently for every selected MetaPhlAn database.
+
+
+To supply both mapping databases explicitly, use `group_mapping_database` for regrouping and
+`renaming_database` for the optional name mapping:
+
+```yaml
+humann_regroups:
+  - output_label: ecs
+    group_mapping_database: /Databases/humann4/full_mapping/map_level4ec_uniclust90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_level4ec_name.txt.gz
+  - output_label: kos
+    group_mapping_database: /Databases/humann4/full_mapping/map_ko_uniref90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_ko_name.txt.gz
+  - output_label: pfams
+    group_mapping_database: /Databases/humann4/full_mapping/map_pfam_uniref90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_pfam_name.txt.gz
+```
+
+With `humann_db_location: host` (the default), both files are staged
+Nextflow `path` inputs. With `humann_db_location: container`, their paths
+are passed directly to HUMAnN and checked inside the task image. Each mapping
+can override this with `database_location: host` or `container`. The Hopper
+database config selects `container` because its HUMAnN image bundles these files. `group_mapping_database` invokes
+`humann_regroup_table --custom`; `renaming_database` invokes
+`humann_rename_table --custom`. Omit both `rename` and `renaming_database` to skip
+naming; specify only one of them. The Hopper profile configures these three
+pairs using its `humann_db_utilitymapping` directory. YAML overrides should
+provide the complete mapping list with explicit paths.
+
+
+See [Wellesley Hopper configuration](docs/wellesley_hopper.md) for the site configs, run YAML, and database path resolution.
