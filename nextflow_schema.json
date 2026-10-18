@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
   "$id": "https://github.com/biobakery/biobakery-nextflow/nextflow_schema.json",
-  "title": "bioBakery Nextflow — DNAnexus MGX pilot",
+  "title": "bioBakery Nextflow \u2014 DNAnexus MGX pilot",
   "description": "Typed DNAnexus applet interface for the initial whole-metagenome profiling deployment. Samplesheet input is recommended; directory discovery remains available for compatibility.",
   "type": "object",
   "definitions": {
@@ -11,7 +11,9 @@
       "properties": {
         "workflow": {
           "type": "string",
-          "enum": ["mgx"],
+          "enum": [
+            "mgx"
+          ],
           "default": "mgx",
           "description": "The initial DNAnexus interface intentionally exposes only the MGX workflow."
         },
@@ -39,12 +41,24 @@
       },
       "oneOf": [
         {
-          "required": ["readsdir"],
-          "not": {"required": ["samplesheet"]}
+          "required": [
+            "readsdir"
+          ],
+          "not": {
+            "required": [
+              "samplesheet"
+            ]
+          }
         },
         {
-          "required": ["samplesheet"],
-          "not": {"required": ["readsdir"]}
+          "required": [
+            "samplesheet"
+          ],
+          "not": {
+            "required": [
+              "readsdir"
+            ]
+          }
         }
       ]
     },
@@ -58,7 +72,9 @@
           "description": "Immutable database-bearing KneadData Docker tarball reference. A bare file ID is resolved in the running DNAnexus project; use dx://project-id:file-id for another project."
         }
       },
-      "required": ["dnanexus_container"]
+      "required": [
+        "dnanexus_container"
+      ]
     },
     "library_options": {
       "title": "Read layout",
@@ -145,12 +161,6 @@
           "format": "directory-path",
           "description": "KneadData host reference database directory. With the DNAnexus profile, this is the absolute path baked into the KneadData container image. Required when run_qc is true."
         },
-        "kneaddata_reference_mode": {
-          "type": "string",
-          "enum": ["staged", "container"],
-          "default": "container",
-          "description": "DNAnexus reads databases baked into the KneadData container; other profiles default to ordinary Nextflow staging."
-        },
         "kneaddata_database_identity": {
           "type": "string",
           "description": "Optional semantic database identity included in the task command and resume hash. When omitted, the immutable DNAnexus container URI is used."
@@ -165,10 +175,25 @@
           "default": "mpa_vJun23_CHOCOPhlAnSGB_202307",
           "description": "Exact MetaPhlAn database index identifier."
         },
-        "humann_db": {
+        "humann_db_chocophlan": {
           "type": "string",
           "format": "directory-path",
-          "description": "HUMAnN database root containing chocophlan and uniref. Required when functional profiling is enabled."
+          "description": "Exact HUMAnN nucleotide database directory."
+        },
+        "humann_db_utilitymapping": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Exact HUMAnN utility mapping directory (HUMAnN 4)."
+        },
+        "humann_db_protein": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Exact HUMAnN protein database directory."
+        },
+        "metaphlan_db_root": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Site base path for relative metaphlan_db entries selected in the run parameters."
         }
       }
     },
@@ -178,13 +203,21 @@
       "properties": {
         "metaphlan_version": {
           "type": "string",
-          "enum": ["metaphlan_v3", "metaphlan_v4", "metaphlan_4.0.6_fixed"],
+          "enum": [
+            "metaphlan_v3",
+            "metaphlan_v4",
+            "metaphlan_4.0.6_fixed"
+          ],
           "default": "metaphlan_v4",
           "description": "MetaPhlAn command-line contract selector."
         },
         "metaphlan_analysis_type": {
           "type": "string",
-          "enum": ["rel_ab", "rel_ab_w_read_stats", "marker_ab_table"],
+          "enum": [
+            "rel_ab",
+            "rel_ab_w_read_stats",
+            "marker_ab_table"
+          ],
           "default": "rel_ab_w_read_stats"
         },
         "metaphlan_read_min_len": {
@@ -194,7 +227,10 @@
         },
         "humann_version": {
           "type": "string",
-          "enum": ["humann_v37", "humann_v4a"],
+          "enum": [
+            "humann_v37",
+            "humann_v4a"
+          ],
           "default": "humann_v37",
           "description": "HUMAnN command-line contract selector."
         },
@@ -218,11 +254,6 @@
           "type": "boolean",
           "default": true
         },
-        "humann_regroup_grouping": {
-          "type": "string",
-          "enum": ["uniref90_rxn", "uniref90_ko", "uniref90_eggnog", "uniref90_pfam"],
-          "default": "uniref90_rxn"
-        },
         "kneaddata_bypass_trim": {
           "type": "boolean",
           "default": false
@@ -230,6 +261,164 @@
         "kneaddata_remove_intermediate_files": {
           "type": "boolean",
           "default": true
+        },
+        "humann_regroups": {
+          "type": "array",
+          "description": "Independent HUMAnN mappings; [] disables regrouping. Rename is optional for each mapping.",
+          "default": [
+            {
+              "output_label": "rxn",
+              "groups": "uniref90_rxn",
+              "rename": "metacyc-rxn"
+            }
+          ],
+          "items": {
+            "type": "object",
+            "required": [
+              "output_label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "output_label": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+                "description": "Unique label used in output filenames and folders (for example ecs, kos, pfams)."
+              },
+              "groups": {
+                "type": "string",
+                "minLength": 1
+              },
+              "group_mapping_database": {
+                "type": "string",
+                "format": "file-path",
+                "description": "Explicit mapping file supplied to humann_regroup_table --custom."
+              },
+              "rename": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "renaming_database": {
+                "type": "string",
+                "format": "file-path",
+                "description": "Optional name mapping file supplied to humann_rename_table --custom."
+              },
+              "database_location": {
+                "type": "string",
+                "enum": [
+                  "host",
+                  "container"
+                ],
+                "description": "Optional per-mapping override of humann_db_location."
+              }
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "groups"
+                ],
+                "not": {
+                  "required": [
+                    "group_mapping_database"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "group_mapping_database"
+                ],
+                "not": {
+                  "required": [
+                    "groups"
+                  ]
+                }
+              }
+            ],
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "rename",
+                    "renaming_database"
+                  ],
+                  "properties": {
+                    "rename": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "humann_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of humann reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "kneaddata_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of kneaddata reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "metaphlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of metaphlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "strainphlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of strainphlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "baqlava_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of baqlava reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "phylophlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of phylophlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "checkm2_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of checkm2 reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "checkm2_db": {
+          "type": "string",
+          "description": "Optional explicit CheckM2 database file; omit to use the tool environment default."
         }
       }
     },
@@ -267,13 +456,29 @@
     }
   },
   "allOf": [
-    {"$ref": "#/definitions/input_output_options"},
-    {"$ref": "#/definitions/container_options"},
-    {"$ref": "#/definitions/library_options"},
-    {"$ref": "#/definitions/stage_options"},
-    {"$ref": "#/definitions/database_options"},
-    {"$ref": "#/definitions/tool_options"},
-    {"$ref": "#/definitions/provenance_options"},
-    {"$ref": "#/definitions/resource_options"}
+    {
+      "$ref": "#/definitions/input_output_options"
+    },
+    {
+      "$ref": "#/definitions/container_options"
+    },
+    {
+      "$ref": "#/definitions/library_options"
+    },
+    {
+      "$ref": "#/definitions/stage_options"
+    },
+    {
+      "$ref": "#/definitions/database_options"
+    },
+    {
+      "$ref": "#/definitions/tool_options"
+    },
+    {
+      "$ref": "#/definitions/provenance_options"
+    },
+    {
+      "$ref": "#/definitions/resource_options"
+    }
   ]
 }
