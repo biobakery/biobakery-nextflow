@@ -36,7 +36,9 @@ STUB_DBS = [
     "--host_transcriptome", "/stub/transcriptome",
     "--rrna_db", "/stub/rrna",
     "--metaphlan_db", "/stub/metaphlan",
-    "--humann_db", "/stub/humann",
+    "--humann_db_chocophlan", "/stub/humann/chocophlan",
+    "--humann_db_utilitymapping", "/stub/humann/utility_mapping",
+    "--humann_db_protein", "/stub/humann/uniref",
     "--phylophlan_path", "/stub/phylophlan",
 ]
 
