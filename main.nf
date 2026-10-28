@@ -47,11 +47,11 @@ workflow {
             break
 
         case 'vis':
-            VIS(Channel.value(report_input_dir(params.vis_input, 'vis')))
+            VIS(Channel.value(tuple('', report_input_dir(params.vis_input, 'vis'))))
             break
 
         case 'stats':
-            STATS(Channel.value(report_input_dir(params.stats_input, 'stats')))
+            STATS(Channel.value(tuple('', report_input_dir(params.stats_input, 'stats'))))
             break
 
         case 'assembly':
