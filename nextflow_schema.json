@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
   "$id": "https://github.com/biobakery/biobakery-nextflow/nextflow_schema.json",
-  "title": "bioBakery Nextflow \u2014 DNAnexus MGX pilot",
-  "description": "Typed DNAnexus applet interface for the initial whole-metagenome profiling deployment. Samplesheet input is recommended; directory discovery remains available for compatibility.",
+  "title": "bioBakery Nextflow \u2014 DNAnexus MGX",
+  "description": "Typed DNAnexus applet interface for whole-metagenome profiling. Samplesheet input is recommended; directory discovery remains available for compatibility.",
   "type": "object",
   "definitions": {
     "input_output_options": {
@@ -15,7 +15,7 @@
             "mgx"
           ],
           "default": "mgx",
-          "description": "The initial DNAnexus interface intentionally exposes only the MGX workflow."
+          "description": "The DNAnexus interface exposes the MGX workflow."
         },
         "readsdir": {
           "type": "string",
@@ -69,12 +69,22 @@
         "dnanexus_container": {
           "type": "string",
           "minLength": 1,
-          "description": "Immutable database-bearing KneadData Docker tarball reference. A bare file ID is resolved in the running DNAnexus project; use dx://project-id:file-id for another project."
+          "default": "public.ecr.aws/j5i5h1i5/kneaddata:latest-hg37dec",
+          "description": "Database-bearing KneadData registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI. Also used for shell helpers."
+        },
+        "dnanexus_metaphlan_container": {
+          "type": "string",
+          "minLength": 1,
+          "default": "public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403",
+          "description": "Database-bearing MetaPhlAn registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI."
+        },
+        "dnanexus_humann_container": {
+          "type": "string",
+          "minLength": 1,
+          "default": "public.ecr.aws/j5i5h1i5/humann:experimental",
+          "description": "Database-bearing HUMAnN registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI."
         }
-      },
-      "required": [
-        "dnanexus_container"
-      ]
+      }
     },
     "library_options": {
       "title": "Read layout",
@@ -117,38 +127,38 @@
         },
         "run_taxonomic_profiling": {
           "type": "boolean",
-          "default": false,
-          "description": "Disabled for the KneadData-only DNAnexus slice."
+          "default": true,
+          "description": "Run MetaPhlAn taxonomic profiling."
         },
         "run_functional_profiling": {
           "type": "boolean",
-          "default": false,
-          "description": "Disabled for the KneadData-only DNAnexus slice."
+          "default": true,
+          "description": "Run HUMAnN functional profiling."
         },
         "stop_after_qc": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Wait for every KneadData task and the aggregate read-count table, then fail intentionally before later stages."
         },
         "run_vis": {
           "type": "boolean",
           "default": false,
-          "description": "Disabled for the first DNAnexus slice; visualization container coverage is pending."
+          "description": "Enable visualization after making the stats/viz image available."
         },
         "run_stats": {
           "type": "boolean",
           "default": false,
-          "description": "Disabled for the first DNAnexus slice; statistics container coverage is pending."
+          "description": "Enable statistics after making the stats/viz image and study metadata available."
         },
         "run_strain_profiling": {
           "type": "boolean",
           "default": false,
-          "description": "Disabled for the first DNAnexus slice."
+          "description": "Optional StrainPhlAn profiling; disabled in the example YAML."
         },
         "run_viral_profiling": {
           "type": "boolean",
           "default": false,
-          "description": "Disabled for the first DNAnexus slice."
+          "description": "Optional BAQLaVa profiling; disabled in the example YAML."
         }
       }
     },
@@ -168,11 +178,12 @@
         "metaphlan_db": {
           "type": "string",
           "format": "directory-path",
+          "default": "/Databases/metaphlan/mpa_vOct22_202403/mpa_vOct22_202403_default",
           "description": "MetaPhlAn database directory. Required when taxonomic profiling is enabled."
         },
         "metaphlan_index": {
           "type": "string",
-          "default": "mpa_vJun23_CHOCOPhlAnSGB_202307",
+          "default": "mpa_vOct22_CHOCOPhlAnSGB_202403",
           "description": "Exact MetaPhlAn database index identifier."
         },
         "humann_db_chocophlan": {
@@ -231,7 +242,7 @@
             "humann_v37",
             "humann_v4a"
           ],
-          "default": "humann_v37",
+          "default": "humann_v4a",
           "description": "HUMAnN command-line contract selector."
         },
         "humann_bypass_prescreen": {
@@ -261,97 +272,6 @@
         "kneaddata_remove_intermediate_files": {
           "type": "boolean",
           "default": true
-        },
-        "humann_regroups": {
-          "type": "array",
-          "description": "Independent HUMAnN mappings; [] disables regrouping. Rename is optional for each mapping.",
-          "default": [
-            {
-              "output_label": "rxn",
-              "groups": "uniref90_rxn",
-              "rename": "metacyc-rxn"
-            }
-          ],
-          "items": {
-            "type": "object",
-            "required": [
-              "output_label"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "output_label": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
-                "description": "Unique label used in output filenames and folders (for example ecs, kos, pfams)."
-              },
-              "groups": {
-                "type": "string",
-                "minLength": 1
-              },
-              "group_mapping_database": {
-                "type": "string",
-                "format": "file-path",
-                "description": "Explicit mapping file supplied to humann_regroup_table --custom."
-              },
-              "rename": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "renaming_database": {
-                "type": "string",
-                "format": "file-path",
-                "description": "Optional name mapping file supplied to humann_rename_table --custom."
-              },
-              "database_location": {
-                "type": "string",
-                "enum": [
-                  "host",
-                  "container"
-                ],
-                "description": "Optional per-mapping override of humann_db_location."
-              }
-            },
-            "oneOf": [
-              {
-                "required": [
-                  "groups"
-                ],
-                "not": {
-                  "required": [
-                    "group_mapping_database"
-                  ]
-                }
-              },
-              {
-                "required": [
-                  "group_mapping_database"
-                ],
-                "not": {
-                  "required": [
-                    "groups"
-                  ]
-                }
-              }
-            ],
-            "allOf": [
-              {
-                "not": {
-                  "required": [
-                    "rename",
-                    "renaming_database"
-                  ],
-                  "properties": {
-                    "rename": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                }
-              }
-            ]
-          }
         },
         "humann_db_location": {
           "type": "string",
@@ -428,7 +348,7 @@
       "properties": {
         "log_versions": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Record observed tool versions and run parameters."
         }
       }
