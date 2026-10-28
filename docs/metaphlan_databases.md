@@ -18,8 +18,8 @@ params {
 }
 ```
 
-Every sample runs once against every database. Profiles, compressed SAM files,
-merged tables, and species counts are kept separately under
+Every sample runs once against every database, compressing its SAM in the same
+task. Profiles, compressed SAM files and merged tables are kept separately under
 `metaphlan/<metaphlan_index>/`. Index names must be unique, safe directory names.
 
 `metaphlan_downstream_indices` selects which databases feed HUMAnN, BAQLaVa,
@@ -39,6 +39,12 @@ It selects the existing CLI dialect: `metaphlan_v4` uses `--db_dir` and `--mapou
 other values use `--bowtie2db` and `--bowtie2out`. It does not install a tool or
 switch container images. The profile's tool environment must support the
 configured databases, and downstream tools must support the selected profiles.
+
+HUMAnN runs profiling, all selected regroup/name operations and per-sample
+normalization in one task for each sample/database pair. Cohort merging uses
+one task per database for all feature types and their relative-abundance
+tables. These boundaries apply to every execution profile and retain the
+existing published file paths and downstream feature labels.
 
 The same settings can be passed using `-params-file` with YAML arrays:
 
