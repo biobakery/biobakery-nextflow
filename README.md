@@ -286,6 +286,13 @@ uses `/.cached_docker_images/<image>/<image>_<version>`. Files uploaded under
 `/Resources/containers` are not discovered through that naming convention;
 they are deterministic manual resources and must be referenced by `dx://` ID.
 
+The [DNAnexus configuration guide](docs/dnanexus.md) describes automatic Docker
+caching, KneadData-to-HUMAnN defaults, the optional run YAML, and explicit process instance sizes.
+Use `bash dxbuild.sh` to rebuild with the existing project image cache, or
+`bash dxbuild.sh --refresh-images` to populate/update the cache and then build
+the runtime applet without global image bundles. Run `bash dxbuild.sh --help`
+for destination, importer instance, and runtime head options.
+
 The DNAnexus KneadData image may include its Bowtie2 database directly. In that
 case, set `--host_genome` to the absolute database directory **inside the
 container** and use `--kneaddata_db_location container`. The process checks
@@ -293,8 +300,16 @@ that directory before starting KneadData. The DNAnexus profile does not mount a
 project folder, request FUSE privileges, or run mount hooks. The `dxfuse` and
 DNAnexus mount helper programs remain in `bin/` as independent operational
 utilities, but the workflow does not invoke them. Supply the new database-bearing
-tarball explicitly with `--dnanexus_container`; the profile intentionally has
-no fallback image ID.
+tarball explicitly with `--dnanexus_container`, or use the profile's registry
+image with `bash dxbuild.sh --refresh-images`.
+
+The root `nextflow_schema.json` defines the DNAnexus applet inputs. The
+DNAnexus Nextflow builder does not support array parameters, so
+`humann_regroups` is omitted from that interface. Its default reaction mapping
+remains in `conf/params.config`. To customize mappings, use a YAML or JSON
+parameter file (`-params-file` for a local Nextflow run, or upload it and pass
+`-inextflow_params_file=project-xxxx:file-yyyy` when running the applet).
+See the [DNAnexus input documentation](https://documentation.dnanexus.com/user/running-apps-and-workflows/running-nextflow-pipelines#specifying-input-values-to-a-nextflow-pipeline-executable).
 
 ---
 
@@ -373,6 +388,11 @@ detection, `--layout paired` to require every file to match a pair, or
 `--pair-regex` to state the naming convention explicitly. The expression must
 match the complete filename and define named `sample` and `mate` groups. Keep
 the expression in single quotes so the shell passes it unchanged.
+
+Read references inside the CSV use Nextflow project paths, for example
+`dx://project-xxxx:/inputs/reads/sample_R1.fastq.gz`. They must not use the
+`dx://project-xxxx:file-yyyy` object-ID form: Nextaur's filesystem parser needs
+a path after `:/`.
 
 For Illumina-style names such as `sample_R1.fastq.gz`, `sample_R2.fastq.gz`,
 or the corresponding `_R1_001`/`_R2_001` forms:
@@ -787,7 +807,7 @@ the report was built from, and point a later standalone run straight at it.
 | Parameter | Default | Description |
 |---|---|---|
 | `--run_qc` | `true` | Run KneadData QC. Set `false` to start from cleaned reads. |
-| `--stop_after_qc` | `false` | Development gate: after all KneadData samples and the aggregate read-count table finish, fail intentionally without scheduling downstream stages. The initial DNAnexus profile sets this to `true`. |
+| `--stop_after_qc` | `false` | Development gate: after all KneadData samples and the aggregate read-count table finish, fail intentionally without scheduling downstream stages. Leave false for the complete MGX run. |
 | `--run_taxonomic_profiling` | `true` | Run MetaPhlAn |
 | `--run_functional_profiling` | `true` | Run HUMAnN |
 | `--run_viral_profiling` | `false` | Run BAQLaVa viral profiling |
@@ -1458,7 +1478,8 @@ biobakery-nextflow/
 ### Processes, modules, subworkflows, workflows
 
 Four words that sound interchangeable, so: a **process** is Nextflow's unit of
-execution — one tool invocation. A **module** is a file under `modules/` holding
+execution — one scheduled task, which may run several related tool commands.
+A **module** is a file under `modules/` holding
 one or more closely related processes and nothing else; modules are the only
 place a `process` is defined. A **subworkflow** under `subworkflows/` wires
 modules into a reusable stage (`QUALITY_CONTROL`, `TAXONOMIC_PROFILING`) with
