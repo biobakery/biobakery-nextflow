@@ -30,3 +30,5 @@ containers/*.sha256
 containers/*.inspect.json
 containers/SHA256SUMS
 containers/container-lock.*
+
+dxbuild.sh
