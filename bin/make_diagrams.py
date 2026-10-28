@@ -32,6 +32,15 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # They exist only because the input guards and the KneadData database check run
 # during graph construction.
 STUB_DBS = [
+    # Reference paths live in hypothetical images during preview. No real
+    # databases are needed to construct the graph or validate its wiring.
+    '--kneaddata_db_location', 'container',
+    '--metaphlan_db_location', 'container',
+    '--humann_db_location', 'container',
+    '--strainphlan_db_location', 'container',
+    '--baqlava_db_location', 'container',
+    '--phylophlan_db_location', 'container',
+    '--checkm2_db_location', 'container',
     "--host_genome", "/stub/hg38",
     "--host_transcriptome", "/stub/transcriptome",
     "--rrna_db", "/stub/rrna",
@@ -175,6 +184,10 @@ def simplify(mermaid, catalog):
     for line in mermaid.split("\n"):
         if SUBGRAPH.match(line) and "-->" not in line:
             name = SUBGRAPH.match(line).group(1).strip().strip('"')
+            # Newer Nextflow renders a qualified ID followed by [display name].
+            display = re.search(r'\[([^\]]+)\]$', name)
+            if display:
+                name = display.group(1).strip('"')
             stack.append(name)
             continue
         if line.strip() == "end":
@@ -184,7 +197,7 @@ def simplify(mermaid, catalog):
 
         match = NODE_PROCESS.match(line)
         if match:
-            processes[match.group(1)] = match.group(2)
+            processes[match.group(1)] = match.group(2).strip('"')
             membership[match.group(1)] = [s for s in stack if s.strip()]
             continue
         match = NODE_OTHER.match(line)
@@ -615,7 +628,7 @@ def architecture_diagram():
                    f'{"<br/>".join("· " + wf for wf in callers[name]) or "· nothing"}"]')
     out += ["    end",
             '    subgraph L4["<b>4 · STEPS</b> — modules/**/main.nf<br/>'
-            '<i>One tool invocation each. Every process is defined here and '
+            '<i>One scheduled task, possibly several tool invocations. Every process is defined here and '
             'nowhere else — grouped below by the workflow or stage that calls it.</i>"]',
             "        direction LR"]
 
@@ -782,7 +795,7 @@ def reference_page(rendered, catalog, architecture):
         "its own. |",
         "| 3 · Stage | `subworkflows/*.nf` | A reusable unit of pipeline, "
         "shared by several workflows. | Steps, and other stages. |",
-        "| 4 · Step | `modules/**/main.nf` | One tool invocation. **Every "
+        "| 4 · Step | `modules/**/main.nf` | One scheduled task, possibly several tool invocations. **Every "
         "`process` is defined here and nowhere else.** | Nothing — it is the "
         "bottom. |",
         "",
