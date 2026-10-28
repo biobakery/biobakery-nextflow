@@ -1,5 +1,6 @@
 import csv
 import importlib.util
+import json
 import subprocess
 import sys
 import tempfile
@@ -33,11 +34,11 @@ class BuildSamplesheetTests(unittest.TestCase):
         reads = [
             MODULE.ReadFile(
                 "SRR27200889_1.fastq.gz",
-                "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpKP3Q0Kg1v1kz9PzG48p1J",
+                "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/reads/SRR27200889_1.fastq.gz",
             ),
             MODULE.ReadFile(
                 "SRR27200889_2.fastq.gz",
-                "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-JBpKP3Q0Kg1YPPFf2P3G2gBz",
+                "dx://project-JBVGpB00Kg1xBf54v05BXj6f:/reads/SRR27200889_2.fastq.gz",
             ),
         ]
         sra_pair_regex = (
@@ -60,6 +61,34 @@ class BuildSamplesheetTests(unittest.TestCase):
         reads = [MODULE.ReadFile("A_R1.fastq.gz", "/reads/A_R1.fastq.gz")]
         with self.assertRaisesRegex(MODULE.SamplesheetError, "missing a mate"):
             MODULE.build_rows(reads, "mgx", "auto", MODULE.DEFAULT_PAIR_REGEX)
+
+    @mock.patch.object(MODULE.shutil, "which", return_value="/usr/bin/dx")
+    @mock.patch.object(MODULE.subprocess, "run")
+    def test_dnanexus_reads_use_project_paths_for_nextflow(self, run, _which):
+        records = [
+            {"id": "file-1", "project": "project-123", "describe": {
+                "name": "A_R1.fastq.gz", "folder": "/reads/subfolder"}},
+            {"id": "file-2", "project": "project-123", "describe": {
+                "name": "A_R2.fastq.gz", "folder": "/reads/subfolder"}},
+            {"id": "file-3", "name": "B.fastq.gz", "folder": "/"},
+            {"id": "file-4", "name": "C.fastq.gz", "folder": "/reads with spaces"},
+        ]
+        run.return_value = subprocess.CompletedProcess([], 0, json.dumps(records), "")
+        reads = MODULE.dnanexus_reads("project-123:/reads", True)
+        self.assertEqual([read.reference for read in reads], [
+            "dx://project-123:/reads/subfolder/A_R1.fastq.gz",
+            "dx://project-123:/reads/subfolder/A_R2.fastq.gz",
+            "dx://project-123:/B.fastq.gz",
+            "dx://project-123:/reads%20with%20spaces/C.fastq.gz",
+        ])
+
+    @mock.patch.object(MODULE.shutil, "which", return_value="/usr/bin/dx")
+    @mock.patch.object(MODULE.subprocess, "run")
+    def test_dnanexus_reads_reject_missing_folder_instead_of_emitting_id_uri(self, run, _which):
+        run.return_value = subprocess.CompletedProcess(
+            [], 0, '[{"id":"file-1","name":"A.fastq.gz"}]', "")
+        with self.assertRaisesRegex(MODULE.SamplesheetError, "Missing absolute project folder"):
+            MODULE.dnanexus_reads("project-123:/reads", False)
 
     def test_atomic_csv_has_stable_columns(self):
         with tempfile.TemporaryDirectory() as temporary:

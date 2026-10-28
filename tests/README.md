@@ -102,3 +102,29 @@ which is most of what changes between real test runs.
 Nextflow integration tests with mocked bioBakery executables. It checks multiple
 databases, downstream selection and isolation, legacy settings, and validation.
 It requires Java, Nextflow, bzip2 and zip, without reference databases or a cluster.
+
+### DNAnexus configuration
+
+`python3 -m unittest discover -s tests -p test_dnanexus_config.py` resolves the
+DNAnexus selectors against every process name using native Groovy probe tasks.
+It checks instance/resource compatibility, tool image routing and overrides,
+and the KneadData-to-HUMAnN YAML selections. It also checks that cache discovery
+finds exactly the three configured tool images and runs both read layouts with
+mocked tools. It checks the default primary reference, the optional two-reference
+YAML, profiling of cleaned reads, merged profiles and compressed SAM outputs,
+HUMAnN 4 output renaming, selected-profile routing, EC/KO/Pfam regrouping and
+renaming, relative abundance and merged matrices, and explicit QC/taxonomy-only
+overrides. It verifies that profiling/compression and per-sample HUMAnN table
+work share tasks, all cohort merges share a task, and tool threads follow task
+CPU overrides. It needs Java and Nextflow, without
+Docker, reference databases or a DNAnexus connection.
+
+`python3 -m unittest discover -s tests -p test_dnanexus_build.py` checks the local
+build wrapper with a mocked `dx` command: runtime files are staged, inputs are
+not preset, global image bundling is omitted, and the head instance is set
+independently. It also checks refresh upload/import/wait/archive/build ordering,
+separate importer resources, argument validation, and stopping on refresh
+failures. Mocked SDK checks verify that only superseded matching cache files
+are archived after success. When dx-toolkit is installed it also checks that the generated
+source-only applet specification keeps runtime assets without Docker bundles.
+These checks do not upload files, create applets or run jobs.

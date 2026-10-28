@@ -8,7 +8,7 @@ def opt(*keys):
 def write(p,text='test\n'):
  Path(p).parent.mkdir(parents=True,exist_ok=True);Path(p).write_text(text)
 if tool=='metaphlan':
- idx=opt('--index');write(opt('-o'),idx+'\n');write(opt('--mapout','--bowtie2out'));write(opt('--samout'))
+ idx=opt('--index','-x');write(opt('-o'),idx+'\n');write(opt('--mapout','--bowtie2out'));write(opt('--samout'))
 elif tool=='merge_metaphlan_tables.py':
  values=[Path(p).read_text().strip() for p in args]
  assert len(set(values))==1,values
@@ -20,6 +20,11 @@ elif tool=='humann':
 elif tool=='humann_join_tables':
  fs=list(Path(opt('--input')).glob('*'));write(opt('--output'),''.join(p.read_text() for p in fs))
 elif tool in ['humann_regroup_table','humann_renorm_table','humann_rename_table']:
+ if '--custom' in args:
+  mapping=Path(opt('--custom')); assert mapping.is_file(),mapping
+  role='names' if tool=='humann_rename_table' else 'groups'
+  label='ecs' if '_ecs_' in opt('--output') else 'kos'
+  assert mapping.read_text().strip()==role+'-'+label,(mapping,mapping.read_text())
  write(opt('-o','--output'),Path(opt('-i','--input')).read_text())
 elif tool in ['count_features.py','get_counts_from_humann_logs.py','create_feature_table.py','trim_taxonomy.py']:write(opt('--output'))
 elif tool=='baqlava':write(opt('-o')+'/result.tsv')
@@ -31,6 +36,9 @@ elif tool=='strainphlan.py':write('output/tree.tre')
 elif tool=='python':
  script=Path(args.pop(0)).name
  if script=='biobakery_bootstrap.py':print(opt('--rscript'))
+ elif script=='prepare_report_summaries.py':
+  import shutil
+  shutil.copytree(opt('--input'),opt('--output'),symlinks=False)
  elif script=='biobakery_identify_inputs.py':
   write(opt('--output'),json.dumps(dict(study_type='WGX',taxonomic_profile='metaphlan/merged/metaphlan_taxonomic_profiles.tsv',ecsabundance='humann/merged/ecs_relab.tsv' if Path('input_folder/humann/merged/ecs_relab.tsv').exists() else None,pathabundance='humann/merged/pathabundance_relab.tsv' if Path('input_folder/humann/merged/pathabundance_relab.tsv').exists() else None,samples_as_columns=True)))
  elif script=='stats_covariate_equation.py':write(opt('--output'),json.dumps(dict(run_multivariate=True,run_pairwise=True,covariate_equation='age')))
