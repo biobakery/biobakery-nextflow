@@ -1,53 +1,59 @@
-# DNAnexus run template — initial MGX vertical slice
-#
-# Build the pipeline as a DNAnexus Nextflow executable and select the dnanexus
-# profile. Replace every placeholder before use. `outdir` must remain relative;
-# the job-level `--destination` selects the DNAnexus project output folder.
-#
-# Samplesheet mode is recommended on DNAnexus. Build and optionally upload one
-# with bin/build_samplesheet.py. Directory discovery remains available by
-# replacing `samplesheet` with `readsdir: dx://project-xxxx:/inputs/reads`.
+# DNAnexus — KneadData, MetaPhlAn and HUMAnN functional profiling.
+# Upload this YAML and pass -inextflow_params_file=project-id:file-id to dx run.
+# File references INSIDE a Nextflow YAML use dx:// URIs; the applet's file-class
+# inputs (such as nextflow_params_file or samplesheet) use project-id:file-id.
+# Choose the uploaded samplesheet in the applet launch form; no input is preset here.
+# outdir stays relative to --destination.
+# References inside containers are set by conf/databases/dnanexus.config.
+# Images and machineType assignments are in conf/profiles/dnanexus.config.
+# Images are read from the existing project cache; dxbuild.sh avoids global image bundles.
+# KneadData uses public.ecr.aws/j5i5h1i5/kneaddata:latest-hg37dec.
+# MetaPhlAn uses public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403.
+# HUMAnN uses public.ecr.aws/j5i5h1i5/humann:experimental.
+# Optional image overrides (also supply these during caching if changed):
+# dnanexus_container: public.ecr.aws/j5i5h1i5/kneaddata:latest-hg37dec
+# dnanexus_metaphlan_container: public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403
+# dnanexus_humann_container: public.ecr.aws/j5i5h1i5/humann:experimental
 
-workflow: "mgx"
-
-# Qualified ID of the uploaded CSV samplesheet (not a dx:// URI because the
-# schema exposes this parameter as a DNAnexus file-class input).
-samplesheet: "project-xxxx:file-samplesheet"
-
-# Relative to the job's DNAnexus --destination.
-outdir: "results"
-
-# Fully qualified, immutable, database-bearing KneadData Docker tarball.
-dnanexus_container: "dx://project-JBVGpB00Kg1xBf54v05BXj6f:file-replace-with-new-image"
-
-# Absolute database directory baked into the KneadData container. Replace this
-# placeholder with the image's real internal path before running.
-host_genome: "/replace/with/container/path/kneaddata/hg37dec_v0.1"
-kneaddata_db_location: "container"
-
-# Optional semantic database release. When omitted, the immutable
-# dnanexus_container URI is logged and included in the task command instead.
-# kneaddata_database_identity: "hg37dec-v0.1-in-image-release-id"
-
-paired_end: true
-single_end: false
-pair_identifier: "_R{1,2}"
+workflow: mgx
+outdir: results
 
 run_qc: true
-stop_after_qc: true
-run_taxonomic_profiling: false
-run_functional_profiling: false
-
-# Keep non-core stages off until their containers and DNAnexus I/O have tests.
+stop_after_qc: false
+run_taxonomic_profiling: true
+run_functional_profiling: true
+run_viral_profiling: false
+run_strain_profiling: false
+# Enable after building/installing the dedicated stats/viz image.
 run_vis: false
 run_stats: false
-run_strain_profiling: false
-run_viral_profiling: false
 
+# Optional YAML runs both bundled references; the profile alone uses the primary.
+metaphlan_databases:
+  - metaphlan_db: mpa_vOct22_202403_default
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403
+    metaphlan_version: metaphlan_v4
+  - metaphlan_db: mpa_vOct22_202403_lon_subsp
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403_lon_subsp
+    metaphlan_version: metaphlan_v4
+# Both references run MetaPhlAn; only the selected one feeds downstream analyses.
+metaphlan_downstream_indices:
+  - mpa_vOct22_CHOCOPhlAnSGB_202403
+
+humann_version: humann_v4a
+run_humann_regroup: true
+run_humann_rename: true
+run_humann_merge: true
+humann_regroups:
+  - output_label: ecs
+    group_mapping_database: map_level4ec_uniclust90.txt.gz
+    renaming_database: map_level4ec_name.txt.gz
+  - output_label: kos
+    group_mapping_database: map_ko_uniref90.txt.gz
+    renaming_database: map_ko_name.txt.gz
+  - output_label: pfams
+    group_mapping_database: map_pfam_uniref90.txt.gz
+    renaming_database: map_pfam_name.txt.gz
+
+# Profiling outputs include per-sample/merged tables and compressed SAM files.
 log_versions: false
-
-# Ceilings, not fixed instance selections. DNAnexus maps each process's CPU and
-# memory request to an available instance type. Disk sizing is still pending.
-max_memory: "128.GB"
-max_cpus: 32
-max_time: "240.h"
