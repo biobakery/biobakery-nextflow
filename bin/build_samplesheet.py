@@ -20,6 +20,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import quote
 
 
 DEFAULT_PAIR_REGEX = (
@@ -114,7 +115,15 @@ def dnanexus_reads(scope: str, recursive: bool) -> list[ReadFile]:
         record_project = record.get("project") or describe.get("project") or project
         if not file_id or not name or not is_fastq(str(name)):
             continue
-        reads.append(ReadFile(str(name), f"dx://{record_project}:{file_id}"))
+        folder = record.get("folder") or describe.get("folder")
+        if not isinstance(folder, str) or not folder.startswith("/"):
+            raise SamplesheetError(
+                f"Missing absolute project folder for {file_id}; cannot construct a Nextflow file URI."
+            )
+        # Nextaur's filesystem provider needs a project path. The object-link
+        # form project-id:file-id is for applet file inputs, not file() in NF.
+        path = f"{folder.rstrip('/')}/{name}"
+        reads.append(ReadFile(str(name), f"dx://{record_project}:{quote(path, safe='/')}"))
     return sorted(reads, key=lambda item: (item.name, item.reference))
 
 
