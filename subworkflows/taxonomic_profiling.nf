@@ -4,7 +4,6 @@ nextflow.enable.dsl=2
 include { database_inputs } from './database_access.nf'
 
 include { metaphlan }       from '../modules/metaphlan/main.nf'
-include { metaphlan_bzip }  from '../modules/metaphlan/main.nf'
 include { metaphlan_merge } from '../modules/metaphlan/main.nf'
 
 // Taxonomic profiling subworkflow: MetaPhlAn per sample + merged table
@@ -55,8 +54,7 @@ workflow TAXONOMIC_PROFILING {
         .map { sample, r, db -> tuple(db, sample, r,
             database_inputs(params.metaphlan_db_location, db.metaphlan_db, file("${projectDir}/assets/NO_FILE"))) }
 
-    metaphlan_out      = metaphlan(reads_flat, subdir)
-    metaphlan_bzip_out = metaphlan_bzip(metaphlan_out.sam, subdir)
+    metaphlan_out = metaphlan(reads_flat, subdir)
 
     // Merge samples only within the same database.
     profiles_collected = metaphlan_out.profile
@@ -70,7 +68,7 @@ workflow TAXONOMIC_PROFILING {
         .map { db, s, f -> tuple(context(db), s, f) }
     sam = metaphlan_out.sam.filter { db, s, f -> db.metaphlan_index in selected }
         .map { db, s, f -> tuple(context(db), s, f) }
-    sam_bzip = metaphlan_bzip_out.sam_bzip.filter { db, s, f -> db.metaphlan_index in selected }
+    sam_bzip = metaphlan_out.sam_bzip.filter { db, s, f -> db.metaphlan_index in selected }
         .map { db, s, f -> tuple(context(db), s, f) }
     merged = merged_out.merged.filter { db, f -> db.metaphlan_index in selected }.map { db, f -> tuple(context(db), f) }
     all_profiles = metaphlan_out.profile

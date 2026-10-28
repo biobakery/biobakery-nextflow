@@ -1,10 +1,11 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-// MetaPhlAn — taxonomic profiling
+// MetaPhlAn — taxonomic profiling and SAM compression in one per-sample task
 process metaphlan {
     tag "${sample}:${db.metaphlan_index}"
-    publishDir path: { "${params.outdir}/${subdir}metaphlan/${db.metaphlan_index}" }, mode: 'copy'
+    publishDir path: { "${params.outdir}/${subdir}metaphlan/${db.metaphlan_index}" }, mode: 'copy', saveAs: { name -> name.endsWith('.sam.bz2') ? null : name }
+    publishDir path: { "${params.outdir}/${subdir}metaphlan/${params.metaphlan_databases != null ? db.metaphlan_index + '/' : ''}bzip" }, mode: 'copy', pattern: '*.sam.bz2'
 
     input:
     tuple val(db), val(sample), path(kneads), path(reference_files)
@@ -14,6 +15,7 @@ process metaphlan {
     tuple val(db), val(sample), path("${sample}_${db.metaphlan_index}_profile.tsv"),   emit: profile
     tuple val(db), val(sample), path("${sample}_${db.metaphlan_index}_bowtie2.tsv"),   emit: bowtie2
     tuple val(db), val(sample), path("${sample}_${db.metaphlan_index}.sam"),            emit: sam
+    tuple val(db), val(sample), path("${sample}_${db.metaphlan_index}.sam.bz2"),        emit: sam_bzip
 
     when:
     params.run_taxonomic_profiling
@@ -40,24 +42,8 @@ process metaphlan {
         --nproc ${task.cpus} \\
         $db_arg \\
         $extra_args
-    """
-}
 
-// Compress MetaPhlAn SAM file (saves significant disk space)
-process metaphlan_bzip {
-    tag "${sample}:${db.metaphlan_index}"
-    publishDir path: { "${params.outdir}/${subdir}metaphlan/${params.metaphlan_databases != null ? db.metaphlan_index + "/" : ""}bzip" }, mode: 'copy'
-
-    input:
-    tuple val(db), val(sample), path(sam)
-    val subdir
-
-    output:
-    tuple val(db), val(sample), path("${sample}_${db.metaphlan_index}.sam.bz2"), emit: sam_bzip
-
-    script:
-    """
-    bzip2 -c -- "${sam}" > "${sample}_${db.metaphlan_index}.sam.bz2"
+    bzip2 -c -- '${sample}_${db.metaphlan_index}.sam' > '${sample}_${db.metaphlan_index}.sam.bz2'
     """
 }
 
