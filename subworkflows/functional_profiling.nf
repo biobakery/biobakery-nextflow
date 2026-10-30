@@ -81,6 +81,7 @@ workflow FUNCTIONAL_PROFILING {
     merged_pathabundance_ch = merged_out.merged.filter { label, f -> label == 'pathabundance' }.map { label, f -> f }
 
     emit:
+    unaligned_reads = humann_out.unaligned_reads
     genefamilies  = humann_out.genefamilies
     pathabundance = humann_out.pathabundance
     pathcoverage  = humann_out.pathcoverage
