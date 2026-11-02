@@ -12,6 +12,7 @@ process baqlava {
 
     output:
     tuple val(sample), path("${sample}_baqlava/"), emit: results
+    tuple val("${task.process}"), val('baqlava'), eval('baqlava --version 2>&1 | head -1 | sed "s/^baqlava v//"'), topic: versions
 
     when:
     params.run_viral_profiling

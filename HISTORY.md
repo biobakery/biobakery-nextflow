@@ -1,5 +1,40 @@
 # Release history
 
+## 0.0.5 — TBD
+
+Logs that say what ran, and the input check finished off.
+
+**Versions and the log**
+
+- Every run now opens with one block: pipeline version and commit, workflow,
+  profile, run name, Nextflow version, and every database path, each marked if
+  this run does not use it. It heads the console output and `.nextflow.log`,
+  and the top of `pipeline_info/pipeline_log.txt`, so the question "which
+  database was this?" is answered before anything else.
+- Tool versions are reported by the steps that ran them. Each tool process
+  sends its version to a Nextflow `versions` topic, read in that step's own
+  environment, and `pipeline_info/software_versions.tsv` lists tool, version
+  and the steps that used it. The old `version_log` ran `--version` in one
+  environment of its own, which on `harvard_rc` was not the one every step
+  used: KneadData runs bowtie2 2.2.3 and the assembly stack 2.2.9, and the log
+  could only ever name one.
+- Topic channels are a preview feature in Nextflow 24.10, so the run prints one
+  `CHANNEL TOPICS ARE A PREVIEW FEATURE` warning. They are stable from 25.04.
+- A deployed copy records its commit in `COMMIT`, since it has no `.git`.
+
+**The input check**
+
+- Unpaired mates are named alongside broken symlinks, and both go in the
+  report, so it lists everything the run left out. An R1 whose R2 was missing
+  used to be dropped without a word.
+- The samples left out are repeated as the last thing the run prints.
+- `--fail_on_bad_inputs` stops the run instead of leaving samples out.
+
+**Cleanup**
+
+- One R script folder: everything in `assets/Rscripts` moved to `bin/Rscripts`,
+  next to the SGB helpers already there and the rest of the helper code.
+
 ## 0.0.4 — TBD
 
 Everything else in upstream 3.2, plus a layout cleanup. ~8,500 lines and 61 new
@@ -35,11 +70,7 @@ files for the port; the cleanup on top is 14 deletions and 17 renames.
   and `errorStrategy 'finish'` took the whole run down with it.
 - `--check_inputs_only` vets a folder and stops; `-resume` then reuses those
   checks. `bin/check_fastq_inputs.py` does the same without Nextflow.
-- Broken symlinks and unpaired mates are named instead of silently skipped,
-  and go in the same report, so it lists everything the run left out. An R1
-  whose R2 was missing used to be dropped without a word.
-- The samples left out are repeated as the last thing the run prints.
-- `--fail_on_bad_inputs` stops the run instead of leaving samples out.
+- Broken symlinks are named in a warning instead of silently skipped.
 
 **The cleanup** — housekeeping, not features, and not yet deployed.
 

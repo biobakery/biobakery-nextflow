@@ -1,5 +1,8 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
+// Every tool step sends its version to the `versions` topic, which version_log
+// collects (modules/utils/version_log/main.nf). A preview feature until 25.04.
+nextflow.preview.topic = true
 
 // ── Workflow imports ───────────────────────────────────────────────────────
 include { MGX }          from './workflows/mgx.nf'
@@ -9,9 +12,14 @@ include { SIXTEENS }     from './workflows/sixteens.nf'
 include { VIS }          from './workflows/vis.nf'
 include { STATS }        from './workflows/stats.nf'
 include { ASSEMBLY } from './workflows/assembly.nf'
+include { run_header } from './modules/utils/version_log/main.nf'
 
 // ── Router ─────────────────────────────────────────────────────────────────
 workflow {
+
+    // Version, run and databases first, so they head the console output and
+    // .nextflow.log as well as pipeline_info/pipeline_log.txt.
+    log.info run_header()
 
     // Validate required params for read-based workflows. mgx_mtx is the
     // exception: it takes two input folders instead of one, and validates them

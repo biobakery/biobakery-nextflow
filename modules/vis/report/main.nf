@@ -27,6 +27,7 @@ process vis_report {
     output:
     path "vis",                    emit: report_folder
     path "vis/*_report.{html,pdf}", emit: report
+    tuple val("${task.process}"), val('biobakery_workflows'), eval('biobakery_workflows --version 2>&1 | tail -1 | sed "s/^biobakery_workflows v//"'), topic: versions
 
     script:
     def metadata_opt   = metadata.name != 'NO_FILE' ? "--input-metadata ${metadata}" : ''

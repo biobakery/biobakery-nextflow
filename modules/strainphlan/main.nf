@@ -38,6 +38,7 @@ process strainphlan {
     path "output/",       emit: results
     path "output/*.tre",  emit: tree,  optional: true
     path "output/*.tsv",  emit: table, optional: true
+    tuple val("${task.process}"), val('strainphlan'), eval('strainphlan.py --version 2>&1 | grep -o "StrainPhlAn version .*" | head -1 | sed "s/^StrainPhlAn version //"'), topic: versions
 
     when:
     params.run_strain_profiling

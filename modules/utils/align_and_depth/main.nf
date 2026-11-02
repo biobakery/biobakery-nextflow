@@ -13,6 +13,8 @@ process align_and_depth {
     output:
     tuple val(sample), path("${sample}.contig_depths.txt"), emit: depths
     tuple val(sample), path("${sample}.sorted.bam"),        emit: bam,    optional: true
+    tuple val("${task.process}"), val('bowtie2'), eval('bowtie2 --version 2>&1 | head -1 | sed "s/.* version //"'), topic: versions
+    tuple val("${task.process}"), val('samtools'), eval('samtools --version 2>&1 | head -1 | sed "s/^samtools //"'), topic: versions
 
     script:
     def idx = "${sample}_btidx"

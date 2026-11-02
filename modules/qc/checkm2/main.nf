@@ -11,6 +11,7 @@ process checkm2 {
 
     output:
     tuple val(sample), path("quality_report.tsv"), emit: quality
+    tuple val("${task.process}"), val('checkm2'), eval('checkm2 --version 2>&1 | tail -1'), topic: versions
 
     script:
     def extra = params.checkm_predict_options ?: ""

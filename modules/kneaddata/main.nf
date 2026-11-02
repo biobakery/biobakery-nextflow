@@ -24,6 +24,8 @@ process single_end_kneaddata {
     tuple val(sample), path("${sample}_kneaddata.fastq.gz"),      emit: kneads
     tuple val(sample), path("${sample}_kneaddata.log"),            emit: log
     tuple val(sample), path("${sample}_kneaddata*.fastq.gz"),      emit: others, optional: true
+    tuple val("${task.process}"), val('kneaddata'), eval('kneaddata --version 2>&1 | head -1 | sed "s/^kneaddata v//"'), topic: versions
+    tuple val("${task.process}"), val('bowtie2'), eval('bowtie2 --version 2>&1 | head -1 | sed "s/.* version //"'), topic: versions
 
     when:
     params.run_qc
@@ -66,6 +68,8 @@ process paired_end_kneaddata {
     tuple val(sample), path("${sample}_kneaddata_paired_2.fastq.gz"),  emit: paired2,   optional: true
     tuple val(sample), path("${sample}_kneaddata_unmatched_1.fastq.gz"), emit: unpaired1, optional: true
     tuple val(sample), path("${sample}_kneaddata_unmatched_2.fastq.gz"), emit: unpaired2, optional: true
+    tuple val("${task.process}"), val('kneaddata'), eval('kneaddata --version 2>&1 | head -1 | sed "s/^kneaddata v//"'), topic: versions
+    tuple val("${task.process}"), val('bowtie2'), eval('bowtie2 --version 2>&1 | head -1 | sed "s/.* version //"'), topic: versions
 
     when:
     params.run_qc

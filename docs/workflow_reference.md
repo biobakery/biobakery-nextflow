@@ -69,10 +69,10 @@ flowchart TB
     subgraph L2["<b>2 · WORKFLOWS</b> — workflows/*.nf<br/><i>One complete pipeline per --workflow token — the thing a user runs. Wires stages, and may run steps of its own.</i>"]
         direction LR
         SIXTEENS("<b>SIXTEENS</b><br/><i>--workflow 16s</i><br/>16S rRNA amplicon workflow — stub")
-        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 2 stages</i><br/>· QUALITY_CONTROL<br/>· CHECK_INPUTS<br/><i>+ 17 steps of its own</i>")
-        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 7 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
-        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
-        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
+        ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 2 stages</i><br/>· QUALITY_CONTROL<br/>· CHECK_INPUTS<br/><i>+ 19 steps of its own</i>")
+        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 7 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
+        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 7 steps of its own</i>")
+        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· CHECK_INPUTS<br/>· REPORTING<br/><i>+ 5 steps of its own</i>")
         STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+ 14 steps of its own</i>")
         VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of<br/>biobakery_workflows vis.<br/><i>+ 7 steps of its own</i>")
     end
@@ -239,7 +239,7 @@ flowchart LR
     subgraph MGX
         direction TB
         stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
-        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
+        version_log(["<b>version_log</b><br/>Write the run header, each<br/>step's tool versions and the…"])
     end
     subgraph VIS
         direction TB
@@ -358,7 +358,7 @@ flowchart LR
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>` |
 | `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
-| `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
+| `version_log` | Write the run header, each step's tool versions and the parameters to pipeline_log.txt | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>` |
 
 ## mtx
@@ -407,7 +407,7 @@ flowchart LR
     subgraph MTX
         direction TB
         stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
-        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
+        version_log(["<b>version_log</b><br/>Write the run header, each<br/>step's tool versions and the…"])
     end
     subgraph VIS
         direction TB
@@ -519,7 +519,7 @@ flowchart LR
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>` |
 | `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
-| `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
+| `version_log` | Write the run header, each step's tool versions and the parameters to pipeline_log.txt | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>` |
 
 ## mgx_mtx
@@ -594,7 +594,7 @@ flowchart LR
         direction TB
         rna_dna_norm["<b>rna_dna_norm</b><br/>RNA/DNA relative expression<br/>ratio for one feature type."]
         stage_report_input("<b>stage_report_input</b><br/>Build a bioBakery-standard<br/>output folder for vis and…")
-        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
+        version_log(["<b>version_log</b><br/>Write the run header, each<br/>step's tool versions and the…"])
     end
     subgraph STRAIN_PROFILING
         direction TB
@@ -749,7 +749,7 @@ flowchart LR
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>` |
 | `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/stats/features` |
-| `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
+| `version_log` | Write the run header, each step's tool versions and the parameters to pipeline_log.txt | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>` |
 
 ## assembly
@@ -788,7 +788,7 @@ flowchart LR
         sgb_cluster("<b>sgb_cluster</b><br/>Cluster MAGs into SGBs using<br/>Mash distances +…")
         abundance("<b>abundance</b><br/>Per-sample MAG abundance,<br/>mirroring the Calculate…")
         merge_tax_abundance["<b>merge_tax_abundance</b><br/>Merge abundance data with<br/>taxonomy and SGB assignments…"]
-        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
+        version_log(["<b>version_log</b><br/>Write the run header, each<br/>step's tool versions and the…"])
     end
 
     check_reads --> paired_end_kneaddata
@@ -867,7 +867,7 @@ flowchart LR
 | `phylophlan_metagenomic` | PhyloPhlAn metagenomic — phylogenetic placement of MAGs to nearest SGBs/GGBs/FGBs | `modules/phylogenomics/phylophlan_metagenomic/main.nf` | `<outdir>/phylophlan/<sample>` |
 | `sgb_cluster` | Cluster MAGs into SGBs using Mash distances + CheckM/PhyloPhlAn metadata | `modules/utils/mash/main.nf` | `<outdir>/sgbs/sgbs` |
 | `single_end_kneaddata` | KneadData QC — single-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
-| `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
+| `version_log` | Write the run header, each step's tool versions and the parameters to pipeline_log.txt | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 
 ## vis
 

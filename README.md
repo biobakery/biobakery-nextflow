@@ -94,7 +94,7 @@ Tools are pre-installed via the hutlab module system. No containers needed.
 ```sh
 # One-time setup (run once per login shell or add to ~/.bashrc)
 source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
+hutlab load rocky8/biobakery_workflows_nextflow/0.0.5
 
 # Verify Nextflow is available
 nextflow -version
@@ -881,7 +881,7 @@ the report was built from, and point a later standalone run straight at it.
 | `--max_memory` | `128.GB` | Global memory cap (used by `check_max()` in `conf/base.config`) |
 | `--max_cpus` | `32` | Global CPU cap |
 | `--max_time` | `240.h` | Global walltime cap |
-| `--log_versions` | `true` | Write tool and database versions to `results/pipeline_info/` |
+| `--log_versions` | `true` | Write `pipeline_info/pipeline_log.txt` (run header, databases, each step's tool versions, parameters) and `pipeline_info/software_versions.tsv` |
 
 ---
 
@@ -1048,8 +1048,9 @@ nextflow run main.nf -profile harvard_rc \
 ```
 results/
 ├── pipeline_info/
-│   ├── versions.txt                               # Tool versions (kneaddata, metaphlan, humann, ...)
-│   ├── db_paths.txt                               # Database paths used in this run
+│   ├── pipeline_log.txt                           # Run header (version, commit, databases), each
+│   │                                              #   step's tool versions, then the parameters
+│   ├── software_versions.tsv                      # tool, version, and the steps that ran it
 │   ├── execution_timeline_YYYY-MM-DD_HH-mm-ss.html
 │   ├── execution_report_YYYY-MM-DD_HH-mm-ss.html
 │   ├── execution_trace_YYYY-MM-DD_HH-mm-ss.txt
@@ -1296,7 +1297,7 @@ green on 2026-10-08; the two red are test 12, below.
 | QC bypass | `--run_qc false` merges each pair first, as `shotgun.merge_pairs` does upstream |
 | Chained reports | built from the run's own channels into a bioBakery-standard folder (`<outdir>/report_input/`), so there is no `publishDir` race and no layout mismatch |
 | Environments | every process has resource and module blocks for `-profile harvard_rc`; HAllA gets its own module, because it pins `numpy<2` |
-| Deployment | `hutlab load rocky8/biobakery-workflows-nextflow/0.0.4`, verified end to end with the shipped params file |
+| Deployment | `hutlab load rocky8/biobakery_workflows_nextflow/0.0.5`, verified end to end with the shipped params file |
 
 ### Not done
 

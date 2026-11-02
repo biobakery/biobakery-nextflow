@@ -22,7 +22,7 @@
 | BAQLaVa viral profiling | `subworkflows/viral_profiling.nf`; `--run_viral_profiling` |
 | MetaPhlAn version abstraction | `metaphlan_v3` / `metaphlan_v4` / `metaphlan_4.0.6_fixed` CLI flag styles |
 | HUMAnN 3/4 compatibility | `--utility-database` conditional; v37 vs v4a output renaming |
-| Version logging | `modules/utils/version_log/main.nf` → `results/pipeline_info/versions.txt` + `db_paths.txt` |
+| Version logging | each tool step → `versions` topic → `modules/utils/version_log/main.nf` → `results/pipeline_info/pipeline_log.txt` + `software_versions.tsv` |
 | Harvard FASRC (HSPH) profile | `hsph` SLURM partition, hutlab module integration, DB paths in `conf/databases/harvard_rc.config` |
 | Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts.config` |
 | AWS Batch profile | Per-process ECR containers, S3 I/O |
@@ -486,7 +486,7 @@ nextflow run main.nf \
 
 ```bash
 source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
+hutlab load rocky8/biobakery_workflows_nextflow/0.0.5
 ```
 
 ### Installed hutlab modules (MGX workflow)

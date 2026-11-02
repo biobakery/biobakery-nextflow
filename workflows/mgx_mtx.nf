@@ -12,7 +12,7 @@ include { FUNCTIONAL_PROFILING as FUNC_MGX }               from '../subworkflows
 include { FUNCTIONAL_PROFILING as FUNC_MTX }               from '../subworkflows/functional_profiling.nf'
 include { STRAIN_PROFILING }                               from '../subworkflows/strain_profiling.nf'
 include { rna_dna_norm }                                   from '../modules/utils/rna_dna_norm/main.nf'
-include { version_log }                                    from '../modules/utils/version_log/main.nf'
+include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
 include { mtx_kneaddata_dbs }                              from '../subworkflows/mtx_common.nf'
 include { stage_report_input }                             from '../modules/utils/report_input/main.nf'
 include { REPORTING }                                      from '../subworkflows/reporting.nf'
@@ -160,7 +160,7 @@ workflow MGX_MTX {
     }
 
     if (params.log_versions) {
-        version_log()
+        version_log(run_header_file(), software_versions())
     }
 }
 

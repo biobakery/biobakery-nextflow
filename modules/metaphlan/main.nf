@@ -14,6 +14,7 @@ process metaphlan {
     tuple val(sample), path("${sample}_profile_${params.metaphlan_index}.tsv"),   emit: profile
     tuple val(sample), path("${sample}_bowtie2_${params.metaphlan_index}.tsv"),   emit: bowtie2
     tuple val(sample), path("${sample}_${params.metaphlan_index}.sam"),            emit: sam
+    tuple val("${task.process}"), val('metaphlan'), eval('metaphlan --version 2>&1 | head -1 | sed "s/^MetaPhlAn version //"'), topic: versions
 
     when:
     params.run_taxonomic_profiling

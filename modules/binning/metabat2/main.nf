@@ -13,6 +13,7 @@ process metabat2 {
     output:
     tuple val(sample), path("bins/"),  emit: bins
     path "bins/*.bin.*.fa",            emit: bin_fastas, optional: true
+    tuple val("${task.process}"), val('metabat2'), eval('metabat2 --help 2>&1 | grep -o "version [^;)]*" | head -1 | sed "s/^version //"'), topic: versions
 
     script:
     def min_len = params.megahit_min_contig_length ?: 2500

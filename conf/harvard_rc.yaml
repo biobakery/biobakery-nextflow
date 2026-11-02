@@ -26,7 +26,7 @@
 #
 # Setup, once per shell:
 #   source /n/lab_storage/huttenhower_lab/tools/hutlab/src/hutlabrc_rocky8.sh
-#   hutlab load rocky8/biobakery-workflows-nextflow/0.0.4
+#   hutlab load rocky8/biobakery_workflows_nextflow/0.0.5
 #
 # The full parameter list is in README.md; the steps each workflow runs are in
 # docs/workflow_reference.md.

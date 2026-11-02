@@ -11,6 +11,7 @@ process phylophlan_metagenomic {
 
     output:
     tuple val(sample), path("phylophlan_out.tsv"), emit: placement
+    tuple val("${task.process}"), val('phylophlan'), eval('phylophlan_assign_sgbs_legacy --version 2>&1 | tail -1 | sed "s/.* version //"'), topic: versions
 
     script:
     def db_folder = params.phylophlan_path

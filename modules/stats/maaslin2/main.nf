@@ -20,6 +20,8 @@ process maaslin2 {
     output:
     tuple val(feature_type), path(out_folder),                          emit: results
     tuple val(feature_type), path("${out_folder}/significant_results.tsv"), emit: significant, optional: true
+    tuple val("${task.process}"), val('Maaslin2'), eval('Rscript -e "cat(format(packageVersion(as.character(quote(Maaslin2)))))" 2>&1 | tail -1'), topic: versions
+    tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(format(getRversion()))" 2>&1 | tail -1'), topic: versions
 
     script:
     out_folder = "maaslin2_${feature_type == 'taxonomy' ? 'taxa' : feature_type}"

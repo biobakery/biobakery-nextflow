@@ -6,6 +6,16 @@
 # Under SLURM:       sbatch tests/submit_tests.sh
 # Requires: the hutlab module environment loaded, and Java 21 on PATH.
 #
+# The pipeline under test is this checkout, unless a hutlab
+# biobakery_workflows_nextflow module is loaded: then it is the deployed copy
+# the module points at, run with the module's nextflow, which is how lab
+# members run it. To test a deployment before it goes out:
+#
+#   hutlab load rocky8/biobakery_workflows_nextflow/<version>
+#   mkdir -p tests/results && sbatch tests/submit_tests.sh
+#
+# The fixtures always come from this checkout.
+#
 # This is the only test suite. The nf-test cases that used to sit alongside it
 # were removed in the v0.0.4 cleanup: they asserted a four-process pipeline,
 # loaded params files that were not in the repo, and so had not run in a long
@@ -35,7 +45,12 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RESULTS_BASE="${REPO_ROOT}/tests/results"
 WORK_BASE="${REPO_ROOT}/tests/work"
-NF="/n/lab_storage/huttenhower_lab/tools/nextflow/24.10.4/bin/nextflow"
+PIPELINE="${BIOBAKERY_NF_PIPELINE:-${REPO_ROOT}}"
+if [ -n "${BIOBAKERY_NF_PIPELINE:-}" ] && command -v nextflow >/dev/null 2>&1; then
+    NF="$(command -v nextflow)"
+else
+    NF="/n/lab_storage/huttenhower_lab/tools/nextflow/24.10.4/bin/nextflow"
+fi
 # The profile carries the databases and the tool modules; conf/harvard_rc.yaml
 # is a template of commented-out settings and is deliberately not passed, so
 # each test states its own input and nothing is inherited silently.
@@ -53,7 +68,7 @@ FIXTURE="${VIS_STATS_FIXTURE:-${HOME}/biobakery_vis_stats_test/input}"
 # (add --single for input_se).
 ASM_FIXTURE="${ASSEMBLY_FIXTURE:-${HOME}/biobakery_assembly_test}"
 # Reported in the summary, so a log says which release it came from.
-VERSION="$(sed -n "s/^ *version *= *'\(.*\)'.*/\1/p" "${REPO_ROOT}/nextflow.config")"
+VERSION="$(sed -n "s/^ *version *= *'\(.*\)'.*/\1/p" "${PIPELINE}/nextflow.config")"
 
 mkdir -p "${RESULTS_BASE}" "${WORK_BASE}"
 
@@ -81,7 +96,7 @@ nf_run() {
     # tread on each other.
     (
         cd "${launch}" || exit 1
-        "${NF}" run "${REPO_ROOT}/main.nf" ${PROFILE} \
+        "${NF}" run "${PIPELINE}/main.nf" ${PROFILE} \
             --outdir "${out}" \
             -work-dir "${WORK_BASE}/${name}" \
             "$@"
@@ -100,6 +115,38 @@ check_run() {
     else
         echo "[FAIL] ${name}: nextflow exited ${status}"
         grep -E "^ERROR|Caused by:|Command error:" -A3 "${RESULTS_BASE}/${name}.log" | head -20 >&2
+        ((fail++))
+    fi
+}
+
+# Does the run open with its header -- in the console log and at the top of
+# pipeline_log.txt -- and does software_versions.tsv give a version for every
+# tool named? Each version is the one the step that ran the tool reported.
+check_versions() {
+    local name="$1"; shift
+    local info="${RESULTS_BASE}/${name}/pipeline_info"
+    local header="biobakery-workflows-nextflow ${VERSION} "
+    local ok=true
+    if ! head -5 "${RESULTS_BASE}/${name}.log" | grep -q "${header}"; then
+        echo "  ${name}: the console log does not open with the run header" >&2
+        ok=false
+    fi
+    if ! head -3 "${info}/pipeline_log.txt" 2>/dev/null | grep -q "${header}"; then
+        echo "  ${name}: pipeline_log.txt does not open with the run header" >&2
+        ok=false
+    fi
+    for t in "$@"; do
+        if ! awk -F'\t' -v t="${t}" 'NR > 1 && $1 == t && $2 != "" && $2 !~ /not found/ { f = 1 } END { exit !f }' \
+                "${info}/software_versions.tsv" 2>/dev/null; then
+            echo "  ${name}: no version for ${t} in software_versions.tsv" >&2
+            ok=false
+        fi
+    done
+    if $ok; then
+        echo "[PASS] ${name}: run header and tool versions logged${*:+ (}${*}${*:+)}"
+        ((pass++))
+    else
+        echo "[FAIL] ${name}: run header or tool versions missing"
         ((fail++))
     fi
 }
@@ -270,7 +317,7 @@ if [ -d "${ASM_FIXTURE}/input_pe" ]; then
     nf_run test13_assembly_mags_pe \
         --workflow assembly \
         --readsdir "${ASM_FIXTURE}/input_pe" \
-        ${COMMON} ${NO_REPORTS} --log_versions false &
+        ${COMMON} ${NO_REPORTS} --log_versions true &
 fi
 if [ -d "${ASM_FIXTURE}/input_se" ]; then
     nf_run test14_assembly_mags_se \
@@ -302,6 +349,15 @@ wait
 note "Test 1: version log"
 check_run   test1_versionlog
 check_files test1_versionlog "pipeline_log.txt"
+# every stage is off, so no tool step ran and the table says so
+check_versions test1_versionlog
+if grep -q "No tool step ran." "${RESULTS_BASE}/test1_versionlog/pipeline_info/pipeline_log.txt" 2>/dev/null; then
+    echo "[PASS] test1_versionlog: says no tool step ran"
+    ((pass++))
+else
+    echo "[FAIL] test1_versionlog: does not say no tool step ran"
+    ((fail++))
+fi
 
 # The chained reports are asserted through the folder they are built from --
 # outdir/report_input, in the bioBakery layout files.ShotGun expects -- not
@@ -315,6 +371,7 @@ check_files test2_mgx_se "*_kneaddata.log" "*_profile_*.tsv" "merged_metaphlan_p
                          "*_genefamilies_*.tsv" "*_pathabundance_*.tsv" "humann_feature_counts.tsv" \
                          "metaphlan_taxonomic_profiles.tsv" "kneaddata_read_count_table.tsv" \
                          "ecs_relab.tsv"
+check_versions test2_mgx_se kneaddata bowtie2 metaphlan humann
 
 # Chained stats needs metadata, which this run is not given: it must be skipped
 # with a warning, not fail the run and not silently produce a report.
@@ -334,6 +391,7 @@ check_files test3_mgx_pe "*_kneaddata_paired_1.fastq.gz" "*_profile_*.tsv" "merg
                          "kneaddata_read_count_table.tsv" "metaphlan_species_counts_table.tsv" \
                          "humann_read_and_species_count_table.tsv" \
                          "metaphlan_taxonomic_profiles.tsv" "pathabundance_relab.tsv"
+check_versions test3_mgx_pe kneaddata bowtie2 metaphlan humann
 
 note "Test 4: mgx paired-end with QC bypassed — merge_pairs"
 check_run   test4_mgx_pe_noqc
@@ -474,6 +532,20 @@ for t in test13_assembly_mags_pe test14_assembly_mags_se; do
                        "merged_quality_report.tsv" "phylophlan_out.tsv" "SGB_info.tsv" \
                        "final_profile.tsv"
 
+    if [ "${t}" = "test13_assembly_mags_pe" ]; then
+        check_versions "${t}" kneaddata megahit bowtie2 samtools metabat2 checkm2 phylophlan mash
+        # KneadData's stack and the assembly stack ship different bowtie2s;
+        # both must be listed, each against its own steps.
+        n=$(awk -F'\t' '$1 == "bowtie2"' "${RESULTS_BASE}/${t}/pipeline_info/software_versions.tsv" 2>/dev/null | wc -l)
+        if [ "${n}" -ge 2 ]; then
+            echo "[PASS] ${t}: bowtie2 logged once per stack (${n} versions)"
+            ((pass++))
+        else
+            echo "[FAIL] ${t}: bowtie2 logged ${n} time(s); expected one per stack"
+            ((fail++))
+        fi
+    fi
+
     # This is what the bundled reads cannot show: contigs, real bins, and a
     # profile with rows in it.
     bins=$(find "${RESULTS_BASE}/${t}/bins" -name "*.bin.[0-9]*.fa" -size +0c 2>/dev/null | wc -l)
@@ -502,7 +574,7 @@ fi
 
 # ── Guards, which fail fast and need no cluster ──────────────────────────────
 note "Test 15: toggle guard — viral profiling without taxonomic profiling"
-"${NF}" run "${REPO_ROOT}/main.nf" ${PROFILE} \
+"${NF}" run "${PIPELINE}/main.nf" ${PROFILE} \
     --workflow mgx \
     --readsdir "${REPO_ROOT}/tests/data/single_end_rawfastq" \
     --paired_end false \
@@ -520,7 +592,7 @@ else
 fi
 
 note "Test 16: mgx_mtx guard — both input folders are required"
-"${NF}" run "${REPO_ROOT}/main.nf" ${PROFILE} \
+"${NF}" run "${PIPELINE}/main.nf" ${PROFILE} \
     --workflow mgx_mtx \
     --input_metagenome "${REPO_ROOT}/tests/data/rawfastq" \
     --outdir "${RESULTS_BASE}/test16_guard_out" --log_versions false \
@@ -538,6 +610,7 @@ fi
 echo ""
 echo "========================================"
 echo "  biobakery-workflows-nextflow ${VERSION}"
+echo "  Pipeline: ${PIPELINE}"
 echo "  Results: ${pass} passed, ${fail} failed"
 echo "  Logs:    ${RESULTS_BASE}/"
 echo "========================================"

@@ -10,6 +10,7 @@ process mash_sketch {
 
     output:
     path "sketches.msh", emit: sketch
+    tuple val("${task.process}"), val('mash'), eval('mash --version 2>&1 | head -1'), topic: versions
 
     script:
     def extra = params.mash_sketch_options ?: ""

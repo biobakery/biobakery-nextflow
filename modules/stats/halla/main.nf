@@ -39,6 +39,7 @@ process halla {
 
     output:
     tuple val(feature_type), path("halla_${feature_type}"), emit: results
+    tuple val("${task.process}"), val('halla'), eval('python -m pip show halla 2>/dev/null | sed -n "s/^Version: //p"'), topic: versions
 
     script:
     """

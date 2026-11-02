@@ -29,7 +29,7 @@ flowchart LR
         sgb_cluster("<b>sgb_cluster</b><br/>Cluster MAGs into SGBs using<br/>Mash distances +…")
         abundance("<b>abundance</b><br/>Per-sample MAG abundance,<br/>mirroring the Calculate…")
         merge_tax_abundance["<b>merge_tax_abundance</b><br/>Merge abundance data with<br/>taxonomy and SGB assignments…"]
-        version_log(["<b>version_log</b><br/>Capture tool versions,<br/>database paths, and workflow…"])
+        version_log(["<b>version_log</b><br/>Write the run header, each<br/>step's tool versions and the…"])
     end
 
     check_reads --> paired_end_kneaddata

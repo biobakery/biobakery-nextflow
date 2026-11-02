@@ -44,6 +44,8 @@ module load jdk/21.0.2-fasrc01
 export PATH="/n/lab_storage/huttenhower_lab/tools/nextflow/24.10.4/bin:${PATH}"
 
 nextflow -version
+# set by a loaded biobakery_workflows_nextflow module; see run_tests.sh
+echo "Pipeline under test: ${BIOBAKERY_NF_PIPELINE:-${REPO_ROOT}}"
 
 cd "${REPO_ROOT}"
 bash tests/run_tests.sh

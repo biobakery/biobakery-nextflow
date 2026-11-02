@@ -43,6 +43,16 @@ directory with its own work directory; the checks run once they have all
 finished. Every case writes `tests/results/<name>.log` and a `.status` file, so
 a failure can be read after the fact.
 
+To test a deployment rather than the checkout, load its module first. The
+suite then runs the deployed copy (`$BIOBAKERY_NF_PIPELINE`) with the module's
+`nextflow`, exactly as lab members will, and the summary names the pipeline it
+ran:
+
+```bash
+hutlab load rocky8/biobakery_workflows_nextflow/<version>
+mkdir -p tests/results && sbatch tests/submit_tests.sh
+```
+
 It needs the hutlab module environment, Java 21, and a FASRC account that can
 submit to the `hsph` partition — `-profile harvard_rc`. There is no offline
 mode: these tests run the real tools against the real databases.

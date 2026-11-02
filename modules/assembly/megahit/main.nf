@@ -11,6 +11,7 @@ process megahit {
 
     output:
     tuple val(sample), path("${sample}.final.contigs.fa"), emit: contigs
+    tuple val("${task.process}"), val('megahit'), eval('megahit --version 2>&1 | head -1 | sed "s/^MEGAHIT v//"'), topic: versions
 
     script:
     def min_len = params.megahit_min_contig_length ?: 2500

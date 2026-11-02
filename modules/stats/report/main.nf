@@ -30,6 +30,7 @@ process stats_report {
     output:
     path "stats",                     emit: report_folder
     path "stats/stats_report.{html,pdf}", emit: report
+    tuple val("${task.process}"), val('biobakery_workflows'), eval('biobakery_workflows --version 2>&1 | tail -1 | sed "s/^biobakery_workflows v//"'), topic: versions
 
     script:
     def intro_opt    = params.introduction_text ? "--introduction-text '${params.introduction_text}'" : ''

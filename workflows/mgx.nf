@@ -8,7 +8,7 @@ include { TAXONOMIC_PROFILING }  from '../subworkflows/taxonomic_profiling.nf'
 include { FUNCTIONAL_PROFILING } from '../subworkflows/functional_profiling.nf'
 include { VIRAL_PROFILING }      from '../subworkflows/viral_profiling.nf'
 include { STRAIN_PROFILING }     from '../subworkflows/strain_profiling.nf'
-include { version_log }          from '../modules/utils/version_log/main.nf'
+include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
 include { stage_report_input }   from '../modules/utils/report_input/main.nf'
 include { REPORTING }            from '../subworkflows/reporting.nf'
 include { merge_pairs }          from '../modules/utils/merge_pairs/main.nf'
@@ -101,6 +101,6 @@ workflow MGX {
 
     // ── Version logging ────────────────────────────────────────────────────
     if (params.log_versions) {
-        version_log()
+        version_log(run_header_file(), software_versions())
     }
 }

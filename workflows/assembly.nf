@@ -20,7 +20,7 @@ include { mash_paste }             from '../modules/utils/mash/main.nf'
 include { mash_dist }              from '../modules/utils/mash/main.nf'
 include { sgb_cluster }            from '../modules/utils/mash/main.nf'
 include { merge_tax_abundance }    from '../modules/utils/mash/main.nf'
-include { version_log }            from '../modules/utils/version_log/main.nf'
+include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
 
 // Full MAG assembly → binning → SGB clustering pipeline.
 // Ported from anadama2 biobakery-workflows feature/assembly branch.
@@ -136,6 +136,6 @@ workflow ASSEMBLY {
 
     // ── Version / DB log ──────────────────────────────────────────────────
     if (params.log_versions) {
-        version_log()
+        version_log(run_header_file(), software_versions())
     }
 }
