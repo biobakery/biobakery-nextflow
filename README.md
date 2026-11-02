@@ -259,6 +259,7 @@ reading each raw FASTQ through once. A bad sample is logged, listed under
 | Quality length = sequence length | a record cut or corrupted mid-line | `line 404: quality length 10 differs from sequence length 99` |
 | At least one read | a valid but empty FASTQ | `no reads` |
 | Mates hold the same number of reads | one mate truncated cleanly, or mates from different runs | `mates hold different read counts (250 vs 100)` |
+| Every mate has its partner | an R1 whose R2 is missing, or a file the pair identifier does not match | `no mate found: S12_R2.fastq.gz is missing` |
 
 A sample fails if any of its files fails. For a pair, both mates are reported.
 The check stops at the first malformed record, because one is enough to drop
@@ -269,22 +270,36 @@ the sample its name says. Those are KneadData's and the analyst's job. The
 check also does not look past filenames the run would not pick up. A file the
 glob does not match is not read; see `--filepattern`.
 
-Broken symlinks need one more note. A link whose target is gone matches no
-glob, so Nextflow would silently skip it. The run names such links in a
-warning at startup (`N read file(s) ... are broken symlinks and will be
-skipped`).
+Broken symlinks and unpaired mates are never read: Nextflow cannot stage a
+link whose target is gone, and a lone mate cannot be run as a pair. They are
+named in a warning at startup and listed in the report as FAIL, so the report
+holds every file the run left out, whatever the reason.
 
 ### Three ways to run it
 
 **1. Automatically, as part of every run** (default, `--check_inputs true`).
 Nothing to do. Each sample waits only on its own check, so profiling of the
 first good samples starts while the rest are still being checked. The log
-shows one line per bad sample and a summary:
+says which samples were left out in three places:
 
 ```
+# as each bad sample is found
 WARN: [mgx] Sample S12 failed the input check and is left out: S12_R2.fastq.gz: compressed stream is truncated or corrupt: gzip: S12_R2.fastq.gz: unexpected end of file
+
+# once every sample is checked
 WARN: [mgx] 1 of 1600 samples failed the input check and were left out: S12. Details: results/input_check/mgx_input_check.tsv
+
+# and again as the last thing the run prints, so it is not lost hours earlier
+WARN: Input check [mgx]: 1 sample(s) were left out of this run:
+  S12  --  S12_R2.fastq.gz: compressed stream is truncated or corrupt: gzip: S12_R2.fastq.gz: unexpected end of file
+  Full list: /path/to/results/input_check/mgx_failed_samples.txt
+  Details:   /path/to/results/input_check/mgx_input_check.tsv
 ```
+
+A run that left samples out still exits 0, because it did what it was asked
+to. To stop the run instead, pass `--fail_on_bad_inputs true`. No sample is
+then profiled until every one has passed, and a bad one ends the run with exit
+status 1 and the same list.
 
 **2. Check only, then run** (`--check_inputs_only true`). Add the flag to the
 command you are about to run. The inputs are found exactly as the real run
@@ -722,6 +737,7 @@ the report was built from, and point a later standalone run straight at it.
 | `--outdir` | `results` | Output directory |
 | `--check_inputs` | `true` | Read every raw FASTQ through before profiling; truncated or corrupt samples are logged to `<outdir>/input_check/` and left out rather than failing the run |
 | `--check_inputs_only` | `false` | Run that check on the workflow's inputs and stop. See [Input checks](#input-checks) |
+| `--fail_on_bad_inputs` | `false` | Stop the run, with exit status 1, if any sample fails the check, rather than leaving it out |
 | `--paired_end` | `true` | `true` for paired-end, `false` for single-end |
 | `--filepattern` | `*_R{1,2}*.fastq.gz` | Glob to match reads. Paired-end must use `{1,2}`. |
 

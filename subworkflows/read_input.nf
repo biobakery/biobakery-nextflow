@@ -19,6 +19,9 @@ nextflow.enable.dsl=2
 // two independent read channels in one run, one per input folder.
 //
 // Returns: Channel of [ [id: sample, paired_end: bool], reads ]
+//   plus one [ [id, paired_end: false, skipped: reason], file ] per file the run
+//   cannot use (a broken symlink, a mate without its partner). CHECK_INPUTS
+//   reports and removes those, so every workflow takes this through it.
 def read_input(indir, label) {
 
     if (!indir) {
@@ -70,17 +73,24 @@ def read_input(indir, label) {
                  "naming convention, or --single_end true to silence this."
     }
 
+    // Files the run cannot use. Each is warned about here, and also travels
+    // down the channel marked meta.skipped, so CHECK_INPUTS lists it in the
+    // input_check report alongside the files that failed the check: the report
+    // is then every file the run left out, not just the corrupt ones.
+    def skipped = [:]   // file -> reason
+    def mate = use_paired ? mate_pattern(params.filepattern ? null : params.pair_identifier) : null
+
     // A broken symlink -- common in a folder of links gathered from several
     // studies -- matches no glob, so it would vanish from the run unremarked.
-    // CHECK_INPUTS never sees it either; name it here.
     def link_glob = java.nio.file.FileSystems.getDefault()
         .getPathMatcher("glob:${use_paired ? paired_glob : single_glob}")
     def broken = (file(readsdir).listFiles() ?: [])
         .findAll { java.nio.file.Files.isSymbolicLink(it) && !it.exists() && link_glob.matches(it.fileName) }
-        .collect { it.name }
+    broken.each { skipped[it] = 'file not found (broken symlink)' }
     if (broken) {
-        log.warn "[${label}] ${broken.size()} read file(s) in ${readsdir} are broken symlinks and will be " +
-                 "skipped: ${broken.sort().take(10).join(', ')}${broken.size() > 10 ? ', ...' : ''}"
+        def names = broken.collect { it.name }.sort()
+        log.warn "[${label}] ${names.size()} read file(s) in ${readsdir} are broken symlinks and will be " +
+                 "skipped: ${names.take(10).join(', ')}${names.size() > 10 ? ', ...' : ''}"
     }
 
     def reads
@@ -90,13 +100,26 @@ def read_input(indir, label) {
             .map { sample, files -> [ [id: sample, paired_end: true], files ] }
 
         // Any read file that did not pair up is reported: fromFilePairs silently
-        // drops singletons, which makes a naming mixup very easy to miss.
-        def all_reads = file("${readsdir}/${single_glob}").collect { it.name }
+        // drops singletons, which makes a naming mixup very easy to miss. That
+        // is both a file the paired glob does not match at all, and a mate the
+        // glob does match whose partner is missing -- an R1 with no R2, say.
         def paired_names = pair_files.collect { it.name }
-        def orphans = all_reads - paired_names
+        file("${readsdir}/${single_glob}").findAll { !(it.name in paired_names) }.each {
+            skipped[it] = "no mate found: name does not match the pair identifier '${params.pair_identifier}'"
+        }
+        if (mate) {
+            pair_files.each { f ->
+                def m = f.name =~ mate.regex
+                if (!m.matches()) return
+                def partner = m.group(1) + mate.before + (m.group(2) == mate.one ? mate.two : mate.one) + mate.after + m.group(3)
+                if (!(partner in paired_names))
+                    skipped[f] = "no mate found: ${partner} is missing"
+            }
+        }
+        def orphans = skipped.findAll { f, why -> why.startsWith('no mate found') }.keySet().collect { it.name }.sort()
         if (orphans) {
             log.warn "[${label}] ${orphans.size()} read file(s) in ${readsdir} did not match a mate and " +
-                     "will be skipped: ${orphans.sort().take(10).join(', ')}" +
+                     "will be skipped: ${orphans.take(10).join(', ')}" +
                      (orphans.size() > 10 ? ", ..." : "") +
                      ". Check the pair identifier ('${params.pair_identifier}') and file naming."
         }
@@ -110,5 +133,29 @@ def read_input(indir, label) {
             }
     }
 
+    if (skipped) {
+        // Named as fromFilePairs would name the sample, so the two halves of a
+        // broken pair are reported as one sample.
+        def sample_of = { f ->
+            def m = mate ? (f.name =~ mate.regex) : null
+            m && m.matches() ? m.group(1) : f.name.replaceFirst(/(\.fastq|\.fq)(\.gz|\.bz2)?$/, '')
+        }
+        reads = reads.mix(Channel.fromList(skipped.collect { f, why ->
+            [ [id: sample_of(f), paired_end: false, skipped: why], f ]
+        }))
+    }
+
     return reads
+}
+
+// '_R{1,2}' -> how to find a mate's partner by name: a regex capturing
+// (prefix, mate, suffix), and the pieces to rebuild the partner's name. null
+// when the identifier is not of that form, or when --filepattern overrides it.
+def mate_pattern(pair_identifier) {
+    def m = pair_identifier ? (pair_identifier =~ /^(.*)\{(\w),(\w)\}(.*)$/) : null
+    if (!m || !m.matches()) return null
+    def (before, one, two, after) = [m.group(1), m.group(2), m.group(3), m.group(4)]
+    def q = { java.util.regex.Pattern.quote(it) }
+    return [regex: /^(.*?)${q(before)}(${q(one)}|${q(two)})${q(after)}(.*)$/,
+            before: before, one: one, two: two, after: after]
 }

@@ -181,10 +181,12 @@ nf_run test6_mtx_pe \
     --run_functional_profiling false \
     ${COMMON} ${NO_REPORTS} --log_versions false &
 
-# 17./18. the input check. One good pair, one pair with a truncated mate, one
-#    pair whose mates hold different read counts. The bad two must be logged and
-#    dropped and the run must still complete on the good one; with
-#    --check_inputs_only the same command must check and stop.
+# 17./18./19. the input check. One good pair, one pair with a truncated mate,
+#    one pair whose mates hold different read counts, an R1 with no R2, and a
+#    pair whose R2 is a broken symlink. The bad four must be logged and dropped
+#    and the run must still complete on the good one, repeating the list at the
+#    end; with --check_inputs_only the same command must check and stop; with
+#    --fail_on_bad_inputs it must fail without profiling anything.
 CHK="${RESULTS_BASE}/input_check_fixture"
 rm -rf "${CHK}"; mkdir -p "${CHK}"
 for r in 1 2; do
@@ -194,6 +196,9 @@ cp "${CHK}/good_R1.fastq.gz" "${CHK}/truncated_R1.fastq.gz"
 head -c 40000 "${CHK}/good_R2.fastq.gz" > "${CHK}/truncated_R2.fastq.gz"
 cp "${CHK}/good_R1.fastq.gz" "${CHK}/mismatched_R1.fastq.gz"
 zcat "${CHK}/good_R2.fastq.gz" | head -n 400 | gzip > "${CHK}/mismatched_R2.fastq.gz"
+cp "${CHK}/good_R1.fastq.gz" "${CHK}/lonely_R1.fastq.gz"
+cp "${CHK}/good_R1.fastq.gz" "${CHK}/brokenlink_R1.fastq.gz"
+ln -s /nonexistent/brokenlink_R2.fastq.gz "${CHK}/brokenlink_R2.fastq.gz"
 
 nf_run test17_input_check \
     --workflow mgx \
@@ -205,6 +210,13 @@ nf_run test18_input_check_only \
     --workflow mgx \
     --readsdir "${CHK}" \
     --check_inputs_only true \
+    ${COMMON} ${NO_REPORTS} --log_versions false &
+
+nf_run test19_input_check_fail \
+    --workflow mgx \
+    --readsdir "${CHK}" \
+    --fail_on_bad_inputs true \
+    --run_functional_profiling false \
     ${COMMON} ${NO_REPORTS} --log_versions false &
 
 wait
@@ -363,13 +375,22 @@ note "Test 17: truncated and mismatched inputs are dropped, the run completes"
 check_run   test17_input_check
 check_files test17_input_check "mgx_input_check.tsv" "good_*profile*.tsv"
 if [ "$(cat "${RESULTS_BASE}/test17_input_check/input_check/mgx_failed_samples.txt" 2>/dev/null)" = \
-     "$(printf 'mismatched\ntruncated')" ] \
-   && ! find "${RESULTS_BASE}/test17_input_check" -name "truncated*profile*" -o -name "mismatched*profile*" | grep -q .
+     "$(printf 'brokenlink\nlonely\nmismatched\ntruncated')" ] \
+   && ! find "${RESULTS_BASE}/test17_input_check" -name "truncated*profile*" -o -name "mismatched*profile*" \
+        -o -name "lonely*profile*" -o -name "brokenlink*profile*" | grep -q .
 then
-    echo "[PASS] test17_input_check: both bad samples listed and left unprofiled"
+    echo "[PASS] test17_input_check: all four bad samples listed and left unprofiled"
     ((pass++))
 else
     echo "[FAIL] test17_input_check: failed-sample list or dropped samples not as expected"
+    ((fail++))
+fi
+# The list is repeated as the run's last word, so it is not lost hours earlier.
+if grep -q "Input check \[mgx\]: 4 sample(s) were left out of this run" "${RESULTS_BASE}/test17_input_check.log"; then
+    echo "[PASS] test17_input_check: end-of-run summary names the samples left out"
+    ((pass++))
+else
+    echo "[FAIL] test17_input_check: no end-of-run summary"
     ((fail++))
 fi
 
@@ -381,6 +402,18 @@ if ! find "${RESULTS_BASE}/test18_input_check_only" -path "*metaphlan*" -o -path
     ((pass++))
 else
     echo "[FAIL] test18_input_check_only: profiling ran"
+    ((fail++))
+fi
+
+note "Test 19: --fail_on_bad_inputs stops the run before anything is profiled"
+if [ "$(cat "${RESULTS_BASE}/test19_input_check_fail.status" 2>/dev/null)" != "0" ] \
+   && grep -q "fail_on_bad_inputs is set" "${RESULTS_BASE}/test19_input_check_fail.log" \
+   && ! find "${RESULTS_BASE}/test19_input_check_fail" -path "*metaphlan*" -o -path "*kneaddata*" | grep -q .
+then
+    echo "[PASS] test19_input_check_fail: run failed on the bad samples, nothing profiled"
+    ((pass++))
+else
+    echo "[FAIL] test19_input_check_fail: expected a failed run with nothing profiled"
     ((fail++))
 fi
 

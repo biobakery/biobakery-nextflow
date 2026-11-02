@@ -35,7 +35,11 @@ files for the port; the cleanup on top is 14 deletions and 17 renames.
   and `errorStrategy 'finish'` took the whole run down with it.
 - `--check_inputs_only` vets a folder and stops; `-resume` then reuses those
   checks. `bin/check_fastq_inputs.py` does the same without Nextflow.
-- Broken symlinks in the input folder are named instead of silently skipped.
+- Broken symlinks and unpaired mates are named instead of silently skipped,
+  and go in the same report, so it lists everything the run left out. An R1
+  whose R2 was missing used to be dropped without a word.
+- The samples left out are repeated as the last thing the run prints.
+- `--fail_on_bad_inputs` stops the run instead of leaving samples out.
 
 **The cleanup** — housekeeping, not features, and not yet deployed.
 

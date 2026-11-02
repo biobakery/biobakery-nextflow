@@ -80,3 +80,37 @@ def report_input_dir(setting, label) {
 
     return dir
 }
+
+// Repeat the input check's result as the last thing the run prints. The
+// summary CHECK_INPUTS logs comes once the checks finish, which on a large
+// study is hours before the end, and is easy to scroll past. Read back from the
+// failed-sample lists, which are rewritten every run: one older than this run
+// means the run stopped before its checks finished, and is not reported.
+workflow.onComplete {
+    if (!params.check_inputs) return
+    def labels = [mgx: ['mgx'], mtx: ['mtx'], mgx_mtx: ['mgx', 'mtx'], assembly: ['assembly']][params.workflow]
+    if (!labels) return
+
+    def checkdir = "${params.outdir}/input_check"
+    def started  = workflow.start.toInstant().toEpochMilli()
+    labels.each { label ->
+        def list = file("${checkdir}/${label}_failed_samples.txt")
+        if (!list.exists() || list.lastModified() < started) return
+        def failed = list.readLines().findAll { it }
+        if (!failed) {
+            log.info "Input check [${label}]: no samples were left out."
+            return
+        }
+        def table = file("${checkdir}/${label}_input_check.tsv")
+        def why = table.exists()
+            ? table.readLines().drop(1).collect { it.split('\t', -1) }.findAll { it[2] != 'PASS' }
+                .groupBy { it[0] }.collectEntries { s, rows -> [s, rows.collect { "${it[1]}: ${it[4]}" }.unique().join('; ')] }
+            : [:]
+        def shown = failed.take(50).collect { "  ${it}  --  ${why[it] ?: ''}" }
+        log.warn "Input check [${label}]: ${failed.size()} sample(s) were " +
+                 (params.fail_on_bad_inputs ? "bad, and the run was stopped" : "left out of this run") + ":\n" +
+                 shown.join('\n') +
+                 (failed.size() > 50 ? "\n  ... and ${failed.size() - 50} more" : '') +
+                 "\n  Full list: ${list}\n  Details:   ${table}"
+    }
+}
