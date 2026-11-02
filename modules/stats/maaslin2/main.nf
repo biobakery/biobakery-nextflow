@@ -36,7 +36,7 @@ process maaslin2 {
         optional_args += ",random_effects='${params.stats_random_effects}'"
     // MaAsLin2 1.22.0 calls labs("") and dies on ggplot2 4.x once it reaches the
     // first continuous metadata variable; the shim makes that call a no-op again
-    def labs_shim = "${projectDir}/assets/Rscripts/ggplot2_labs_shim.R"
+    def labs_shim = "${projectDir}/bin/Rscripts/ggplot2_labs_shim.R"
     """
     R -e "source('${labs_shim}'); library('Maaslin2'); results <- Maaslin2('${features}','${metadata}','${out_folder}'${optional_args})"
 

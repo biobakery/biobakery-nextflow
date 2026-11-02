@@ -27,7 +27,7 @@ REPO_DIR = os.path.abspath(os.path.join(BIN_DIR, os.pardir))
 LIB_DIR = os.path.join(BIN_DIR, "lib")
 FALLBACK_DIR = os.path.join(LIB_DIR, "anadama2_fallback")
 TEMPLATE_DIR = os.path.join(REPO_DIR, "assets", "document_templates")
-RSCRIPT_DIR = os.path.join(REPO_DIR, "assets", "Rscripts")
+RSCRIPT_DIR = os.path.join(BIN_DIR, "Rscripts")
 
 
 def _bootstrap():
@@ -67,7 +67,7 @@ def get_rscript(basename):
         Unlike the templates, the R scripts are not vendored wholesale: they run
         unmodified against biobakery_workflows 3.2 and there is no reason to
         fork code that works. Only a script that has been patched lives in
-        assets/Rscripts, and it shadows the package copy of the same name; the
+        bin/Rscripts, and it shadows the package copy of the same name; the
         rest still come from the install, so this port keeps tracking upstream.
 
         Each vendored script carries a header saying what was changed and why.

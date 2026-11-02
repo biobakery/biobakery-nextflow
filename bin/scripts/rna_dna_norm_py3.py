@@ -6,7 +6,7 @@ Run biobakery_workflows' rna_dna_norm.py under Python 3.
 that make the wmgx_wmtx "norm_ratio" step unusable on the Python 3.10 install
 this pipeline runs on. Both are patched here, in memory, so the shared
 biobakery_workflows install stays untouched -- the same approach
-assets/Rscripts/ggplot2_labs_shim.R takes for MaAsLin2.
+bin/Rscripts/ggplot2_labs_shim.R takes for MaAsLin2.
 
   1. write_file() opens its output with open(file, "wb") and then writes str.
      On Python 3 this raises

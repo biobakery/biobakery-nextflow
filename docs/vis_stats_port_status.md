@@ -86,7 +86,7 @@ Reference implementation being ported:
 | `workflows/stats.nf` | `STATS` — discovery → feature tables → mantel / MaAsLin2 / HAllA / stratified barplots / beta diversity or PERMANOVA → report → archive |
 | `modules/vis/{identify_inputs,alpha_diversity,add_ec_names,report}/main.nf` | |
 | `modules/stats/{feature_table,maaslin2,halla,mantel,beta_diversity,covariate_equation,stratified_pathways,report}/main.nf` | |
-| `assets/Rscripts/ggplot2_labs_shim.R` | in-memory patch for MaAsLin2's `ggplot2::labs("")`, sourced by the `maaslin2` module |
+| `bin/Rscripts/ggplot2_labs_shim.R` | in-memory patch for MaAsLin2's `ggplot2::labs("")`, sourced by the `maaslin2` module |
 | `modules/utils/archive/main.nf` | shared zip archive, ports `workflow.add_archive()` |
 | `assets/NO_FILE` | placeholder for optional `path` inputs |
 
@@ -111,7 +111,7 @@ Reference implementation being ported:
 - `biobakery_log.py` — replaces `LoggerReporter.read_log()` for `workflow_info.pmd`.
 - `anadama2_fallback/anadama2/` — the stand-in package.
 
-### Vendored (`assets/Rscripts/`)
+### Vendored (`bin/Rscripts/`)
 
 R scripts are **not** vendored wholesale — most run unmodified and should keep
 tracking upstream. Only a patched script lives here, and it shadows the package
@@ -166,7 +166,7 @@ halla_*,stratified_pathways,data}` + `stats.zip`.
 Everything below was re-verified on a clean run (no `-resume`, work directories
 deleted) against the current working tree.
 
-- All Python helpers compile; all four `assets/Rscripts/*.R` parse.
+- All Python helpers compile; all four `bin/Rscripts/*.R` parse.
 - `biobakery_workflows` imports with **no real anadama2 present**; `import anadama2`
   resolves to the stand-in.
 - `nextflow config` parses; both DAGs build under `-preview`.
@@ -382,12 +382,12 @@ a porting mistake. They are recorded so the divergences stay deliberate.
 | Where | Symptom | Handling |
 |---|---|---|
 | `document.show_pcoa()` continuous branch | `pyplot.colorbar(scalarmappaple)` with a detached ScalarMappable → `Unable to determine Axes to steal space for Colorbar` on matplotlib ≥ 3.6, killing the chunk and losing every continuous-metadata PCoA | fixed in the vendored `biobakery_document.py`: `ax=subplot` |
-| `Rscripts/alpha_diversity.R` | `labs("")` → `<ggplot2::labels> object is invalid` on ggplot2 4.x, aborting on the first continuous variable | vendored in `assets/Rscripts/`, no-op call dropped |
-| `Rscripts/beta_diversity.R` univariate branch | `adonis` defunct in vegan 2.7.2; the pairwise and multivariate branches of the same script already call `adonis2` | vendored in `assets/Rscripts/`, ported to `adonis2(..., by="terms")` and reading row 1 of the returned table instead of `$aov.tab[1,]` |
-| `Rscripts/mantel_test.R` | transposes every feature table on the assumption that samples are its columns. `create_feature_table.py` never transposes, so the count tables (`humann_feature_counts.tsv`, `humann_read_and_species_count_table.tsv`) arrive samples-as-rows, transpose to rows named for the count columns, and intersect no other table — `vegdist()` returns an empty distance matrix and ade4 aborts in `bicenter.wt()` with "weights must be non-negative and not all zero" before any test runs | vendored in `assets/Rscripts/`, with the orientation check upstream's own `beta_diversity.R` already does (which is why beta diversity on the same tables succeeds) |
+| `Rscripts/alpha_diversity.R` | `labs("")` → `<ggplot2::labels> object is invalid` on ggplot2 4.x, aborting on the first continuous variable | vendored in `bin/Rscripts/`, no-op call dropped |
+| `Rscripts/beta_diversity.R` univariate branch | `adonis` defunct in vegan 2.7.2; the pairwise and multivariate branches of the same script already call `adonis2` | vendored in `bin/Rscripts/`, ported to `adonis2(..., by="terms")` and reading row 1 of the returned table instead of `$aov.tab[1,]` |
+| `Rscripts/mantel_test.R` | transposes every feature table on the assumption that samples are its columns. `create_feature_table.py` never transposes, so the count tables (`humann_feature_counts.tsv`, `humann_read_and_species_count_table.tsv`) arrive samples-as-rows, transpose to rows named for the count columns, and intersect no other table — `vegdist()` returns an empty distance matrix and ade4 aborts in `bicenter.wt()` with "weights must be non-negative and not all zero" before any test runs | vendored in `bin/Rscripts/`, with the orientation check upstream's own `beta_diversity.R` already does (which is why beta diversity on the same tables succeeds) |
 | `get_input_files_for_study_type()` | two files collapse to type `counts`, then `create_feature_table_inputs()` writes both to one target | `deduplicate_by_type()` in the discovery step |
 | `get_input_files_for_study_type()` | sweeps the HUMAnN count tables into the stats feature set, though they are samples-as-rows QC summaries rather than abundance tables; `exclude_types` already drops the kneaddata read count table for the same reason and missed these | `exclude_non_abundance_files()` in the discovery step — see decision 6 |
-| `Maaslin2:::maaslin2_association_plots` (MaAsLin2 1.22.0) | `ggplot2::labs("")` → `<ggplot2::labels> object is invalid` on ggplot2 4.x, on the first *continuous* metadata variable, after the results tables are already written | `assets/Rscripts/ggplot2_labs_shim.R`, sourced by the `maaslin2` module: rewrites that one function in memory, since the shared install cannot be patched |
+| `Maaslin2:::maaslin2_association_plots` (MaAsLin2 1.22.0) | `ggplot2::labs("")` → `<ggplot2::labels> object is invalid` on ggplot2 4.x, on the first *continuous* metadata variable, after the results tables are already written | `bin/Rscripts/ggplot2_labs_shim.R`, sourced by the `maaslin2` module: rewrites that one function in memory, since the shared install cannot be patched |
 | `hclust2` | `ValueError: Invalid vmin or vmax` on degenerate data (seen on the fixture's `ecs_zscore` heatmap only) | already tolerated: `show_hclust2()` catches it and prints "Unable to generate heatmap" |
 
 The vendored `sh()` **raising** on a non-zero exit is *not* a divergence:

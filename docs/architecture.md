@@ -102,9 +102,11 @@ biobakery-nextflow/
 │   │   ├── mash_list_inputs.py
 │   │   ├── phylophlan_add_tax_assignment.py
 │   │   └── ...
-│   └── Rscripts/                        # R helpers (SGB pipeline)
-│       ├── mash_clusters.R
-│       └── merge_tax_and_abundance.R
+│   └── Rscripts/                        # every R script the pipeline runs: the SGB
+│       ├── mash_clusters.R              #   helpers, the MaAsLin2 shim, and the patched
+│       ├── merge_tax_and_abundance.R    #   vis/stats scripts that shadow upstream's
+│       ├── ggplot2_labs_shim.R
+│       └── alpha_diversity.R, beta_diversity.R, mantel_test.R
 │
 ├── assets/
 │   └── diagrams/                        # draw.io source files

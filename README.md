@@ -1394,14 +1394,16 @@ biobakery-nextflow/
 │   │   ├── biobakery_log.py
 │   │   ├── anadama2_fallback/           # import stand-in for `import anadama2`
 │   │   └── LICENSE-anadama2             # MIT
-│   └── Rscripts/
-│       ├── mash_clusters.R
-│       └── merge_tax_and_abundance.R
+│   └── Rscripts/                        # every R script the pipeline runs
+│       ├── mash_clusters.R              # SGB clustering (assembly)
+│       ├── merge_tax_and_abundance.R
+│       ├── ggplot2_labs_shim.R          # sourced by the maaslin2 step
+│       └── alpha_diversity.R, beta_diversity.R, mantel_test.R
+│                                        #   patched copies that shadow the
+│                                        #   biobakery_workflows ones
 ├── assets/
 │   ├── diagrams/                        # draw.io source files
-│   ├── document_templates/              # vendored .pmd report templates
-│   └── Rscripts/                        # only R scripts patched for the current R stack;
-│                                        #   these shadow the biobakery_workflows copies
+│   └── document_templates/              # vendored .pmd report templates
 ├── docs/
 │   ├── workflow_reference.md            # GENERATED — diagram + step table per workflow
 │   ├── diagrams/architecture.mmd        # GENERATED — the four layers: router, workflows,
