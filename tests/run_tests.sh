@@ -127,7 +127,8 @@ check_versions() {
     local info="${RESULTS_BASE}/${name}/pipeline_info"
     local header="biobakery-workflows-nextflow ${VERSION} "
     local ok=true
-    if ! head -5 "${RESULTS_BASE}/${name}.log" | grep -q "${header}"; then
+    # Before the first task line: Nextflow's banner and warnings come first.
+    if ! sed '/^\[[0-9a-f-]*\/[0-9a-f]*\]\|^executor/q' "${RESULTS_BASE}/${name}.log" | grep -q "${header}"; then
         echo "  ${name}: the console log does not open with the run header" >&2
         ok=false
     fi
