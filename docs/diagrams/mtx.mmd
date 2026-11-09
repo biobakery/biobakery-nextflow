@@ -19,8 +19,7 @@ flowchart LR
     end
     subgraph STRAIN_PROFILING
         direction TB
-        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
-        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
+        strainphlan["<b>strainphlan</b><br/>Cohort phylogenies. Automatic<br/>clade discovery and its trees…"]
     end
     subgraph PREPARE_REPORTS
         direction TB
@@ -50,12 +49,11 @@ flowchart LR
     kneaddata_read_counts --> stage_report_input
     metaphlan --> metaphlan_merge
     metaphlan --> humann
-    metaphlan --> sample2markers
+    metaphlan --> strainphlan
     metaphlan_merge --> stage_report_input
     humann --> humann_join
     humann --> stage_report_input
     humann_join --> stage_report_input
-    sample2markers --> strainphlan
     stage_report_input --> prepare_report_summaries
     prepare_report_summaries --> identify_inputs
     prepare_report_summaries --> feature_table
@@ -84,7 +82,7 @@ flowchart LR
     classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
     class humann,humann_join stage2
     classDef stage3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage3
+    class strainphlan stage3
     classDef stage4 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
     class stage_report_input stage4
     classDef stage5 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
@@ -93,4 +91,4 @@ flowchart LR
     class version_log stage6
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,8,9,10,12,13,15 stroke:#475569,stroke-width:2px
+    linkStyle 1,2,4,5,6,8,9,10,12,13,14 stroke:#475569,stroke-width:2px
