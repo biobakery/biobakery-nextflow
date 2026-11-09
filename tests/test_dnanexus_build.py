@@ -40,6 +40,9 @@ for name in ['.git', '.nextflow', 'work', 'results', 'containers', 'samplesheet.
 assert not list(source.rglob('*.pyc'))
 assert (source / 'main.nf').read_bytes() == (repo / 'main.nf').read_bytes()
 assert (source / 'conf/profiles/dnanexus.config').read_bytes() == (repo / 'conf/profiles/dnanexus.config').read_bytes()
+assert (source / 'conf/profiles/dnanexus_dxfuse.config').read_bytes() == (repo / 'conf/profiles/dnanexus_dxfuse.config').read_bytes()
+assert (source / 'conf/profiles/dnanexus_dxfuse_full.config').read_bytes() == (repo / 'conf/profiles/dnanexus_dxfuse_full.config').read_bytes()
+assert (source / 'conf/example_yamls/dnanexus_dxfuse.yaml').read_bytes() == (repo / 'conf/example_yamls/dnanexus_dxfuse.yaml').read_bytes()
 if args[0] == 'build':
     Path(os.environ['CAPTURE_ARGUMENTS']).write_text(json.dumps(args))
 ''')
@@ -130,6 +133,23 @@ sys.exit(subprocess.call([sys.executable, *sys.argv[1:]]))
                          'mem1_ssd2_v2_x8')
         self.assertNotIn('--cache-docker', self.calls()[-1])
 
+    def test_dxfuse_profile_is_used_by_importer_and_runtime(self):
+        result = self.run_build(['--refresh-images', '--profile', 'dnanexus_dxfuse'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = self.calls()
+        self.assertIn('-iconfig_profile=dnanexus_dxfuse', calls[1])
+        args = calls[-1]
+        self.assertEqual(args[args.index('--profile') + 1], 'dnanexus_dxfuse')
+        self.assertNotIn('--cache-docker', args)
+
+    def test_full_dxfuse_profile_is_used_by_importer_and_runtime(self):
+        result = self.run_build(['--refresh-images', '--profile', 'dnanexus_dxfuse_full'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = self.calls()
+        self.assertIn('-iconfig_profile=dnanexus_dxfuse_full', calls[1])
+        self.assertEqual(calls[-1][calls[-1].index('--profile') + 1], 'dnanexus_dxfuse_full')
+        self.assertNotIn('--cache-docker', calls[-1])
+
     def test_failed_import_or_cache_finalization_prevents_runtime_build(self):
         for failure in ['IMPORTER_STATUS', 'FINALIZE_STATUS']:
             with self.subTest(failure=failure):
@@ -149,6 +169,15 @@ sys.exit(subprocess.call([sys.executable, *sys.argv[1:]]))
             with self.subTest(args=args):
                 result = self.run_build(args)
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertFalse(self.calls())
+
+    def test_late_syntax_error_is_caught_before_any_cloud_operation(self):
+        broken = self.base / 'broken-dxbuild.sh'
+        broken.write_text((ROOT / 'dxbuild.sh').read_text() + '\nunterminated="\n')
+        result = subprocess.run(['bash', str(broken), '--refresh-images'], cwd=ROOT,
+                                env=self.env, capture_output=True, text=True, timeout=20)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unexpected EOF', result.stderr)
         self.assertFalse(self.calls())
 
 

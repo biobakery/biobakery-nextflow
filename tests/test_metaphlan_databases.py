@@ -69,7 +69,7 @@ workflow {{
     TAXONOMIC_PROFILING(reads, '')
     FUNCTIONAL_PROFILING(reads, TAXONOMIC_PROFILING.out.profile, '')
     VIRAL_PROFILING(reads, TAXONOMIC_PROFILING.out.profile)
-    STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
+    STRAIN_PROFILING(TAXONOMIC_PROFILING.out.markers)
     PREPARE_REPORTS(TAXONOMIC_PROFILING.out.merged,
         Channel.value(file('{ROOT}/assets/NO_FILE')),
         FUNCTIONAL_PROFILING.out.merged_tables, FUNCTIONAL_PROFILING.out.logs, '')
@@ -94,11 +94,13 @@ workflow {{
             downstream = base / 'out/databases' / index
             merged = downstream / 'humann/humann_v37/merged/merged_genefamilies_humann_v37.tsv'
             self.assertEqual(merged.read_text().split(), [index, index])
-            for path in ['baqlava/s1_baqlava/result.tsv', 'strainphlan/all/output/tree.tre',
+            for path in ['baqlava/s1_baqlava/result.tsv',
                          'vis/vis_report.html', 'stats/stats_report.html', 'vis.zip', 'stats.zip']:
                 self.assertTrue((downstream / path).exists(), path)
             for report in ['vis/vis_report.html', 'stats/stats_report.html']:
                 self.assertEqual(set((downstream / report).read_text().split()), {index})
+        self.assertIn('StrainPhlAn requires at least four', result.stdout)
+        self.assertTrue((base / 'out/databases/a/strainphlan/markers/s1.json.bz2').exists())
         commands = '\n'.join(p.read_text() for p in (base / 'work').glob('*/*/.command.sh'))
         self.assertIn('--db_dir /db/a', commands)
         self.assertIn('--bowtie2db /db/b', commands)

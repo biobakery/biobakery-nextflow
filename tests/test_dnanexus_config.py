@@ -83,6 +83,10 @@ class DnanexusConfigTest(unittest.TestCase):
             self.assertEqual(by_name['kneaddata_read_counts']['cpus'], 1)
             self.assertEqual(by_name['kneaddata_read_counts']['container'], KNEADDATA_IMAGE)
             self.assertEqual(by_name['metaphlan']['container'], METAPHLAN_IMAGE)
+            self.assertEqual(by_name['strainphlan']['container'], METAPHLAN_IMAGE)
+            self.assertIsNone(by_name['baqlava']['container'])  # requires its own configured image
+            self.assertEqual(by_name['baqlava']['cpus'], 16)
+            self.assertEqual(by_name['baqlava']['memory'], 56)
             self.assertEqual(by_name['metaphlan_merge']['container'], by_name['metaphlan']['container'])
             self.assertNotIn('metaphlan_bzip', by_name)
             self.assertIsNone(by_name['vis_report']['container'])
@@ -115,7 +119,7 @@ class DnanexusConfigTest(unittest.TestCase):
             self.assertEqual({p['container'] for p in processes if p.get('container')},
                              {KNEADDATA_IMAGE, METAPHLAN_IMAGE, HUMANN_IMAGE})
 
-    def run_mocked_pipeline(self, use_yaml=False, qc_only=False, functional=True):
+    def run_mocked_pipeline(self, use_yaml=False, qc_only=False, functional=True, profile='dnanexus'):
         temp = tempfile.TemporaryDirectory(prefix='dnanexus-profiling-')
         self.addCleanup(temp.cleanup)
         base = Path(temp.name)
@@ -129,6 +133,7 @@ class DnanexusConfigTest(unittest.TestCase):
         mock = base / 'bin/mock-tool'
         mock.write_text('''#!/usr/bin/env python3
 import gzip
+import os
 from pathlib import Path
 import sys
 args = sys.argv[1:]
@@ -177,8 +182,9 @@ elif tool == 'humann':
     identity = profile.read_text()
     assert profile.name == sample + '_mpa_vOct22_CHOCOPhlAnSGB_202403_profile.tsv', profile
     assert identity.strip() == 'mpa_vOct22_CHOCOPhlAnSGB_202403', identity
-    assert opt('--nucleotide-database') == '/Databases/humann/chocophlan-v4-201901/chocophlan'
-    assert opt('--protein-database') == '/Databases/humann/chocophlan-v4-201901/uniref90_annotated'
+    mock_db = os.environ.get('MOCK_DXFUSE_DB_ROOT')
+    assert opt('--nucleotide-database') == (mock_db + '/chocophlan' if mock_db else '/Databases/humann/chocophlan-v4-201901/chocophlan')
+    assert opt('--protein-database') == (mock_db + '/protein' if mock_db else '/Databases/humann/chocophlan-v4-201901/uniref90_annotated')
     assert Path(opt('--utility-database')).is_dir()
     # Emit the actual HUMAnN 4 names so the real module must rename them.
     for suffix in ['_2_genefamilies.tsv', '_3_reactions.tsv', '_4_pathabundance.tsv', '_5_pathcoverage.tsv', '_0.log']:
@@ -218,21 +224,57 @@ else:
             "timeline.enabled=false\nreport.enabled=false\ndag.enabled=false\n")
         command = [
             'nextflow', '-C', str(base / 'test.config'), 'run', str(ROOT / 'main.nf'),
-            '-profile', 'dnanexus',
+            '-profile', profile,
             '--samplesheet', str(base / 'samples.csv'), '--host_genome', str(base / 'db'),
             '--humann_db_utilitymapping', str(base / 'mappings'),
             '-without-docker', '-with-trace', str(base / 'tasks.tsv'), '-ansi-log', 'false',
         ]
+        if profile == 'dnanexus_dxfuse':
+            # Simulate the mounted references, retaining the real in-task checks.
+            for name in ['mpa_vOct22_202403_default', 'chocophlan', 'protein', 'mount/Databases']:
+                (base / 'db' / name).mkdir(parents=True)
+            mountpoint = base / 'bin/mountpoint'
+            mountpoint.write_text('#!/bin/sh\nexit 0\n')
+            mountpoint.chmod(0o755)
+            command += ['--metaphlan_db', str(base / 'db/mpa_vOct22_202403_default'),
+                        '--dnanexus_reference_mode', 'fuse',
+                        '--humann_db_chocophlan', str(base / 'db/chocophlan'),
+                        '--humann_db_protein', str(base / 'db/protein'),
+                        '--dnanexus_reference_mountpoint', str(base / 'db/mount')]
         if use_yaml:
             command += ['-params-file', str(ROOT / 'conf/example_yamls/dnanexus.yaml')]
         if qc_only:
             command += ['--run_taxonomic_profiling', 'false', '--run_functional_profiling', 'false']
         elif not functional:
             command += ['--run_functional_profiling', 'false']
-        result = subprocess.run(command, cwd=base, env=dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
-                             PATH=str(base / 'bin') + os.pathsep + os.environ['PATH']),
+        env = dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
+                   PATH=str(base / 'bin') + os.pathsep + os.environ['PATH'])
+        env.pop('MOCK_DXFUSE_DB_ROOT', None)
+        if profile == 'dnanexus_dxfuse':
+            env['MOCK_DXFUSE_DB_ROOT'] = str(base / 'db')
+        result = subprocess.run(command, cwd=base, env=env,
             capture_output=True, text=True, timeout=120)
         return base, result
+
+    def test_dxfuse_defaults_run_only_kneaddata_with_checks_inside_scripts(self):
+        base, result = self.run_mocked_pipeline(profile='dnanexus_dxfuse')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        scripts = list((base / 'work').glob('*/*/.command.sh'))
+        self.assertEqual(len(scripts), 3)
+        checked = []
+        for path in scripts:
+            text = path.read_text()
+            if '[dxfuse] checking task:' not in text:
+                continue
+            checked.append(path)
+            self.assertIn('mount and database directories verified.',
+                          path.with_name('.command.err').read_text())
+            # Host-side hooks must not run container mount checks.
+            self.assertNotIn('[dxfuse] checking task:', path.with_name('.command.run').read_text())
+        self.assertEqual(len(checked), 2)  # two QC tasks and one read-count merge
+        trace = (base / 'tasks.tsv').read_text()
+        self.assertNotIn('metaphlan', trace)
+        self.assertNotIn('humann', trace)
 
     def test_qc_only_override_finishes_with_no_downstream_tasks(self):
         base, result = self.run_mocked_pipeline(qc_only=True)
