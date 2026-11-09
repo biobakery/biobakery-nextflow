@@ -32,3 +32,4 @@ containers/SHA256SUMS
 containers/container-lock.*
 
 dxbuild.sh
+dxupload.sh
