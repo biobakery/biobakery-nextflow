@@ -103,6 +103,7 @@ process humann {
         """
     }.join('\n')
     """
+    ${task.ext.get('reference_check') ?: ''}
     humann \\
         --input $catkneads \\
         --output . \\

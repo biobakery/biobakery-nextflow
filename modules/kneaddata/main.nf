@@ -44,8 +44,10 @@ process single_end_kneaddata {
         : ':'
     def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${task.ext.get('reference_check') ?: ''}
     ${db_checks}
 
+    kneaddata_started_seconds=\$SECONDS
     kneaddata \\
         --unpaired $reads \\
         $db_args \\
@@ -56,6 +58,7 @@ process single_end_kneaddata {
         $remove_inter \\
         $extra_args
 
+    printf '[kneaddata] analysis completed in %s seconds\\n' "\$((SECONDS-kneaddata_started_seconds))" >&2
     echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
     """
@@ -99,8 +102,10 @@ process paired_end_kneaddata {
         : ':'
     def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${task.ext.get('reference_check') ?: ''}
     ${db_checks}
 
+    kneaddata_started_seconds=\$SECONDS
     kneaddata \\
         -i1 ${reads[0]} \\
         -i2 ${reads[1]} \\
@@ -112,6 +117,7 @@ process paired_end_kneaddata {
         $remove_inter \\
         $extra_args
 
+    printf '[kneaddata] analysis completed in %s seconds\\n' "\$((SECONDS-kneaddata_started_seconds))" >&2
     echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
 

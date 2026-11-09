@@ -30,8 +30,8 @@ elif tool in ['count_features.py','get_counts_from_humann_logs.py','create_featu
 elif tool=='baqlava':write(opt('-o')+'/result.tsv')
 elif tool=='sample2markers.py':
  name=Path(opt('-i')).name
- # Existing module expects sample.pkl, while SAM includes the index.
- write(name.split('_')[0]+'.pkl')
+ assert opt('-f') == 'sam' and opt('-d').endswith('.pkl'), args
+ write(opt('-o')+'/'+name.removesuffix('.sam')+'.json.bz2')
 elif tool=='strainphlan.py':write('output/tree.tre')
 elif tool=='python':
  script=Path(args.pop(0)).name

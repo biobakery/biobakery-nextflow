@@ -49,6 +49,8 @@ workflow TAXONOMIC_PROFILING {
         error 'metaphlan_downstream_indices must be a non-empty array of unique configured metaphlan_index values'
     }
     def context = { db -> params.metaphlan_databases != null ? db.metaphlan_index : '' }
+    databases = databases.collect { db -> db + [strain_enabled:
+        params.run_strain_profiling && db.metaphlan_index in selected] }
     reads_flat = reads.map { meta, r -> tuple(meta.id, r) }
         .combine(Channel.fromList(databases))
         .map { sample, r, db -> tuple(db, sample, r,
@@ -70,6 +72,8 @@ workflow TAXONOMIC_PROFILING {
         .map { db, s, f -> tuple(context(db), s, f) }
     sam_bzip = metaphlan_out.sam_bzip.filter { db, s, f -> db.metaphlan_index in selected }
         .map { db, s, f -> tuple(context(db), s, f) }
+    // Markers retain the exact database metadata needed for offline phylogenies.
+    markers = metaphlan_out.markers
     merged = merged_out.merged.filter { db, f -> db.metaphlan_index in selected }.map { db, f -> tuple(context(db), f) }
     all_profiles = metaphlan_out.profile
     all_merged = merged_out.merged
