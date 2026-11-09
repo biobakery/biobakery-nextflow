@@ -6,14 +6,14 @@ Three files have separate responsibilities and the same site prefix:
 | --- | --- |
 | `conf/profiles/wellesley_hopper.config` | Local executor, Docker runtime, image assignments and helper mounts |
 | `conf/databases/wellesley_hopper.config` | Site reference directories, including the MetaPhlAn root and HUMAnN utility mapping root |
-| `conf/wellesley_hopper.yaml` | Inputs/output, enabled analyses, reference selections, regrouping and optional renaming |
+| `conf/example_yamls/wellesley_hopper.yaml` | Inputs/output, enabled analyses, reference selections, regrouping and optional renaming |
 
 Run from the repository root:
 
 ```bash
 NXF_VER=25.10.4 nextflow run main.nf \
   -profile wellesley_hopper \
-  -params-file conf/wellesley_hopper.yaml \
+  -params-file conf/example_yamls/wellesley_hopper.yaml \
   -resume
 ```
 
@@ -69,3 +69,51 @@ Set `checkm2_db` for an explicit CheckM2 database, or `strainphlan_db` for an
 explicit StrainPhlAn reference. PhyloPhlAn reference discovery now happens in
 the task so image references are visible. Other assembly tools that do not
 consume an external reference database need no location selector.
+
+The Docker profile remains `wellesley_hopper` (underscore). KneadData and
+HUMAnN use their database-bearing images. MetaPhlAn and StrainPhlAn use the
+corrected host references under `/murray/databases/metaphlan/mpa_vOct22_202403`.
+DNAnexus download/FUSE hooks are not enabled by this profile. The example now
+also enables strain profiling: marker extraction shares the MetaPhlAn task,
+and cohort phylogenies use the MetaPhlAn image. Fewer than four samples retain
+markers and skip phylogenies.
+
+BAQLaVa uses the dedicated local `baqlava:4.0.0-r1` image, with 8 CPUs and
+48 GB requested memory. The example enables viral profiling. Its database-free
+image uses these host references from `conf/databases/wellesley_hopper.config`:
+
+| Parameter | Host directory |
+| --- | --- |
+| `baqlava_db_nucleotide` | `/murray/databases/baqlava/BAQLaVa_v05/BAQLaVa.V0.5.nucleotide` |
+| `baqlava_db_protein` | `/murray/databases/baqlava/BAQLaVa_v05/BAQLaVa.V0.5.protein` |
+| `baqlava_depletion_db` | `/murray/databases/humann/chocophlan-v4-201901/chocophlan` |
+| `baqlava_depletion_protein_db` | `/murray/databases/humann/chocophlan-v4-201901/uniref90_annotated` |
+| `baqlava_depletion_mapping_db` | `/murray/databases/humann/chocophlan-v4-201901/full_mapping` |
+
+`baqlava_db_location = 'host'` lets Nextflow stage and mount these inputs. The
+runtime profile binds the three full HUMAnN reference folders read-only under
+`/Databases/humann/chocophlan-v4-201901/`, as `chocophlan`,
+`uniref90_annotated`, and `full_mapping`. The BAQLaVa Dockerfile configures
+HUMAnN to use exactly these paths with `humann_config --update`. Before analysis,
+the module checks HUMAnN's effective configuration against the declared full
+inputs and rejects `utility_DEMO` even if full data is mounted there: HUMAnN
+uses that directory name to activate its demo-size restriction. Override the
+host source paths through site config or run parameters.
+
+BAQLaVa 1.2 already ships its annotation mappings; leave the legacy
+`baqlava_nucleotide_mapping` and `baqlava_protein_mapping` parameters unset for
+this image. Its pinned upstream source uses `scp` for local intermediate-file copies. The
+Dockerfile changes those commands to `cp`, avoiding OpenSSH's user lookup when
+Docker runs as a numeric host UID absent from `/etc/passwd`. Rebuild the image
+after these source/config changes before running viral profiling. No DNAnexus applet build is needed for Hopper.
+
+HUMAnN 4 also applies its UniRef release filename check to BAQLaVa's custom
+protein database. `BAQLaVa_ORFs_90ID_201901b.dmnd` is not a UniRef release; its
+date need not contain HUMAnN's expected `2019_06`. The BAQLaVa Dockerfile adds
+a compatibility exception only for that exact filename when an explicit
+`--id-mapping` is supplied. Ordinary UniRef release validation, translated
+database format checks and DIAMOND executable checks remain enabled. The viral
+database itself is unchanged. Metadata and sequence-ID checks confirmed that
+the installed DIAMOND reads it and that its identifiers match the image's
+protein annotation table. Rebuild the BAQLaVa image after this Dockerfile change
+before resuming the pipeline.
