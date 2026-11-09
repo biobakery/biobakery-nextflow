@@ -70,7 +70,7 @@ workflow MTX {
 
     // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
     if (params.run_strain_profiling) {
-        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
+        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.markers)
     }
 
 

@@ -119,7 +119,7 @@ workflow MGX_MTX {
 
     // ── Step 5: strain profiling, on the metagenome half only ─────────────
     if (params.run_strain_profiling) {
-        STRAIN_PROFILING(TAX_MGX.out.sam_bzip)
+        STRAIN_PROFILING(TAX_MGX.out.markers)
     }
 
     // ── Reports (vis / stats) ─────────────────────────────────────────────

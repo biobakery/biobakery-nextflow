@@ -78,7 +78,7 @@ workflow MGX {
 
     // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
     if (!params.stop_after_qc && params.run_strain_profiling) {
-        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
+        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.markers)
     }
 
 
