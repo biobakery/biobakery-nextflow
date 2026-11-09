@@ -70,9 +70,9 @@ flowchart TB
         direction LR
         SIXTEENS("<b>SIXTEENS</b><br/><i>--workflow 16s</i><br/>16S rRNA amplicon workflow — stub")
         ASSEMBLY("<b>ASSEMBLY</b><br/><i>--workflow assembly</i><br/>Full MAG assembly → binning → SGB<br/>clustering pipeline.<br/><i>wires 1 stage</i><br/>· QUALITY_CONTROL<br/><i>+ 17 steps of its own</i>")
-        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 7 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· PREPARE_REPORTS<br/>· REPORTING<br/><i>+ 3 steps of its own</i>")
-        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· PREPARE_REPORTS<br/>· REPORTING<br/><i>+ 4 steps of its own</i>")
-        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· PREPARE_REPORTS<br/>· REPORTING<br/><i>+ 2 steps of its own</i>")
+        MGX("<b>MGX</b><br/><i>--workflow mgx</i><br/>Whole Metagenome Shotgun (MGX)<br/>workflow<br/><i>wires 7 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· VIRAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/>· PREPARE_REPORTS<br/><i>+ 3 steps of its own</i>")
+        MGX_MTX("<b>MGX_MTX</b><br/><i>--workflow mgx_mtx</i><br/>Paired whole metagenome +<br/>metatranscriptome workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/>· PREPARE_REPORTS<br/><i>+ 4 steps of its own</i>")
+        MTX("<b>MTX</b><br/><i>--workflow mtx</i><br/>Whole Metatranscriptome (MTX)<br/>workflow.<br/><i>wires 6 stages</i><br/>· QUALITY_CONTROL<br/>· TAXONOMIC_PROFILING<br/>· FUNCTIONAL_PROFILING<br/>· STRAIN_PROFILING<br/>· REPORTING<br/>· PREPARE_REPORTS<br/><i>+ 2 steps of its own</i>")
         STATS("<b>STATS</b><br/><i>--workflow stats</i><br/>Statistics workflow — the Nextflow<br/>port of biobakery_workflows stats.<br/><i>+ 15 steps of its own</i>")
         VIS("<b>VIS</b><br/><i>--workflow vis</i><br/>Visualization workflow — the<br/>Nextflow port of<br/>biobakery_workflows vis.<br/><i>+ 8 steps of its own</i>")
     end
@@ -82,7 +82,7 @@ flowchart TB
         TAXONOMIC_PROFILING("<b>TAXONOMIC_PROFILING</b><br/>Taxonomic profiling subworkflow:<br/>MetaPhlAn per sample + merged<br/>table<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>2 steps from 1 module</i>")
         FUNCTIONAL_PROFILING("<b>FUNCTIONAL_PROFILING</b><br/>HUMAnN native tables and any<br/>configured mappings flow through<br/>merging<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>2 steps from 2 modules</i>")
         VIRAL_PROFILING("<b>VIRAL_PROFILING</b><br/>Viral profiling subworkflow:<br/>BAQLaVa<br/><i>called by</i><br/>· MGX<br/><i>1 step from 1 module</i>")
-        STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Strain profiling subworkflow:<br/>StrainPhlAn SGB-level<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>2 steps from 1 module</i>")
+        STRAIN_PROFILING("<b>STRAIN_PROFILING</b><br/>Per-sample extraction shares<br/>MetaPhlAn's allocation and<br/>reference. Only the<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>1 step from 1 module</i>")
         PREPARE_REPORTS("<b>PREPARE_REPORTS</b><br/><br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>1 step from 1 module</i>")
         REPORTING("<b>REPORTING</b><br/>Run vis and/or stats at the end of<br/>a read-based workflow.<br/><i>called by</i><br/>· MGX<br/>· MGX_MTX<br/>· MTX<br/><i>chains STATS + VIS</i>")
         database_access["<b>database_access.nf</b><br/><i>Groovy helper, not a stage</i><br/>A sentinel keeps process<br/>signatures identical for host and<br/>image references.<br/><i>called by</i><br/>· ASSEMBLY"]
@@ -100,7 +100,7 @@ flowchart TB
         mods6["<b>for TAXONOMIC_PROFILING</b><br/>metaphlan <i>×2</i>"]
         mods7["<b>for FUNCTIONAL_PROFILING</b><br/>humann <i>×1</i><br/>utils/humann_merge <i>×1</i>"]
         mods8["<b>for VIRAL_PROFILING</b><br/>viral/baqlava <i>×1</i>"]
-        mods9["<b>for STRAIN_PROFILING</b><br/>strainphlan <i>×2</i>"]
+        mods9["<b>for STRAIN_PROFILING</b><br/>strainphlan <i>×1</i>"]
         mods10["<b>for PREPARE_REPORTS</b><br/>utils/report_input <i>×1</i>"]
         mods_shared["<b>called by more than one</b><br/>stats/feature_table<br/>&nbsp;&nbsp;<i>STATS, VIS</i><br/>stats/prepare_summaries<br/>&nbsp;&nbsp;<i>STATS, VIS</i><br/>utils/archive<br/>&nbsp;&nbsp;<i>STATS, VIS</i><br/>utils/merge_pairs<br/>&nbsp;&nbsp;<i>MGX, MGX_MTX, MTX</i><br/>utils/version_log<br/>&nbsp;&nbsp;<i>ASSEMBLY, MGX, MGX_MTX, MTX</i><br/>vis/identify_inputs<br/>&nbsp;&nbsp;<i>STATS, VIS</i>"]
     end
@@ -186,9 +186,9 @@ flowchart TB
 
 | Workflow | `--workflow` | What it does | Steps |
 |---|---|---|---|
-| [mgx](#mgx) | `mgx` | Whole metagenome shotgun | 19 |
-| [mtx](#mtx) | `mtx` | Whole metatranscriptome shotgun | 18 |
-| [mgx_mtx](#mgx_mtx) | `mgx_mtx` | Paired metagenome + metatranscriptome | 19 |
+| [mgx](#mgx) | `mgx` | Whole metagenome shotgun | 18 |
+| [mtx](#mtx) | `mtx` | Whole metatranscriptome shotgun | 17 |
+| [mgx_mtx](#mgx_mtx) | `mgx_mtx` | Paired metagenome + metatranscriptome | 18 |
 | [assembly](#assembly) | `assembly` | MAG assembly, binning and SGB clustering | 20 |
 | [vis](#vis) | `vis` | Visualisation report | 7 |
 | [stats](#stats) | `stats` | Statistical analysis report | 14 |
@@ -223,8 +223,7 @@ flowchart LR
     end
     subgraph STRAIN_PROFILING
         direction TB
-        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
-        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
+        strainphlan["<b>strainphlan</b><br/>Cohort phylogenies. Automatic<br/>clade discovery and its trees…"]
     end
     subgraph PREPARE_REPORTS
         direction TB
@@ -257,12 +256,11 @@ flowchart LR
     metaphlan --> metaphlan_merge
     metaphlan --> humann
     metaphlan --> baqlava
-    metaphlan --> sample2markers
+    metaphlan --> strainphlan
     metaphlan_merge --> stage_report_input
     humann --> humann_join
     humann --> stage_report_input
     humann_join --> stage_report_input
-    sample2markers --> strainphlan
     stage_report_input --> prepare_report_summaries
     prepare_report_summaries --> identify_inputs
     prepare_report_summaries --> feature_table
@@ -294,7 +292,7 @@ flowchart LR
     classDef stage3 fill:#ffedd5,stroke:#f97316,stroke-width:1.5px,color:#7c2d12
     class baqlava stage3
     classDef stage4 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage4
+    class strainphlan stage4
     classDef stage5 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
     class stage_report_input stage5
     classDef stage6 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
@@ -303,7 +301,7 @@ flowchart LR
     class version_log stage7
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,3,5,6,7,8,10,11,12,13,15,16,18 stroke:#475569,stroke-width:2px
+    linkStyle 1,2,3,5,6,7,8,10,11,12,13,15,16,17 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -320,10 +318,9 @@ flowchart LR
 | `metaphlan_merge` | Merge per-sample MetaPhlAn profiles into a single table | `modules/metaphlan/main.nf` | `<outdir>/<subdir>metaphlan/${params.metaphlan_databases != null ? db.metaphlan_index : ` |
 | `paired_end_kneaddata` | KneadData QC — paired-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `prepare_report_summaries` |  | `modules/stats/prepare_summaries/main.nf` | `` |
-| `sample2markers` | StrainPhlAn step 1: extract per-sample strain markers from MetaPhlAn SAM output | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
 | `single_end_kneaddata` | KneadData QC — single-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>/${db ? ` |
-| `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
+| `strainphlan` | Cohort phylogenies. Automatic clade discovery and its trees share one worker | `modules/strainphlan/main.nf` | `<outdir>/<db.context ? 'databases/' + db.context + '/' : ''>strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/${db ? ` |
 | `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>/${db ? ` |
@@ -354,8 +351,7 @@ flowchart LR
     end
     subgraph STRAIN_PROFILING
         direction TB
-        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
-        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
+        strainphlan["<b>strainphlan</b><br/>Cohort phylogenies. Automatic<br/>clade discovery and its trees…"]
     end
     subgraph PREPARE_REPORTS
         direction TB
@@ -385,12 +381,11 @@ flowchart LR
     kneaddata_read_counts --> stage_report_input
     metaphlan --> metaphlan_merge
     metaphlan --> humann
-    metaphlan --> sample2markers
+    metaphlan --> strainphlan
     metaphlan_merge --> stage_report_input
     humann --> humann_join
     humann --> stage_report_input
     humann_join --> stage_report_input
-    sample2markers --> strainphlan
     stage_report_input --> prepare_report_summaries
     prepare_report_summaries --> identify_inputs
     prepare_report_summaries --> feature_table
@@ -419,7 +414,7 @@ flowchart LR
     classDef stage2 fill:#ede9fe,stroke:#8b5cf6,stroke-width:1.5px,color:#4c1d95
     class humann,humann_join stage2
     classDef stage3 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage3
+    class strainphlan stage3
     classDef stage4 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
     class stage_report_input stage4
     classDef stage5 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
@@ -428,7 +423,7 @@ flowchart LR
     class version_log stage6
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,8,9,10,12,13,15 stroke:#475569,stroke-width:2px
+    linkStyle 1,2,4,5,6,8,9,10,12,13,14 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -444,10 +439,9 @@ flowchart LR
 | `metaphlan_merge` | Merge per-sample MetaPhlAn profiles into a single table | `modules/metaphlan/main.nf` | `<outdir>/<subdir>metaphlan/${params.metaphlan_databases != null ? db.metaphlan_index : ` |
 | `paired_end_kneaddata` | KneadData QC — paired-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `prepare_report_summaries` |  | `modules/stats/prepare_summaries/main.nf` | `` |
-| `sample2markers` | StrainPhlAn step 1: extract per-sample strain markers from MetaPhlAn SAM output | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
 | `single_end_kneaddata` | KneadData QC — single-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>/${db ? ` |
-| `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
+| `strainphlan` | Cohort phylogenies. Automatic clade discovery and its trees share one worker | `modules/strainphlan/main.nf` | `<outdir>/<db.context ? 'databases/' + db.context + '/' : ''>strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/${db ? ` |
 | `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>/${db ? ` |
@@ -499,8 +493,7 @@ flowchart LR
     end
     subgraph STRAIN_PROFILING
         direction TB
-        sample2markers("<b>sample2markers</b><br/>StrainPhlAn step 1: extract<br/>per-sample strain markers from…")
-        strainphlan["<b>strainphlan</b><br/>StrainPhlAn step 2: build<br/>strain phylogeny per clade"]
+        strainphlan["<b>strainphlan</b><br/>Cohort phylogenies. Automatic<br/>clade discovery and its trees…"]
     end
     subgraph PREPARE_REPORTS
         direction TB
@@ -532,7 +525,7 @@ flowchart LR
     single_end_kneaddata_2 --> humann_2
     metaphlan --> metaphlan_merge
     metaphlan --> humann
-    metaphlan --> sample2markers
+    metaphlan --> strainphlan
     metaphlan_merge --> stage_report_input
     metaphlan_2 --> metaphlan_merge_2
     metaphlan_2 --> humann_2
@@ -542,7 +535,6 @@ flowchart LR
     humann_join --> stage_report_input
     humann_2 --> humann_join_2
     humann_join_2 --> rna_dna_norm
-    sample2markers --> strainphlan
     stage_report_input --> prepare_report_summaries
     prepare_report_summaries --> identify_inputs
     prepare_report_summaries --> feature_table
@@ -582,14 +574,14 @@ flowchart LR
     classDef stage6 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
     class rna_dna_norm,version_log stage6
     classDef stage7 fill:#ccfbf1,stroke:#14b8a6,stroke-width:1.5px,color:#134e4a
-    class sample2markers,strainphlan stage7
+    class strainphlan stage7
     classDef stage8 fill:#f1f5f9,stroke:#94a3b8,stroke-width:1.5px,color:#334155
     class stage_report_input stage8
     classDef stage9 fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#831843
     class prepare_report_summaries,identify_inputs,feature_table,trim_taxonomy,add_ec_names,vis_report,archive_output stage9
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px
-    linkStyle 1,2,4,5,6,8,9,11,12,14,15,16,18,20,21,22,24,26 stroke:#475569,stroke-width:2px
+    linkStyle 1,2,4,5,6,8,9,11,12,14,15,16,18,20,21,22,24,25 stroke:#475569,stroke-width:2px
 ```
 
 | Step | What it does | Defined in | Publishes to |
@@ -606,10 +598,9 @@ flowchart LR
 | `paired_end_kneaddata` | KneadData QC — paired-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `prepare_report_summaries` |  | `modules/stats/prepare_summaries/main.nf` | `` |
 | `rna_dna_norm` | RNA/DNA relative expression ratio for one feature type. | `modules/utils/rna_dna_norm/main.nf` | `<outdir>/${db ? ` |
-| `sample2markers` | StrainPhlAn step 1: extract per-sample strain markers from MetaPhlAn SAM output | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
 | `single_end_kneaddata` | KneadData QC — single-end reads | `modules/kneaddata/main.nf` | `<outdir>/<subdir>kneaddata` |
 | `stage_report_input` | Build a bioBakery-standard output folder for vis and stats to read. | `modules/utils/report_input/main.nf` | `<outdir>/${db ? ` |
-| `strainphlan` | StrainPhlAn step 2: build strain phylogeny per clade | `modules/strainphlan/main.nf` | `<outdir>/${db ? ` |
+| `strainphlan` | Cohort phylogenies. Automatic clade discovery and its trees share one worker | `modules/strainphlan/main.nf` | `<outdir>/<db.context ? 'databases/' + db.context + '/' : ''>strainphlan/<clade>` |
 | `trim_taxonomy` | Reformat a 16s taxonomy profile into a feature table. | `modules/stats/feature_table/main.nf` | `<outdir>/${db ? ` |
 | `version_log` | Capture tool versions, database paths, and workflow parameters for reproducibility | `modules/utils/version_log/main.nf` | `<outdir>/pipeline_info` |
 | `vis_report` | Render the visualization report. | `modules/vis/report/main.nf` | `<outdir>/${db ? ` |
