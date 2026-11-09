@@ -296,12 +296,35 @@ for destination, importer instance, and runtime head options.
 The DNAnexus KneadData image may include its Bowtie2 database directly. In that
 case, set `--host_genome` to the absolute database directory **inside the
 container** and use `--kneaddata_db_location container`. The process checks
-that directory before starting KneadData. The DNAnexus profile does not mount a
+that directory before starting KneadData. The `dnanexus` profile does not mount a
 project folder, request FUSE privileges, or run mount hooks. The `dxfuse` and
 DNAnexus mount helper programs remain in `bin/` as independent operational
 utilities, but the workflow does not invoke them. Supply the new database-bearing
 tarball explicitly with `--dnanexus_container`, or use the profile's registry
 image with `bash dxbuild.sh --refresh-images`.
+
+The `dnanexus_dxfuse` profile currently tests KneadData alone using its database-free
+image. By default the worker downloads the selected project database folders to
+local SSD and mounts them read-only into the same task's container; no image
+change is required. Set `dnanexus_reference_mode: fuse` for direct FUSE comparison.
+MetaPhlAn and HUMAnN are disabled and their images are excluded from cache
+discovery. Rebuild with `bash dxbuild.sh --profile dnanexus_dxfuse`; add
+`--refresh-images` only when the image cache needs populating/updating. Select your own
+samplesheet and optionally `conf/example_yamls/dnanexus_dxfuse.yaml` at launch.
+Project/folder settings and the image entrypoint requirements are described in
+the [dxfuse guide](docs/dnanexus.md#database-free-profiling-with-dxfuse).
+The opt-in `dnanexus_dxfuse_full` profile adds the database-free MetaPhlAn and
+HUMAnN images and stages their selected project references on local SSD using
+the same mechanism. It downloads the existing MetaPhlAn and HUMAnN tarballs
+from `/Databases/tarballs/` and extracts them in each analysis allocation;
+`dnanexus_reference_archives: []` restores directory downloads. Publish those
+images before building that profile, and finish uploading the archives before
+launching it. See the guide for archive paths and extraction roots.
+The full profile also enables StrainPhlAn: consensus-marker extraction shares
+each selected MetaPhlAn task, followed by cohort phylogenies in the same image.
+Fewer than four samples retain markers and skip tree building. BAQLaVa support
+uses its own configurable image and project references; it remains opt-in until
+those are supplied. See [strain and viral configuration](docs/dnanexus.md#strainphlan-and-baqlava).
 
 The root `nextflow_schema.json` defines the DNAnexus applet inputs. The
 DNAnexus Nextflow builder does not support array parameters, so
