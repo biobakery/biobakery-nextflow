@@ -1,0 +1,34 @@
+# Use with -profile dnanexus_dxfuse_full after caching its four lean images.
+# Select your uploaded samplesheet separately when launching the applet.
+workflow: mgx
+outdir: results
+run_qc: true
+stop_after_qc: false
+run_taxonomic_profiling: true
+run_functional_profiling: true
+run_viral_profiling: true
+run_strain_profiling: true
+run_vis: false
+run_stats: false
+log_versions: false
+dnanexus_reference_mode: download
+
+# The profile supplies reference paths, including BAQLaVa's depletion references,
+# and EC/KO/Pfam mappings. Override the reference project/folder if necessary:
+# dnanexus_reference_project: project-REPLACE
+# dnanexus_reference_folder: /Databases
+
+# MetaPhlAn/StrainPhlAn download the corrected extracted indexes from metaphlan/.
+# The older MetaPhlAn tarball is deliberately unused (duplicate viral references).
+# KneadData and BAQLaVa download their extracted directories too.
+# HUMAnN and BAQLaVa each download/extract this bundle on local SSD:
+# dnanexus_reference_archives:
+#   - archive: tarballs/chocophlan-v4-201901.tar.gz
+#     extract_to: humann/chocophlan-v4-201901
+# To download extracted project directories for every reference instead:
+# dnanexus_reference_archives: []
+
+# BAQLaVa's image supplies its annotation tables; leave legacy nucleotide/protein
+# mapping parameters unset. The profile configures all three HUMAnN references
+# needed by bacterial depletion. Disable the viral branch if not wanted:
+# run_viral_profiling: false
