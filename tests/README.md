@@ -105,6 +105,21 @@ It requires Java, Nextflow, bzip2 and zip, without reference databases or a clus
 
 ### DNAnexus configuration
 
+`python3 -m unittest discover -s tests -p test_wellesley_hopper.py` resolves
+Hopper's Docker image assignments, resources, reference modes and example YAML
+using native Nextflow probe tasks. It needs no Docker daemon or databases and
+checks that DNAnexus download/FUSE settings are absent from the local profile.
+It also verifies the three full HUMAnN bind targets used by BAQLaVa.
+
+`python3 -m unittest discover -s tests -p test_dnanexus_extensions.py` exercises
+MetaPhlAn-to-StrainPhlAn and BAQLaVa routing with mocked tools. It checks
+per-database isolation, marker extraction in the MetaPhlAn allocation, JSON and
+Pickle naming, current and legacy threshold flags, host reference staging,
+automatic clade discovery in the phylogeny allocation, explicit clades, small
+cohorts, empty discovery, real error propagation and BAQLaVa's separate reference
+arguments and rejection of demo utility configurations. These are local
+Nextflow executions without Docker or cloud jobs.
+
 `python3 -m unittest discover -s tests -p test_dnanexus_config.py` resolves the
 DNAnexus selectors against every process name using native Groovy probe tasks.
 It checks instance/resource compatibility, tool image routing and overrides,
@@ -119,6 +134,40 @@ work share tasks, all cohort merges share a task, and tool threads follow task
 CPU overrides. It needs Java and Nextflow, without
 Docker, reference databases or a DNAnexus connection.
 
+`python3 -m unittest discover -s tests -p test_dnanexus_dxfuse_config.py` checks
+the opt-in KneadData FUSE profile: mounting is enabled only for analysis tasks,
+resources and the image entrypoint are preserved, project/folder overrides are
+quoted, helpers skip mounting, the smoke YAML disables downstream stages, and
+cache discovery selects exactly the KneadData image. Docker command construction is
+checked locally; these tests do not perform an actual FUSE mount.
+Download-mode checks simulate the worker SDK, verify downloads land in allocated
+scratch rather than the launching directory, preserve quoted project paths,
+prevent analysis after a transfer failure, and check the read-only Docker bind.
+A real Nextflow Bash wrapper with scratch enabled exercises the staging order;
+no platform connection, real Docker daemon or reference transfer is used.
+The full-profile tests exercise selected MetaPhlAn database staging, HUMAnN's
+three reference directories and custom mapping-file downloads, transfer deduplication,
+and three-image cache discovery. Config resolution for all eight other profiles
+checks that neither local-download directives nor reference bind mounts leak
+into those profiles.
+They also exercise the generated reference checks against a missing mount, a
+missing database directory and a successful simulated mount without logging
+credentials. The mocked pipeline integration checks that only QC and its merge
+run, and that QC tasks execute
+these checks in their command scripts, rather than in host-side startup hooks.
+
+`python3 -m unittest discover -s tests -p test_dnanexus_archives.py` exercises
+archive staging with real tar extraction and a mocked worker SDK. It verifies
+the MetaPhlAn and HUMAnN extraction roots, one download per required bundle,
+uncovered mapping-file downloads, compressed-file cleanup, timing logs, plain
+tar and gzip input, and failure before analysis for bad transfers, corrupt
+archives, wrong layouts and parent-directory traversal. A real Nextflow process
+with scratch enabled verifies archive staging before task execution. No project
+connection, large reference data or Docker daemon is required.
+It also verifies that strain workers select the MetaPhlAn image and archive,
+while BAQLaVa uses its own image and stages only viral/depletion bundles, with
+no extra copies for files already covered by an archive.
+
 `python3 -m unittest discover -s tests -p test_dnanexus_build.py` checks the local
 build wrapper with a mocked `dx` command: runtime files are staged, inputs are
 not preset, global image bundling is omitted, and the head instance is set
@@ -128,3 +177,5 @@ failures. Mocked SDK checks verify that only superseded matching cache files
 are archived after success. When dx-toolkit is installed it also checks that the generated
 source-only applet specification keeps runtime assets without Docker bundles.
 These checks do not upload files, create applets or run jobs.
+The build wrapper also rejects a syntax error at the end of the file before
+uploading source or starting the cache importer.
