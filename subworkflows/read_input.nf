@@ -41,7 +41,7 @@ def read_input(indir, label, samplesheet, require_assay) {
     def readsdir = indir.toString() - ~/\/$/
 
     // Both spellings select single-end. --paired_end false is what the README
-    // and conf/harvard_rc.yaml document; --single_end true is the newer flag
+    // and conf/example_yamls/harvard_rc.yaml document; --single_end true is the newer flag
     // the layout auto-detection added. Honouring only the latter meant a run
     // that followed the docs matched the paired glob, found no {1,2} capture
     // group in it, and silently produced an empty channel -- the whole run
@@ -57,7 +57,7 @@ def read_input(indir, label, samplesheet, require_assay) {
     def single_glob = params.filepattern ?: params.filepattern_single
 
     // ...except that a pair-identifier alternation like "*_R{1,2}*.fastq.gz"
-    // cannot match anything in single-end mode. conf/harvard_rc.yaml ships
+    // cannot match anything in single-end mode. conf/example_yamls/harvard_rc.yaml ships
     // exactly such a filepattern, so `--single_end true` with the default
     // params file would otherwise fail with "No files match pattern".
     // Fall back to the single-end default and say so.
