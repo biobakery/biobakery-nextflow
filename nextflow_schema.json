@@ -158,7 +158,7 @@
         "run_strain_profiling": {
           "type": "boolean",
           "default": false,
-          "description": "Enable StrainPhlAn consensus markers and cohort phylogenies. Enabled by dnanexus_dxfuse_full; fewer than four samples retain markers and skip tree building."
+          "description": "Enable StrainPhlAn consensus markers and cohort phylogenies. Enabled by dnanexus_download; fewer than four samples retain markers and skip tree building."
         },
         "run_viral_profiling": {
           "type": "boolean",
