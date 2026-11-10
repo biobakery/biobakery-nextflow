@@ -33,15 +33,11 @@ jobs:
         with:
           version: '24.10.4'
 
-      - name: Check every profile parses
-        run: |
-          for profile in local harvard_rc wellesley tufts_hpc amazon; do
-            echo "== -profile $profile"
-            nextflow config -profile "$profile" > /dev/null
-          done
-
-      - name: Check no profile has deleted a resource request
+      - name: Check every profile parses and preserves resource requests
         run: bin/check_profile_resources.py
+
+      - name: Check site parameter examples and override precedence
+        run: python3 -m unittest discover -s tests -p test_site_configs.py
 
       - name: Validate tool/database compatibility resource
         run: |
