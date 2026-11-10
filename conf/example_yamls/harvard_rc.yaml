@@ -1,8 +1,7 @@
 # ═════════════════════════════════════════════════════════════════════════════
 # THIS RUN — Harvard FASRC (Cannon) params template.
 #
-# This file is for the handful of settings that belong to one run. It is
-# deliberately almost empty: everything a FASRC run needs is already a default.
+# This file records run choices. The profile supplies the site defaults.
 #
 #   * database paths, tool versions ....... conf/databases/harvard_rc.config
 #   * tool modules, queue, resources ...... conf/profiles/harvard_rc.config
@@ -17,7 +16,7 @@
 #
 # Copy this file when you want those settings written down instead:
 #
-#   cp $BIOBAKERY_NF_PARAMS my-study.yaml
+#   cp $BIOBAKERY_NF_PIPELINE/conf/example_yamls/harvard_rc.yaml my-study.yaml
 #   nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
 #     -params-file my-study.yaml -w /path/to/output/work
 #
@@ -34,13 +33,15 @@
 
 ### Input and output — the two settings every run needs
 
+# Choose samplesheet OR readsdir. Relative paths use the launch directory.
+workflow: mgx
+outdir: results
+# samplesheet: "/path/to/samplesheet.csv"
 # readsdir: "/path/to/your/fastqs"
-# outdir:   "/path/to/output"
 
 ### Which workflow
 
 # mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
-# workflow: "mgx"
 
 # mgx_mtx takes two input folders instead of readsdir, plus an optional file
 # mapping each RNA sample to its DNA sample:

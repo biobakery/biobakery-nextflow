@@ -82,12 +82,11 @@ elif tool=='baqlava':
  for flag in ['--nucdb','--protdb']: assert Path(opt(flag)).is_dir()
  for flag in ['--nucindex','--protindex']: assert Path(opt(flag)).is_file()
  write(opt('-o')+'/result.tsv',Path(opt('--taxonomic-profile')).read_text())
-elif tool=='mountpoint': sys.exit(0)
 else: raise RuntimeError(tool)
 ''')
         mock.chmod(0o755)
         for name in ['metaphlan', 'merge_metaphlan_tables.py', 'sample2markers.py',
-                     'strainphlan', 'baqlava', 'humann_config', 'mountpoint']:
+                     'strainphlan', 'baqlava', 'humann_config']:
             (base / 'bin' / name).symlink_to(mock)
         script = '\n'.join([
             f"include {{ TAXONOMIC_PROFILING }} from '{ROOT}/subworkflows/taxonomic_profiling.nf'",
@@ -103,14 +102,13 @@ else: raise RuntimeError(tool)
         (base / 'test.config').write_text(
             f"includeConfig '{ROOT}/nextflow.config'\n"
             'process.cpus=1\nprocess.memory="1.GB"\n'
-            "process { withName: 'metaphlan|strainphlan|baqlava' { cpus=1; memory='1.GB' } }\n"
+            "process { withName: '.*:(metaphlan|strainphlan|baqlava)' { cpus=1; memory='1.GB'; beforeScript='' } }\n"
             'timeline.enabled=false\nreport.enabled=false\ntrace.enabled=false\ndag.enabled=false\n')
         params = dict(outdir=str(base / 'out'), metaphlan_databases=databases,
                       metaphlan_downstream_indices=['alpha','beta'],
                       run_strain_profiling=True, run_viral_profiling=True,
                       dnanexus_baqlava_container='example.invalid/baqlava:test',
-                      dnanexus_reference_mode='fuse', dnanexus_reference_diagnostics=False,
-                      dnanexus_reference_mountpoint=str(base / 'mount'),
+                      dnanexus_reference_diagnostics=False,
                       baqlava_db_nucleotide=str(base / 'Databases/viral_nuc'),
                       baqlava_db_protein=str(base / 'Databases/viral_prot'),
                       baqlava_nucleotide_mapping=str(base / 'Databases/nuc.tsv'),
@@ -130,7 +128,7 @@ else: raise RuntimeError(tool)
                  DEPLETION_PROTEIN_DB=params['baqlava_depletion_protein_db'],
                  UTILITY_DB=utility_config or params['baqlava_depletion_mapping_db'])
         result=subprocess.run(['nextflow','-C',str(base/'test.config'),'run',str(base/'main.nf'),
-            '-profile','dnanexus_dxfuse_full','-params-file',str(base/'params.json'),
+            '-profile','dnanexus_download','-params-file',str(base/'params.json'),
             '-without-docker','-ansi-log','false'],cwd=base,env=env,capture_output=True,text=True,timeout=120)
         return base,result
 

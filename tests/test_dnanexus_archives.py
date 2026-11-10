@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 import unittest
 
-import test_dnanexus_dxfuse_config as probes
+import test_dnanexus_download_config as probes
 
 
 @unittest.skipUnless(shutil.which('nextflow') and shutil.which('tar'), 'Nextflow and tar are required')
@@ -61,8 +61,8 @@ shutil.copyfile(source, args[args.index('--output') + 1])
                           dict(archive='tarballs/mpa_vOct22_202403.tar.gz', extract_to='metaphlan/mpa_vOct22_202403'),
                           dict(archive='tarballs/chocophlan-v4-201901.tar.gz', extract_to='humann/chocophlan-v4-201901')])
         values.update(overrides)
-        return probes.DnanexusDxfuseConfigTest.probe(self, overrides=values,
-            profile='dnanexus_dxfuse_full', mappings=[dict(database_location='container',
+        return probes.DnanexusDownloadConfigTest.probe(self, overrides=values,
+            profile='dnanexus_download', mappings=[dict(database_location='container',
                 group_mapping_database='/Databases/custom/groups.tsv')])[0]
 
     def run_stage(self, task, name, **env):
@@ -152,7 +152,7 @@ workflow { metaphlan([metaphlan_db: params.metaphlan_db]) }
             dnanexus_reference_project='project-Archives123',
             dnanexus_reference_folder="/Study's Databases", dnanexus_reference_archives=archives)))
         result = subprocess.run(['nextflow', '-C', str(self.base / 'wrapper.config'), 'run',
-            str(self.base / 'archive.nf'), '-profile', 'dnanexus_dxfuse_full', '-without-docker',
+            str(self.base / 'archive.nf'), '-profile', 'dnanexus_download', '-without-docker',
             '-params-file', str(self.base / 'params.json'), '-ansi-log', 'false'],
             cwd=self.base, capture_output=True, text=True, timeout=120,
             env=dict(self.env, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
@@ -179,8 +179,8 @@ workflow { metaphlan([metaphlan_db: params.metaphlan_db]) }
                 dict(flag='--nucindex', path='/Databases/baqlava/nuc.tsv', type='file'),
                 dict(flag='--protindex', path='/Databases/baqlava/prot.tsv', type='file'),
                 dict(flag=None, path=depletion, type='directory')]
-        settings, params = probes.DnanexusDxfuseConfigTest.probe(self,
-            profile='dnanexus_dxfuse_full', extra_names=['strainphlan', 'baqlava'], references=refs,
+        settings, params = probes.DnanexusDownloadConfigTest.probe(self,
+            profile='dnanexus_download', extra_names=['strainphlan', 'baqlava'], references=refs,
             overrides=dict(dnanexus_reference_project='project-Archives123',
                 dnanexus_reference_folder="/Study's Databases", dnanexus_reference_archives=archives,
                 dnanexus_baqlava_container='example.invalid/baqlava:test', baqlava_depletion_db=depletion))

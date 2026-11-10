@@ -1,4 +1,4 @@
-"""Resolve FUSE launch options without Docker, credentials or cloud jobs."""
+"""Resolve worker-side reference downloads without Docker, credentials or cloud jobs."""
 import json
 import os
 from pathlib import Path
@@ -10,18 +10,16 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = 'public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1'
-METAPHLAN_IMAGE = None
-HUMANN_IMAGE = None
 FULL_METAPHLAN_IMAGE = 'public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1'
 FULL_HUMANN_IMAGE = 'public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1'
 FULL_BAQLAVA_IMAGE = 'public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1'
 
 
 @unittest.skipUnless(shutil.which('nextflow'), 'Nextflow is required')
-class DnanexusDxfuseConfigTest(unittest.TestCase):
-    def probe(self, overrides=None, smoke=False, full=False, profile='dnanexus_dxfuse', mappings=None,
+class DnanexusDownloadConfigTest(unittest.TestCase):
+    def probe(self, overrides=None, smoke=False, profile='dnanexus_download', mappings=None,
               extra_names=None, references=None):
-        with tempfile.TemporaryDirectory(prefix='dnanexus-dxfuse-config-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='dnanexus-download-config-') as tmp:
             base = Path(tmp)
             (base / 'mapping_inputs.json').write_text(json.dumps(mappings or []))
             (base / 'reference_inputs.json').write_text(json.dumps(references or []))
@@ -86,9 +84,8 @@ class DnanexusDxfuseConfigTest(unittest.TestCase):
             args = ['nextflow', '-C', str(base / 'probe.config'), 'run',
                     str(base / 'probes.nf'), '-profile', profile,
                     '--snapshot', str(base / 'snapshot.json'), '-ansi-log', 'false']
-            if overrides is not None or smoke or full:
-                filename = 'dnanexus_dxfuse_smoke.yaml' if smoke else 'dnanexus_dxfuse.yaml'
-                yaml = (ROOT / 'conf/example_yamls' / filename).read_text() if smoke or full else ''
+            if overrides is not None or smoke:
+                yaml = (ROOT / 'conf/example_yamls/dnanexus_download_smoke.yaml').read_text() if smoke else ''
                 yaml += '\n' + '\n'.join(f'{key}: {json.dumps(value)}' for key, value in (overrides or {}).items())
                 (base / 'overrides.yaml').write_text(yaml)
                 args += ['-params-file', str(base / 'overrides.yaml')]
@@ -101,82 +98,63 @@ class DnanexusDxfuseConfigTest(unittest.TestCase):
             self.assertEqual({s['name'] for s in settings}, set(names))
             return {s['name']: s for s in settings}, json.loads((base / 'snapshot.json').read_text())
 
-    def test_mount_only_on_analysis_tasks_and_preserve_resources(self):
-        settings, params = self.probe(dict(dnanexus_reference_mode='fuse'))
+    def test_downloads_only_on_analysis_tasks_and_preserve_resources(self):
+        settings, params = self.probe()
         for name in ['single_end_kneaddata', 'paired_end_kneaddata', 'metaphlan', 'humann']:
             task = settings[name]
-            options = shlex.split(task['options'])
-            image, cpus, hours = (METAPHLAN_IMAGE, 16, 4) if name == 'metaphlan' else (
-                (HUMANN_IMAGE, 16, 12) if name == 'humann' else (IMAGE, 8, 8))
+            image, cpus, hours = (FULL_METAPHLAN_IMAGE, 16, 4) if name == 'metaphlan' else (
+                (FULL_HUMANN_IMAGE, 16, 12) if name == 'humann' else (IMAGE, 8, 8))
             self.assertEqual(task['container'], image)
             self.assertEqual((task['cpus'], task['memory'], task['time']), (cpus, 28, hours))
             self.assertEqual(task['machine'], 'mem3_ssd2_v3_x16')
             self.assertFalse(task['entrypointOverride'])
-            for value in ['DXFUSE_ENABLED=true', 'DX_SECURITY_CONTEXT', 'DX_PROJECT_CONTEXT_ID',
-                          '/dev/fuse', 'SYS_ADMIN', 'DX_REFERENCE_FOLDER=/Databases',
-                          'DX_REFERENCE_MOUNTPOINT=/tmp/dxfuse']:
-                self.assertIn(value, options)
-            self.assertNotIn('DX_REFERENCE_PROJECT=', task['options'])
-            # Per-process root follows the normal profile's --user setting.
-            if task['command']:
-                self.assertLess(task['command'].index('-u $(id -u):$(id -g)'),
-                                task['command'].index('--user 0'))
+            self.assertIn('DXFUSE_ENABLED=false', shlex.split(task['options']))
+            self.assertIn('.reference-cache/Databases', task['options'])
+            self.assertIn('dx download', task['before'])
+            for value in ['DX_SECURITY_CONTEXT', 'DX_PROJECT_CONTEXT_ID', '/dev/fuse',
+                          'SYS_ADMIN', '--user 0', 'apparmor=unconfined', 'DX_REFERENCE_']:
+                self.assertNotIn(value, task['options'])
         self.assertEqual(settings['kneaddata_read_counts']['container'], IMAGE)
         self.assertEqual(settings['kneaddata_read_counts']['cpus'], 1)
         for name in ['kneaddata_read_counts', 'metaphlan_merge', 'humann_join']:
             self.assertEqual(settings[name]['options'], '--env DXFUSE_ENABLED=false')
             self.assertFalse(settings[name]['before'])
             self.assertFalse(settings[name]['reference_check'])
-        self.assertEqual(settings['metaphlan_merge']['container'], METAPHLAN_IMAGE)
-        self.assertEqual(settings['humann_join']['container'], HUMANN_IMAGE)
+        self.assertEqual(settings['metaphlan_merge']['container'], FULL_METAPHLAN_IMAGE)
+        self.assertEqual(settings['humann_join']['container'], FULL_HUMANN_IMAGE)
         self.assertEqual(settings['metaphlan_merge']['cpus'], 1)
         self.assertEqual(settings['humann_join']['cpus'], 4)
-        self.assertEqual(settings['metaphlan']['cpus'], 16)
-        self.assertEqual(settings['humann']['cpus'], 16)
-        self.assertIsNone(settings['metaphlan']['container'])
-        self.assertIsNone(settings['humann']['container'])
         self.assertEqual(params['host_genome'], '/Databases/kneaddata')
-        self.assertEqual(params['kneaddata_db_location'], 'container')
-        self.assertEqual(params['metaphlan_db_location'], 'container')
-        self.assertEqual(params['humann_db_location'], 'container')
-        self.assertEqual(params['metaphlan_db'], '/Databases/metaphlan/mpa_vOct22_202403/mpa_vOct22_202403_default')
-        for key, directory in [('humann_db_chocophlan', 'chocophlan'),
-                               ('humann_db_protein', 'uniref90_annotated'),
-                               ('humann_db_utilitymapping', 'full_mapping')]:
-            self.assertEqual(params[key], '/Databases/humann/chocophlan-v4-201901/' + directory)
-        self.assertFalse(params['run_taxonomic_profiling'])
-        self.assertFalse(params['run_functional_profiling'])
+        for tool in ['kneaddata', 'metaphlan', 'humann']:
+            self.assertEqual(params[tool + '_db_location'], 'container')
+        self.assertTrue(params['run_taxonomic_profiling'])
+        self.assertTrue(params['run_functional_profiling'])
         self.assertIsNone(params['samplesheet'])
 
     def test_run_overrides_are_quoted_and_smoke_yaml_disables_downstream(self):
+        folder = "/Study's Databases; $(false)"
         settings, params = self.probe(dict(
-            dnanexus_reference_mode='fuse',
             dnanexus_reference_project='project-ABC123',
-            dnanexus_reference_folder="/Study's Databases; $(false)",
-            dnanexus_reference_mountpoint='/tmp/custom mount'), smoke=True)
+            dnanexus_reference_folder=folder), smoke=True)
         for name in ['single_end_kneaddata', 'paired_end_kneaddata', 'metaphlan', 'humann']:
-            options = shlex.split(settings[name]['options'])
-            for value in ['DX_REFERENCE_PROJECT=project-ABC123',
-                          "DX_REFERENCE_FOLDER=/Study's Databases; $(false)",
-                          'DX_REFERENCE_MOUNTPOINT=/tmp/custom mount']:
-                self.assertIn(value, options)
+            self.assertIn("reference_project='project-ABC123'", settings[name]['before'])
+            self.assertIn('reference_folder=' + shlex.quote(folder), settings[name]['before'])
         self.assertFalse(params['run_taxonomic_profiling'])
         self.assertFalse(params['run_functional_profiling'])
+        self.assertFalse(params['run_strain_profiling'])
+        self.assertFalse(params['run_viral_profiling'])
         self.assertFalse(params['stop_after_qc'])
 
-    def test_cache_discovery_uses_nodb_image(self):
-        with tempfile.TemporaryDirectory(prefix='dnanexus-dxfuse-inspect-') as tmp:
-            for profile, expected in [('dnanexus_dxfuse', {IMAGE}),
-                                      ('dnanexus_dxfuse_full', {IMAGE, FULL_METAPHLAN_IMAGE, FULL_HUMANN_IMAGE, FULL_BAQLAVA_IMAGE})]:
-                with self.subTest(profile=profile):
-                    result = subprocess.run(
-                        ['nextflow', 'inspect', str(ROOT), '-profile', profile, '-format', 'json'],
-                        cwd=tmp, capture_output=True, text=True, timeout=120,
-                        env=dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
-                                 NXF_OPTS=os.environ.get('NXF_OPTS', '') + ' -XX:-UsePerfData'))
-                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                    images = {p['container'] for p in json.loads(result.stdout)['processes'] if p.get('container')}
-                    self.assertEqual(images, expected)
+    def test_cache_discovery_uses_four_lean_images(self):
+        with tempfile.TemporaryDirectory(prefix='dnanexus-download-inspect-') as tmp:
+            result = subprocess.run(
+                ['nextflow', 'inspect', str(ROOT), '-profile', 'dnanexus_download', '-format', 'json'],
+                cwd=tmp, capture_output=True, text=True, timeout=120,
+                env=dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
+                         NXF_OPTS=os.environ.get('NXF_OPTS', '') + ' -XX:-UsePerfData'))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            images = {p['container'] for p in json.loads(result.stdout)['processes'] if p.get('container')}
+            self.assertEqual(images, {IMAGE, FULL_METAPHLAN_IMAGE, FULL_HUMANN_IMAGE, FULL_BAQLAVA_IMAGE})
 
     def test_full_profile_baqlava_uses_canonical_mount_and_all_depletion_references(self):
         root = '/Databases/humann/chocophlan-v4-201901/'
@@ -184,7 +162,7 @@ class DnanexusDxfuseConfigTest(unittest.TestCase):
                       dict(flag='--protdb', path='/Databases/baqlava/BAQLaVa_v05/BAQLaVa.V0.5.protein', type='directory')]
         references += [dict(flag=None, path=root + name, type='directory')
                        for name in ['chocophlan', 'uniref90_annotated', 'full_mapping']]
-        settings, params = self.probe(profile='dnanexus_dxfuse_full',
+        settings, params = self.probe(profile='dnanexus_download',
             extra_names=['baqlava'], references=references)
         task = settings['baqlava']
         self.assertTrue(params['run_viral_profiling'])
@@ -212,7 +190,7 @@ class DnanexusDxfuseConfigTest(unittest.TestCase):
             dict(database_location='container', group_mapping_database='/Databases/humann/chocophlan-v4-201901/full_mapping/ecs.tsv'),
             dict(database_location='container', group_mapping_database='/Databases/custom/groups.tsv', renaming_database='/Databases/custom/names.tsv'),
             dict(database_location='host', group_mapping_database='/already/staged/external.tsv')]
-        settings, params = self.probe(profile='dnanexus_dxfuse_full', mappings=mappings,
+        settings, params = self.probe(profile='dnanexus_download', mappings=mappings,
             overrides=dict(dnanexus_reference_archives=[], dnanexus_reference_project='project-Refs123', metaphlan_databases=[
                 dict(metaphlan_db='mpa_vOct22_202403_default', metaphlan_index='primary'),
                 dict(metaphlan_db='unused_alternative', metaphlan_index='alternate')]))
@@ -290,11 +268,11 @@ else:
                         env=dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
                                  NXF_OPTS=os.environ.get('NXF_OPTS', '') + ' -XX:-UsePerfData'))
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                    for marker in ['dnanexus_reference_mode', 'dnanexus_reference_archives', 'ext.reference_paths', '.reference-cache', 'dx download']:
+                    for marker in ['dnanexus_reference_project', 'dnanexus_reference_archives', 'ext.reference_paths', '.reference-cache', 'dx download']:
                         self.assertNotIn(marker, result.stdout)
 
     def test_run_yaml_keeps_qc_only_without_preset_samplesheet(self):
-        settings, params = self.probe(full=True)
+        settings, params = self.probe(smoke=True)
         self.assertFalse(params['run_taxonomic_profiling'])
         self.assertFalse(params['run_functional_profiling'])
         self.assertFalse(params['stop_after_qc'])
@@ -307,33 +285,24 @@ else:
             self.assertNotIn('/dev/fuse', settings[name]['options'])
             self.assertNotIn('SYS_ADMIN', settings[name]['options'])
 
-    def test_diagnostics_distinguish_missing_mount_and_missing_database(self):
-        with tempfile.TemporaryDirectory(prefix='dxfuse-diagnostics-') as tmp:
+    def test_diagnostics_report_missing_database_without_mount_checks(self):
+        with tempfile.TemporaryDirectory(prefix='download-diagnostics-') as tmp:
             base = Path(tmp)
-            tools = base / 'bin'
-            tools.mkdir()
-            mountpoint = tools / 'mountpoint'
-            mountpoint.write_text('#!/bin/sh\nexit "${MOCK_MOUNT_STATUS:-0}"\n')
-            mountpoint.chmod(0o755)
-            findmnt = tools / 'findmnt'
-            findmnt.write_text('#!/bin/sh\nprintf "TARGET FSTYPE\\n/mock fuse.dxfuse\\n"\n')
-            findmnt.chmod(0o755)
             database = base / "reference's directory"
-            settings, _ = self.probe(dict(host_genome=str(database), dnanexus_reference_mode='fuse',
-                dnanexus_reference_mountpoint=str(base / 'mount'),
+            settings, _ = self.probe(dict(
                 dnanexus_reference_project='project-Reference123',
                 dnanexus_reference_folder='/Reference Data/Databases'))
             script = settings['paired_end_kneaddata']['reference_check']
-            env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'],
-                       DX_SECURITY_CONTEXT='credential-must-not-appear')
-            for status, create_db, message in [('1', False, 'expected FUSE mount is absent'),
-                                              ('0', False, 'database directory missing'),
-                                              ('0', True, 'mount and database directories verified')]:
-                with self.subTest(status=status, database=create_db):
+            script = script.replace("'/Databases/kneaddata'", shlex.quote(str(database)))
+            self.assertNotIn('mountpoint', script)
+            env = dict(os.environ, DX_SECURITY_CONTEXT='credential-must-not-appear')
+            for create_db, message in [(False, 'database directory missing'),
+                                       (True, 'local database directories verified')]:
+                with self.subTest(database=create_db):
                     if create_db:
                         database.mkdir()
                     result = subprocess.run(['bash', '-e', '-c', script], capture_output=True,
-                        text=True, timeout=10, env=dict(env, MOCK_MOUNT_STATUS=status))
+                        text=True, timeout=10, env=env)
                     self.assertEqual(result.returncode, 0 if create_db else 72, result.stderr)
                     self.assertIn(message, result.stderr)
                     self.assertIn('project-Reference123', result.stderr)
@@ -364,8 +333,7 @@ shutil.copytree(Path(os.environ['MOCK_SOURCE']) / 'kneaddata', Path.cwd() / 'kne
             settings, _ = self.probe(dict(
                 dnanexus_reference_project='project-Refs123',
                 dnanexus_reference_folder="/Study's Databases",
-                dnanexus_reference_mountpoint=str(container),
-                host_genome=str(container / 'Databases/kneaddata')))
+                host_genome='/Databases/kneaddata'))
             task = settings['paired_end_kneaddata']
             env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'],
                        NXF_SCRATCH=str(scratch), MOCK_SOURCE=str(sources),
@@ -383,13 +351,13 @@ shutil.copytree(Path(os.environ['MOCK_SOURCE']) / 'kneaddata', Path.cwd() / 'kne
             self.assertNotIn('credential-must-not-appear', result.stdout + result.stderr)
             # Simulate the bind mount, then run the actual container-side checks.
             (container / 'Databases').symlink_to(scratch / '.reference-cache/Databases')
-            result = subprocess.run(['bash', '-e', '-c', task['reference_check']], cwd=scratch,
+            result = subprocess.run(['bash', '-e', '-c', task['reference_check'].replace("'/Databases/kneaddata'", shlex.quote(str(container / 'Databases/kneaddata')))], cwd=scratch,
                                     env=env, capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('FUSE is disabled', result.stderr)
+            self.assertIn('local database directories verified', result.stderr)
             self.assertIn('local SSD download completed in', result.stderr)
             args = shlex.split(task['options'])
-            self.assertIn('$PWD/.reference-cache/Databases:' + str(container / 'Databases') + ':ro', args)
+            self.assertIn('$PWD/.reference-cache/Databases:/tmp/dxfuse/Databases:ro', args)
             failure_scratch = base / 'failed-scratch'
             failure_scratch.mkdir()
             result = subprocess.run(['bash', '-e', '-c', task['before'] + '\ntouch analysis-started'],
@@ -425,7 +393,7 @@ workflow { paired_end_kneaddata([params.host_genome]) }
                                NXF_OPTS=os.environ.get('NXF_OPTS', '') + ' -XX:-UsePerfData')
             wrapper_env.pop('NXF_SCRATCH', None)
             result = subprocess.run(['nextflow', '-C', str(base / 'wrapper.config'), 'run',
-                str(base / 'stage.nf'), '-profile', 'dnanexus_dxfuse', '-without-docker',
+                str(base / 'stage.nf'), '-profile', 'dnanexus_download', '-without-docker',
                 '-params-file', str(base / 'params.json'), '-ansi-log', 'false'],
                 cwd=base, env=wrapper_env, capture_output=True, text=True, timeout=120)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

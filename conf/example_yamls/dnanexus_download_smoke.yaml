@@ -1,5 +1,5 @@
-# KneadData-only local-SSD test. These selections are already the profile defaults.
-# bash dxbuild.sh --profile dnanexus_dxfuse --refresh-images
+# QC-only smoke run with project references on local SSD.
+# bash dxbuild.sh --profile dnanexus_download --refresh-images
 # Upload/select this YAML and your own samplesheet when launching the applet.
 workflow: mgx
 outdir: results
@@ -17,9 +17,5 @@ log_versions: false
 # Uncomment/edit for a separate reference project or a different project folder.
 # dnanexus_reference_project: project-REPLACE
 # dnanexus_reference_folder: /Databases
-# Project-to-worker download is the default. For direct FUSE comparison:
-# dnanexus_reference_mode: fuse
-
-# Downloaded folders are mounted read-only inside the container as /Databases.
-# The profile already selects the KneadData path. Other stages are disabled.
-# host_genome: /Databases/kneaddata
+# Only the QC inputs are downloaded for this run; the full profile's four images
+# remain discoverable during cache builds.

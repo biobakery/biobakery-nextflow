@@ -1,4 +1,4 @@
-# Use with -profile dnanexus_dxfuse_full after caching its four lean images.
+# Use with -profile dnanexus_download after caching its four lean images.
 # Select your uploaded samplesheet separately when launching the applet.
 workflow: mgx
 outdir: results
@@ -11,7 +11,6 @@ run_strain_profiling: true
 run_vis: false
 run_stats: false
 log_versions: false
-dnanexus_reference_mode: download
 
 # The profile supplies reference paths, including BAQLaVa's depletion references,
 # and EC/KO/Pfam mappings. Override the reference project/folder if necessary:

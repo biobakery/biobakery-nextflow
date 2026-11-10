@@ -40,9 +40,11 @@ for name in ['.git', '.nextflow', 'work', 'results', 'containers', 'samplesheet.
 assert not list(source.rglob('*.pyc'))
 assert (source / 'main.nf').read_bytes() == (repo / 'main.nf').read_bytes()
 assert (source / 'conf/profiles/dnanexus.config').read_bytes() == (repo / 'conf/profiles/dnanexus.config').read_bytes()
-assert (source / 'conf/profiles/dnanexus_dxfuse.config').read_bytes() == (repo / 'conf/profiles/dnanexus_dxfuse.config').read_bytes()
-assert (source / 'conf/profiles/dnanexus_dxfuse_full.config').read_bytes() == (repo / 'conf/profiles/dnanexus_dxfuse_full.config').read_bytes()
-assert (source / 'conf/example_yamls/dnanexus_dxfuse.yaml').read_bytes() == (repo / 'conf/example_yamls/dnanexus_dxfuse.yaml').read_bytes()
+for name in ['conf/profiles/dnanexus_download.config', 'conf/databases/dnanexus_download.config', 'conf/example_yamls/dnanexus_download.yaml', 'conf/example_yamls/dnanexus_download_smoke.yaml']:
+    assert (source / name).read_bytes() == (repo / name).read_bytes()
+assert not list((source / 'conf').rglob('*dxfuse*'))
+for name in ['dnanexus_mount_kneaddata', 'dnanexus_unmount_kneaddata']:
+    assert not (source / 'bin' / name).exists()
 if args[0] == 'build':
     Path(os.environ['CAPTURE_ARGUMENTS']).write_text(json.dumps(args))
 ''')
@@ -133,22 +135,21 @@ sys.exit(subprocess.call([sys.executable, *sys.argv[1:]]))
                          'mem1_ssd2_v2_x8')
         self.assertNotIn('--cache-docker', self.calls()[-1])
 
-    def test_dxfuse_profile_is_used_by_importer_and_runtime(self):
-        result = self.run_build(['--refresh-images', '--profile', 'dnanexus_dxfuse'])
+    def test_download_profile_is_used_by_importer_and_runtime(self):
+        result = self.run_build(['--refresh-images', '--profile', 'dnanexus_download'])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         calls = self.calls()
-        self.assertIn('-iconfig_profile=dnanexus_dxfuse', calls[1])
-        args = calls[-1]
-        self.assertEqual(args[args.index('--profile') + 1], 'dnanexus_dxfuse')
-        self.assertNotIn('--cache-docker', args)
-
-    def test_full_dxfuse_profile_is_used_by_importer_and_runtime(self):
-        result = self.run_build(['--refresh-images', '--profile', 'dnanexus_dxfuse_full'])
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        calls = self.calls()
-        self.assertIn('-iconfig_profile=dnanexus_dxfuse_full', calls[1])
-        self.assertEqual(calls[-1][calls[-1].index('--profile') + 1], 'dnanexus_dxfuse_full')
+        self.assertIn('-iconfig_profile=dnanexus_download', calls[1])
+        self.assertEqual(calls[-1][calls[-1].index('--profile') + 1], 'dnanexus_download')
         self.assertNotIn('--cache-docker', calls[-1])
+
+    def test_retired_fuse_profiles_fail_before_cloud_operations(self):
+        for profile in ['dnanexus_dxfuse', 'dnanexus_dxfuse_full']:
+            with self.subTest(profile=profile):
+                result = self.run_build(['--refresh-images', '--profile', profile])
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn('dnanexus_download', result.stderr)
+        self.assertFalse(self.calls())
 
     def test_failed_import_or_cache_finalization_prevents_runtime_build(self):
         for failure in ['IMPORTER_STATUS', 'FINALIZE_STATUS']:

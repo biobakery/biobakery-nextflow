@@ -182,7 +182,7 @@ elif tool == 'humann':
     identity = profile.read_text()
     assert profile.name == sample + '_mpa_vOct22_CHOCOPhlAnSGB_202403_profile.tsv', profile
     assert identity.strip() == 'mpa_vOct22_CHOCOPhlAnSGB_202403', identity
-    mock_db = os.environ.get('MOCK_DXFUSE_DB_ROOT')
+    mock_db = os.environ.get('MOCK_DOWNLOAD_DB_ROOT')
     assert opt('--nucleotide-database') == (mock_db + '/chocophlan' if mock_db else '/Databases/humann/chocophlan-v4-201901/chocophlan')
     assert opt('--protein-database') == (mock_db + '/protein' if mock_db else '/Databases/humann/chocophlan-v4-201901/uniref90_annotated')
     assert Path(opt('--utility-database')).is_dir()
@@ -220,7 +220,7 @@ else:
             f'pair,mgx,{base}/pair_1.fastq,{base}/pair_2.fastq\n')
         (base / 'test.config').write_text(
             f"includeConfig '{ROOT}/nextflow.config'\n"
-            "process { withName: 'MGX:.*' { cpus=1; memory='1.GB' } }\n"
+            "process { withName: 'MGX:.*' { cpus=1; memory='1.GB'; beforeScript='' } }\n"
             "timeline.enabled=false\nreport.enabled=false\ndag.enabled=false\n")
         command = [
             'nextflow', '-C', str(base / 'test.config'), 'run', str(ROOT / 'main.nf'),
@@ -229,18 +229,15 @@ else:
             '--humann_db_utilitymapping', str(base / 'mappings'),
             '-without-docker', '-with-trace', str(base / 'tasks.tsv'), '-ansi-log', 'false',
         ]
-        if profile == 'dnanexus_dxfuse':
-            # Simulate the mounted references, retaining the real in-task checks.
-            for name in ['mpa_vOct22_202403_default', 'chocophlan', 'protein', 'mount/Databases']:
+        if profile == 'dnanexus_download':
+            # Mocked analyses use local reference fixtures. Worker transfers are
+            # exercised separately by the download/archive tests.
+            for name in ['mpa_vOct22_202403_default', 'chocophlan', 'protein']:
                 (base / 'db' / name).mkdir(parents=True)
-            mountpoint = base / 'bin/mountpoint'
-            mountpoint.write_text('#!/bin/sh\nexit 0\n')
-            mountpoint.chmod(0o755)
             command += ['--metaphlan_db', str(base / 'db/mpa_vOct22_202403_default'),
-                        '--dnanexus_reference_mode', 'fuse',
                         '--humann_db_chocophlan', str(base / 'db/chocophlan'),
                         '--humann_db_protein', str(base / 'db/protein'),
-                        '--dnanexus_reference_mountpoint', str(base / 'db/mount')]
+                        '--run_strain_profiling', 'false', '--run_viral_profiling', 'false']
         if use_yaml:
             command += ['-params-file', str(ROOT / 'conf/example_yamls/dnanexus.yaml')]
         if qc_only:
@@ -249,28 +246,28 @@ else:
             command += ['--run_functional_profiling', 'false']
         env = dict(os.environ, NXF_OFFLINE='true', NXF_SYNTAX_PARSER='v1',
                    PATH=str(base / 'bin') + os.pathsep + os.environ['PATH'])
-        env.pop('MOCK_DXFUSE_DB_ROOT', None)
-        if profile == 'dnanexus_dxfuse':
-            env['MOCK_DXFUSE_DB_ROOT'] = str(base / 'db')
+        env.pop('MOCK_DOWNLOAD_DB_ROOT', None)
+        if profile == 'dnanexus_download':
+            env['MOCK_DOWNLOAD_DB_ROOT'] = str(base / 'db')
         result = subprocess.run(command, cwd=base, env=env,
             capture_output=True, text=True, timeout=120)
         return base, result
 
-    def test_dxfuse_defaults_run_only_kneaddata_with_checks_inside_scripts(self):
-        base, result = self.run_mocked_pipeline(profile='dnanexus_dxfuse')
+    def test_download_qc_override_keeps_reference_checks_inside_scripts(self):
+        base, result = self.run_mocked_pipeline(profile='dnanexus_download', qc_only=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         scripts = list((base / 'work').glob('*/*/.command.sh'))
         self.assertEqual(len(scripts), 3)
         checked = []
         for path in scripts:
             text = path.read_text()
-            if '[dxfuse] checking task:' not in text:
+            if '[references] checking local SSD references for' not in text:
                 continue
             checked.append(path)
-            self.assertIn('mount and database directories verified.',
+            self.assertIn('local database directories verified.',
                           path.with_name('.command.err').read_text())
-            # Host-side hooks must not run container mount checks.
-            self.assertNotIn('[dxfuse] checking task:', path.with_name('.command.run').read_text())
+            # Host-side hooks must not run container reference checks.
+            self.assertNotIn('[references] checking local SSD references for', path.with_name('.command.run').read_text())
         self.assertEqual(len(checked), 2)  # two QC tasks and one read-count merge
         trace = (base / 'tasks.tsv').read_text()
         self.assertNotIn('metaphlan', trace)

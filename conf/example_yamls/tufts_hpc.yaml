@@ -1,10 +1,10 @@
 # ═════════════════════════════════════════════════════════════════════════════
 # THIS RUN — Tufts HPC params template.
 #
-# The counterpart to conf/harvard_rc.yaml, and the same shape: only the settings
+# The counterpart to conf/example_yamls/harvard_rc.yaml: only the settings
 # that belong to one run. `-profile tufts_hpc` already supplies
 #
-#   * database paths, tool versions ....... conf/databases/tufts.config
+#   * database paths, tool versions ....... conf/databases/tufts_hpc.config
 #   * executor, queue, Apptainer .......... conf/profiles/tufts_hpc.config
 #   * every other parameter's default ..... conf/params.config
 #
@@ -22,13 +22,15 @@
 
 ### Input and output
 
+# Choose samplesheet OR readsdir. Relative paths use the launch directory.
+workflow: mgx
+outdir: results
+# samplesheet: "/path/to/samplesheet.csv"
 # readsdir: "/path/to/your/fastqs"
-# outdir:   "/path/to/output"
 
 ### Which workflow
 
 # mgx (default) | mtx | mgx_mtx | 16s | vis | stats | assembly
-# workflow: "mgx"
 
 ### Library layout
 

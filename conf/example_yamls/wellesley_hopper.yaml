@@ -1,10 +1,11 @@
 # Wellesley Hopper — analysis selections for a metagenome run.
 # nextflow run main.nf -profile wellesley_hopper -params-file conf/example_yamls/wellesley_hopper.yaml -resume
 # Relative database entries below resolve against the roots in the database config.
-# samplesheet is relative to the launch directory, not this YAML's directory.
+# Paths are launch-relative. Choose samplesheet OR readsdir.
 workflow: mgx
-samplesheet: samplesheet.csv
 outdir: results
+# samplesheet: /path/to/samplesheet.csv
+# readsdir: /path/to/fastqs
 
 run_qc: true
 run_taxonomic_profiling: true
@@ -29,7 +30,6 @@ metaphlan_databases:
 metaphlan_downstream_indices:
   - mpa_vOct22_CHOCOPhlAnSGB_202403
 
-humann_version: humann_v4a
 run_humann_regroup: true
 run_humann_rename: true
 run_humann_merge: true

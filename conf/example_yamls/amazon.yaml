@@ -1,0 +1,24 @@
+# AWS Batch — porting template; the profile is incomplete.
+# Runtime: conf/profiles/amazon.config; no site database config is supplied.
+# Configure queues, registry images and the worker AWS CLI path before use.
+# nextflow run main.nf -profile amazon -params-file my-run.yaml -w s3://BUCKET/work
+
+# Input / output (choose samplesheet OR readsdir).
+workflow: mgx
+# samplesheet: s3://BUCKET/inputs/samplesheet.csv
+# readsdir: s3://BUCKET/reads
+outdir: s3://BUCKET/results
+
+# References must match the configured legacy tool images (HUMAnN 3.7).
+# host_genome: s3://BUCKET/databases/kneaddata/hg38
+# metaphlan_db: s3://BUCKET/databases/metaphlan
+# metaphlan_version: metaphlan_v3
+# metaphlan_index: REPLACE_WITH_INDEX_FOR_METAPHLAN_3_1
+# humann_db_chocophlan: s3://BUCKET/databases/humann/chocophlan
+# humann_db_protein: s3://BUCKET/databases/humann/uniref
+# humann_db_utilitymapping: s3://BUCKET/databases/humann/utility_mapping
+
+# Analyses: helpers still need image/queue assignments in an extra -c config.
+run_vis: false
+run_stats: false
+log_versions: false

@@ -40,7 +40,6 @@ metaphlan_databases:
 metaphlan_downstream_indices:
   - mpa_vOct22_CHOCOPhlAnSGB_202403
 
-humann_version: humann_v4a
 run_humann_regroup: true
 run_humann_rename: true
 run_humann_merge: true
