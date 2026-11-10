@@ -13,14 +13,15 @@ Run from the repository root:
 ```bash
 NXF_VER=25.10.4 nextflow run main.nf \
   -profile wellesley_hopper \
-  -params-file conf/example_yamls/wellesley_hopper.yaml \
+  -params-file my-hopper-study.yaml \
   -resume
 ```
 
-The profile loads both `.config` files. The YAML is loaded only when passed with
-`-params-file`. Copy it for each study and change the samplesheet and output
-location. The supplied example uses `samplesheet.csv` and `results`, relative
-to the launch directory; retain your previous output location when resuming.
+The profile loads both `.config` files. Copy
+`conf/example_yamls/wellesley_hopper.yaml` to `my-hopper-study.yaml`, set exactly
+one of `samplesheet` or `readsdir`, and choose the output location. The YAML is
+loaded only with `-params-file`. Relative paths use the launch directory;
+retain your previous output location when resuming.
 Command-line parameter overrides take precedence over the YAML.
 
 The database config contains no mapping lists or analysis switches. Relative
@@ -30,6 +31,7 @@ The database config contains no mapping lists or analysis switches. Relative
 YAML does not expand `${params...}` expressions; the workflow resolves these
 specific relative path fields explicitly.
 
+The profile alone selects the primary MetaPhlAn reference and HUMAnN 4.
 The supplied YAML selects both existing MetaPhlAn references, with only the
 original first reference feeding HUMAnN and other downstream analyses. It
 selects EC, KO and Pfam mapping/renaming files using the existing filenames.
@@ -73,7 +75,7 @@ consume an external reference database need no location selector.
 The Docker profile remains `wellesley_hopper` (underscore). KneadData and
 HUMAnN use their database-bearing images. MetaPhlAn and StrainPhlAn use the
 corrected host references under `/murray/databases/metaphlan/mpa_vOct22_202403`.
-DNAnexus download/FUSE hooks are not enabled by this profile. The example now
+DNAnexus download hooks are not enabled by this profile. The example now
 also enables strain profiling: marker extraction shares the MetaPhlAn task,
 and cohort phylogenies use the MetaPhlAn image. Fewer than four samples retain
 markers and skip phylogenies.

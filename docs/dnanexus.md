@@ -10,6 +10,10 @@ The configuration follows the same division as Wellesley Hopper:
 | --- | --- |
 | `conf/profiles/dnanexus.config` | Docker images, queue size, process `machineType`, CPUs and memory |
 | `conf/databases/dnanexus.config` | Reference paths inside the database-bearing images |
+| `conf/profiles/dnanexus_download.config` | Lean images and worker-side reference download hooks |
+| `conf/databases/dnanexus_download.config` | Project-reference paths and archive layout |
+| `conf/example_yamls/dnanexus_download.yaml` | Full profiling selections |
+| `conf/example_yamls/dnanexus_download_smoke.yaml` | QC-only smoke-run overrides |
 | `conf/example_yamls/dnanexus.yaml` | Study inputs, enabled analyses, MetaPhlAn references and HUMAnN mappings |
 
 The `dnanexus` profile loads both config files. The YAML must be supplied separately.
@@ -92,182 +96,48 @@ The profile uses `/opt/workflow` for helpers inside the stats/viz
 image, matching Hopper. Assembly has instance assignments but still needs its
 own tool images and references before it can run, as on Hopper.
 
-## Database-free profiling with dxfuse
+## Project references on local SSD
 
-The `dnanexus_dxfuse` profile currently runs only database-free KneadData and its
-read-count aggregation. MetaPhlAn and HUMAnN are disabled. Image references are
-parameters in `conf/profiles/dnanexus_dxfuse.config`:
+Use `-profile dnanexus_download` for lean tool images with reference data copied
+from the DNAnexus project onto each worker's local SSD. The transfer is performed
+by the installed worker SDK with `dx download`, before Docker starts. Tasks bind
+the downloaded files read-only and check them before running analysis.
 
-| Parameter | Tasks using the image |
+This single profile replaces both `dnanexus_dxfuse` and `dnanexus_dxfuse_full`.
+Remove `dnanexus_reference_mode` and `dnanexus_reference_mountpoint` from old
+parameter files. FUSE execution and the standalone mount/unmount helpers have
+been removed. For the former QC-only behavior, use
+`conf/example_yamls/dnanexus_download_smoke.yaml`; full profiling uses
+`conf/example_yamls/dnanexus_download.yaml` or the profile defaults.
+
+The profile enables QC, taxonomic, functional, strain and viral profiling.
+Reports and version logging remain disabled. It uses four cached images:
+
+| Tool | Image |
 | --- | --- |
-| `dnanexus_container` | KneadData and read-count helpers |
-| `dnanexus_metaphlan_container` | Unset: MetaPhlAn is disabled |
-| `dnanexus_humann_container` | Unset: HUMAnN is disabled |
+| KneadData | `public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1` |
+| MetaPhlAn / StrainPhlAn | `public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1` |
+| HUMAnN | `public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1` |
+| BAQLaVa | `public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1` |
 
-KneadData uses `public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1`.
-The two disabled tools' image parameters are explicitly null because cache
-discovery sees imported processes even when disabled. This profile therefore
-caches exactly one tool image. The image provides a mount entrypoint implementing
-`DXFUSE_ENABLED` and `DX_REFERENCE_*` as described below. The default reference mode
-is now `download`: the worker stages project files on local SSD before starting
-Docker and disables the image's FUSE entrypoint hook. The existing image is
-unchanged; rebuild source using the existing project image cache:
+Build using the existing cache, or add `--refresh-images` to populate/update it:
 
 ```bash
-bash dxbuild.sh --profile dnanexus_dxfuse
+bash dxbuild.sh --profile dnanexus_download
 ```
 
-This transfer uses only the worker's installed SDK and project-resident data.
-No runtime package installation, public database server, or extra allocation is
-involved. DNAnexus [restricted-network environments](https://documentation.dnanexus.com/developer/apps/execution-environment#networking)
-retain access to project data and the API. The image must already be cached for
-production without outbound access.
+Select your uploaded samplesheet at launch; optionally upload/select the full
+or smoke YAML as `nextflow_params_file`. No samplesheet is preset at build time.
+Both run types use the same executable and four-image cache. A smoke run downloads
+only QC references. Plain `bash dxbuild.sh` still selects the database-bearing
+`dnanexus` profile.
 
-After deleting the project cache, rebuild it and the runtime applet with:
+### Reference layout and archive staging
 
-```bash
-bash dxbuild.sh --profile dnanexus_dxfuse --refresh-images
-```
-
-Select your uploaded samplesheet when launching the applet; no YAML is required
-for the KneadData-only defaults. Optionally supply
-`conf/example_yamls/dnanexus_dxfuse.yaml` to customize the reference project/folder.
-Both this YAML and `dnanexus_dxfuse_smoke.yaml` keep downstream profiling disabled.
-Leave additional Nextflow config inputs empty. No samplesheet is selected during
-the build. The run finishes normally after QC and read-count aggregation.
-
-The opt-in `dnanexus_dxfuse_full` profile enables QC, taxonomic and functional
-profiling, plus StrainPhlAn and BAQLaVa, with the same local staging. Its image references match these catalog definitions in
-`biobakery-containers`:
-
-| Catalog ID | Image tag (repository:tag) |
-| --- | --- |
-| `metaphlan-425-nodb-dnanexus` | `metaphlan:4.2.5-nodb-dnanexus-r1` |
-| `humann-experimental-nodb-dnanexus` | `humann:4.0.0-experimental-nodb-dnanexus-r1` |
-| `baqlava-120` | `baqlava:4.0.0-r1` |
-
-The new contexts are `packages/metaphlan/4.2.5/nodb-dnanexus` and
-`packages/humann/4.0.0a-dev/nodb-dnanexus`. They preserve MetaPhlAn 4.2.5 and the
-existing HUMAnN `9cb1a82` checkout, with no reference tarball copied into either
-image. Both use the same entrypoint and `/Databases` symlink contract as KneadData.
-The catalog enables ECR publication and local archiving and leaves GHCR disabled.
-
-Once the images are built/published, cache all four and build the full runtime
-applet. The full profile expects the HUMAnN archive listed below and extracted
-KneadData, corrected MetaPhlAn and BAQLaVa references to be uploaded and closed
-before launch:
-
-```bash
-bash dxbuild.sh --profile dnanexus_dxfuse_full --refresh-images
-```
-
-Choose your uploaded samplesheet; the optional
-`conf/example_yamls/dnanexus_dxfuse_full.yaml` shows full-run overrides. The
-KneadData-only YAML deliberately disables profiling, so do not use it for a full
-run. Existing `dnanexus_dxfuse` defaults stay QC-only.
-
-If all four images are already cached, the archive-staging code needs only a
-source rebuild; no image changes or image refresh are required:
-
-```bash
-bash dxbuild.sh --profile dnanexus_dxfuse_full
-```
-
-### Archive staging
-
-The full profile supplies these `dnanexus_reference_archives` mappings:
-
-| Archive in the project | Extraction root inside the task |
-| --- | --- |
-| `/Databases/tarballs/chocophlan-v4-201901.tar.gz` | `/Databases/humann/chocophlan-v4-201901/` |
-
-The HUMAnN archive retains its original internal layout: `chocophlan/`,
-`uniref90_annotated/` and `full_mapping/`. Do not add an enclosing directory.
-MetaPhlAn and StrainPhlAn instead download the corrected extracted project
-folder `metaphlan/mpa_vOct22_202403/mpa_vOct22_202403_default/`. The older
-MetaPhlAn tarball is deliberately excluded: its duplicate viral references
-caused marker extraction failures in the bundled-image run.
-BAQLaVa downloads the two extracted folders below `baqlava/BAQLaVa_v05/` and
-uses the HUMAnN archive for all three depletion references.
-
-Each analysis allocation downloads only the archive(s) covering its required
-references. It downloads each archive once, extracts it with the worker's `tar`
-on local SSD, and verifies the required directories and mapping files before
-exposing the extracted tree to Docker. HUMAnN's three reference directories and
-their mappings share one archive download. The compressed file is deleted after
-successful extraction. Allow local disk space for both the archive and its
-extracted contents during staging. Plain `.tar` and gzip-compressed archives
-are supported; no runtime package installation is needed.
-
-An archive is transferred and extracted in full, including any unselected
-databases it contains. Separate MetaPhlAn tasks using the same bundle each stage
-their own copy; there is no persistent cache shared across allocations.
-References outside the archive mappings retain directory/file downloads.
-The QC-only `dnanexus_dxfuse` profile has an empty archive list and preserves its
-working KneadData directory download.
-
-Override archive locations in the run YAML, for example:
-
-```yaml
-dnanexus_reference_archives:
-  - archive: tarballs/chocophlan-v4-201901.tar.gz
-    extract_to: humann/chocophlan-v4-201901
-```
-
-`archive` is relative to `dnanexus_reference_folder` in the reference project;
-`extract_to` is relative to the task's `/Databases` tree. Archive members are
-extracted below that root without stripping path components. A supplied list
-replaces the profile defaults. Set `dnanexus_reference_archives: []` to use
-extracted project directories for every reference. A missing archive, failed
-transfer, corrupt archive or missing expected path stops staging with status 74
-before analysis starts; there is no automatic fallback to project directories.
-FUSE mode ignores archive mappings and requires extracted project directories.
-
-For references without an archive mapping, a worker-side `beforeScript` uses
-`dx download --recursive` for directories and `dx download` for individual
-mapping files. KneadData uses its actual reference input list
-(the host genome for MGX). Each MetaPhlAn task uses its own resolved database
-directory, even when the YAML requests several databases in parallel. HUMAnN
-uses its nucleotide, protein and utility-mapping directories; custom container
-mapping files outside those directories are fetched individually. Mappings
-declared as host inputs are already staged by Nextflow and are not downloaded
-again. Parent-folder transfers cover any selected files/child folders underneath
-them, avoiding duplicate downloads. For the default KneadData path, the transfer
-is the six files under project folder `/Databases/kneaddata`.
-Files are first downloaded into a temporary directory and
-placed in the local reference tree after a successful transfer. A failure exits
-with status 74 before Docker or analysis starts. The SDK checks downloaded parts.
-
-The files live under the allocation's scratch directory at
-`.reference-cache/Databases/`. Docker mounts that directory read-only at
-`/tmp/dxfuse/Databases`; the image's `/Databases` symlink preserves tool paths.
-BAQLaVa uses a direct read-only `/Databases` bind because its image has no such
-symlink.
-The FUSE daemon is disabled, no FUSE device/capabilities are requested, and no
-platform credentials are forwarded into the analysis container in download mode.
-The read-count merge skips reference staging. Task resources remain inherited
-from the existing DNAnexus configuration: one KneadData allocation and one
-HUMAnN allocation per sample, with MetaPhlAn per sample/database. HUMAnN
-regrouping, renaming and normalization share the mounted profiling allocation.
-Merge helpers skip reference staging. No reference files are published with results.
-
-These worker download hooks and reference bind mounts are configured only in
-`conf/profiles/dnanexus_dxfuse.config`. It is included by `dnanexus_dxfuse` and
-`dnanexus_dxfuse_full` only. The ordinary `dnanexus`, local, AWS Batch, Hopper and
-SLURM profiles do not acquire this behavior. The module reference-check hook is
-optional and empty in those other profiles. Offline config tests verify that
-the staging directives are absent from all eight existing non-staging profiles.
-
-For a controlled comparison, select `dnanexus_reference_mode: fuse` in your run
-YAML. That mode forwards the worker's credentials/API context by variable name,
-requests the FUSE device/capability and root user, and lets the entrypoint mount
-the project folder. The shared FUSE configuration for MetaPhlAn and HUMAnN is
-shared with the full profile. In the QC-only profile those tools remain disabled
-with no configured images.
-
-Both modes expose the same tool paths:
-
-The QC-only profile uses `host_genome`; the full profile uses all these paths.
+The profile loads the base DNAnexus runtime/reference configs followed by
+`conf/profiles/dnanexus_download.config` and
+`conf/databases/dnanexus_download.config`. The other sites and the ordinary
+`dnanexus` profile do not load worker download hooks.
 
 | Parameter | Path inside each task container |
 | --- | --- |
@@ -279,74 +149,79 @@ The QC-only profile uses `host_genome`; the full profile uses all these paths.
 | `baqlava_db_nucleotide` | `/Databases/baqlava/BAQLaVa_v05/BAQLaVa.V0.5.nucleotide` |
 | `baqlava_db_protein` | `/Databases/baqlava/BAQLaVa_v05/BAQLaVa.V0.5.protein` |
 
-All profiling tools keep `*_db_location = 'container'`, meaning the path is available
-inside the task, from either a local bind mount or FUSE. The selected project
-folder must contain the configured archives, or the extracted database tree for
-references downloaded as directories: KneadData indexes, MetaPhlAn indexes and
-metadata, HUMAnN nucleotide/protein references and utility mapping files. Outputs
-and scratch files remain outside the read-only reference tree.
-The FUSE profile overrides `host_genome` because this project's Bowtie2 files are
-directly in `kneaddata/`. The database-bearing image profile retains its nested
-`kneaddata/hg37dec` path.
-
-Configure the run YAML with, for example:
+Reference location modes stay `container`: the paths are made available inside
+the task by local bind mounts. Downloaded references must use the `/Databases/`
+namespace. The reference project defaults to the worker's `DX_PROJECT_CONTEXT_ID`.
+Override the source project or folder in the study YAML:
 
 ```yaml
 dnanexus_reference_project: project-YOUR_REFERENCE_PROJECT
 dnanexus_reference_folder: /Your/path/Databases
 ```
 
-Omit the project override to use the worker's `DX_PROJECT_CONTEXT_ID`. The source
-folder corresponds to the container's `/Databases` tree. Relative archive paths
-or uncovered database paths are appended to that source folder. Only references
-needed by the current task are staged. Project, source-folder and archive-mapping
-overrides need no rebuild.
-Changing `dnanexus_reference_mountpoint` requires updating all applicable tool
-database paths to `<mountpoint>/Databases/...`, since the image symlink uses the
-default mountpoint. Keep the default `/tmp/dxfuse` unless needed.
+The source folder corresponds to the container's `/Databases` tree. The default
+KneadData directory contains the six Bowtie2 index files directly; the bundled
+image profile instead uses the nested `kneaddata/hg37dec` directory.
 
-In download mode, the worker log reports `[references] local SSD download started`
-and `completed in ... seconds`. These timing messages are also copied into the
-analysis task's `.command.err`. Archive downloads and extraction also have
-separate elapsed-time messages in that log. Container checks then report `local database
-directories verified; FUSE is disabled for this task.` After successful KneadData
-execution, `[kneaddata] analysis completed in ... seconds` records analysis time
-separately from staging. Compression and publication follow afterward.
+By default, HUMAnN and BAQLaVa each download this archive into their allocation:
 
-In FUSE mode, each analysis task's command error output should
-contain `DNAnexus references: ready at /tmp/dxfuse/Databases`, followed by tool
-execution and published outputs. Config resolution and Docker command construction
-are tested locally; local download was also validated by the cloud run below.
-[dxfuse](https://github.com/dnanexus/dxfuse) provides
-read-only, on-demand access, so a smaller image moves database I/O into execution
-rather than eliminating it.
+| Archive relative to the source folder | Extraction root inside the task |
+| --- | --- |
+| `tarballs/chocophlan-v4-201901.tar.gz` | `/Databases/humann/chocophlan-v4-201901/` |
 
-For later source-only rebuilds, keep `--profile dnanexus_dxfuse` and omit
-`--refresh-images`. Plain `bash dxbuild.sh` continues selecting `dnanexus`.
+The archive must contain `chocophlan/`, `uniref90_annotated/` and `full_mapping/`
+at its root, without an extra enclosing directory. Workers extract with `tar`,
+verify the required paths and delete the compressed file after successful
+extraction. Allow SSD space for the compressed and extracted data. Plain tar
+and gzip-compressed archives are supported.
 
-Local staging completed successfully in run `job-JFVKg4j0Kg1jK9qYG83pjf7X`
-on 2026-10-29. All three samples and the read-count merge succeeded, publishing
-20 files (QC outputs, merged counts and pipeline reports). Worker logs recorded:
+MetaPhlAn and StrainPhlAn download the corrected extracted project indexes;
+the older MetaPhlAn archive with duplicate viral references is unused.
+KneadData and BAQLaVa also download their extracted directories. To override
+archive locations, use a list of relative paths:
 
-| Sample | Project-to-SSD download | KneadData analysis |
-| --- | --- | --- |
-| TEST01 | 11 s | 107 s |
-| TEST02 | 13 s | 50 s |
-| TEST03 | 10 s | 48 s |
+```yaml
+dnanexus_reference_archives:
+  - archive: tarballs/chocophlan-v4-201901.tar.gz
+    extract_to: humann/chocophlan-v4-201901
+```
 
-For TEST03, the interval between `Decontaminating ...` and `Running bowtie2 ...`
-fell from 1,183 s in direct-FUSE run `job-JFVK3Y00Kg1Q8xY2jJgFyJP4` to 24 s
-with local staging, about 49 times faster for that logged phase. Both workers
-used the same image digest and instance type, and reported 178,426 cleaned
-paired R1 reads. The local-staging workflow took 18m47s from submission to
-completion, including allocation and initialization; its reported head-job
-runtime was 16m47s. The FUSE workflow was terminated after TEST03 completed, so
-these observations do not establish an end-to-end workflow speedup ratio.
+`archive` is relative to the source project folder; `extract_to` is relative to
+`/Databases`. A supplied list replaces the defaults. Set the list to `[]` to
+use extracted directory/file downloads for every reference.
+
+Each task stages only its selected references. Directory transfers use
+`dx download --recursive`; individual mapping files use `dx download`.
+Parent transfers cover their selected children, avoiding duplicate downloads.
+Custom HUMAnN mapping files outside the utility folder are downloaded separately;
+files declared as host inputs are already staged by Nextflow. Each allocation
+has its own cache: archives are downloaded/extracted in full when required,
+and there is no persistent cross-worker reference cache.
+
+Files are first transferred to temporary directories, then moved into
+`$NXF_SCRATCH/.reference-cache/Databases` (or the work directory when scratch is
+disabled). Failed downloads, extraction or expected-path checks stop staging
+with exit 74 before analysis. Helpers and cohort merges do not download databases.
+Transfer and extraction timings are recorded in `.reference-download.log` and
+copied into the analysis task's `.command.err`.
+
+The currently cached r1 images still expose `/Databases` through a symlink to
+`/tmp/dxfuse/Databases`, and their entrypoints default to mounting. Two fixed
+compatibility settings therefore remain: the local bind targets that symlink
+and `DXFUSE_ENABLED=false` skips the mount entrypoint while preserving Micromamba
+activation. BAQLaVa binds `/Databases` directly. No FUSE binary, device,
+capability, root-user override or platform credential forwarding is used by the
+pipeline. Removing these final image-layout settings requires replacement images;
+this cleanup reuses the existing cache.
+
+Worker-side QC staging was validated in `job-JFVKg4j0Kg1jK9qYG83pjf7X` on
+2026-10-29: three samples and their read-count merge succeeded, with project-to-SSD
+transfers of 10–13 seconds per worker.
 
 ### StrainPhlAn and BAQLaVa
 
-`dnanexus_dxfuse_full` enables StrainPhlAn by default. The ordinary `dnanexus`
-profile can opt in with `run_strain_profiling: true`; the QC-only profile keeps
+`dnanexus_download` enables StrainPhlAn by default. The ordinary `dnanexus`
+profile can opt in with `run_strain_profiling: true`; the QC smoke YAML keeps
 it disabled. Batching has not been introduced.
 
 Each selected MetaPhlAn sample/database task now extracts consensus markers from
@@ -380,8 +255,8 @@ memory on `mem3_ssd2_v3_x16`.
 
 The full profile enables BAQLaVa in its separate software image,
 `public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1`, through
-`dnanexus_baqlava_container`. The ordinary `dnanexus` and QC-only profiles keep
-viral profiling disabled. Full-profile defaults include:
+`dnanexus_baqlava_container`. The ordinary `dnanexus` profile and QC smoke YAML
+keep viral profiling disabled. Download-profile defaults include:
 
 ```yaml
 run_viral_profiling: true
@@ -413,16 +288,14 @@ The worker stages viral references, optional annotation files and the depletion
 reference in the same BAQLaVa allocation, using the existing archive mappings
 where applicable and directory/file downloads otherwise. Add a BAQLaVa archive
 mapping only after uploading its real archive; a supplied archive list replaces
-the defaults, so retain the HUMAnN entry. In download mode the worker binds
-its staged tree directly at `/Databases` for BAQLaVa. This ordinary Micromamba
-image needs neither dxfuse nor the other images' `/Databases` symlink. The
-profile's FUSE comparison mode requires images with the FUSE entrypoint; use
-`download` for the full profile's BAQLaVa image. All BAQLaVa internal steps share the allocation with
+the defaults, so retain the HUMAnN entry. The worker binds the staged tree
+directly at `/Databases` for BAQLaVa's ordinary Micromamba image, instead of
+using the other images' symlink. All BAQLaVa internal steps share the allocation with
 `--local-jobs 1`; requested CPUs are forwarded through `--threads`.
 It requests 16 CPUs and 56 GB memory on the existing `mem3_ssd2_v3_x16`, allowing
 for the HUMAnN memory requirement already observed on HPC.
 
-After source edits, rebuild with `bash dxbuild.sh --profile dnanexus_dxfuse_full`.
+After source edits, rebuild with `bash dxbuild.sh --profile dnanexus_download`.
 The StrainPhlAn changes reuse the MetaPhlAn image already cached; no image refresh
 is needed for that stage. Adding or updating the BAQLaVa image requires an image refresh. No runtime package/database downloads from
 external sites are introduced.
@@ -438,45 +311,21 @@ the run: the intermediate cache-import applet bundles images globally, while
 the final applet in the normal destination rather than the intermediate applet
 under `.cache-refresh/`. Check the job's actual applet ID, not just its name.
 
-The profile inserts a reference check at the start of each analysis task's
-`.command.sh`, inside the container after its entrypoint. It verifies readable
-database directories; FUSE mode also verifies the mountpoint.
-Missing mounts and missing directories exit with status 72 before tool execution.
-By default, `dnanexus_reference_diagnostics: true` also prints the image,
-reference project and source folder, `/Databases` symlink and filesystem type to
-`.command.err`. It never prints credential values. Set that parameter to false
-to suppress the extra details while retaining the checks.
+The profile inserts reference checks into each analysis task's `.command.sh`,
+inside Docker after the image entrypoint. Missing or unreadable database paths
+exit with status 72 before tool execution. Tools still validate their index files.
 
-Look for `[dxfuse] mount and database directories verified.` in each analysis
-task's `.command.err`. `expected FUSE mount is absent` points to startup or mount
-location settings. `database directory missing or unreadable` means the mount
-check passed, but the tool paths or selected project/folder need investigation.
-These checks verify directories; the tools still validate individual index files.
+Look for `[references] local database directories verified.` in `.command.err`.
+A staging failure (exit 74) points to the source project/folder, transfer or
+archive layout; a missing path after staging (exit 72) points to the container
+bind or configured database path. `dnanexus_reference_diagnostics: true` also
+prints the image, source project/folder and `/Databases` filesystem details.
+Set it to false to suppress those extra details while retaining the checks.
 
-For FUSE mode, if the image entrypoint itself fails, these checks cannot execute. Read the
-entrypoint's error in `.command.err` and its `dxfuse.log` path, if reported. The
-proposed entrypoint stores daemon state under `/tmp/dxfuse-state.*` inside the
-container; those files are not automatically published by the workflow and can
-be lost when it exits. Retaining the daemon log on a startup failure requires
-support from the image entrypoint or inspection while the container is alive.
-
-The failed task's `.command.run` shows the actual Docker invocation. Confirm its
-selected image and reference settings: download mode has `DXFUSE_ENABLED=false`
-and a read-only local volume, while FUSE mode has its device/capability,
-`DXFUSE_ENABLED=true`, and forwarded environment variable names. Do not enable shell
-`set -x` or dump the environment: that can disclose job credentials.
-
-In run `job-JFVGp4Q0Kg1p0Z6Z2k6GPpv7`, both issues were verified: it launched
-intermediate applet `applet-JFV9pG80gZ0Fk62YFZ4VBkv9` under `.cache-refresh/`,
-and its KneadData worker downloaded the KneadData, HUMAnN and MetaPhlAn bundles.
-The local build log showed that caching succeeded, then a shell syntax error
-stopped the final runtime build. `dxbuild.sh` now checks the whole file's syntax
-before any cloud operation and prints the final runtime destination on success.
-The worker reported a successful FUSE mount, then failed the directory check:
-the index files were at `/Databases/kneaddata/hg37dec_v0.1*.bt2`, without the
-extra `hg37dec/` directory. The FUSE profile's corrected `host_genome` matches
-that layout. At inspection, this project's `/Databases` contained only KneadData;
-MetaPhlAn and HUMAnN references must also be supplied for a full run.
+The failed task's `.command.run` shows the Docker invocation. It should have a
+read-only local reference bind and the compatibility `DXFUSE_ENABLED=false` flag.
+The runtime does not pass job credentials into the analysis container. Avoid
+printing environment variables when collecting diagnostics.
 
 ## HUMAnN configuration
 

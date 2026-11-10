@@ -24,7 +24,7 @@
 | HUMAnN 3/4 compatibility | `--utility-database` conditional; v37 vs v4a output renaming |
 | Version logging | `modules/utils/version_log/main.nf` → `results/pipeline_info/versions.txt` + `db_paths.txt` |
 | Harvard FASRC (HSPH) profile | `hsph` SLURM partition, hutlab module integration, DB paths in `conf/databases/harvard_rc.config` |
-| Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts.config` |
+| Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts_hpc.config` |
 | AWS Batch profile | Per-process ECR containers, S3 I/O |
 | Execution reports | Timeline, report, trace, DAG — all timestamped to `results/pipeline_info/` |
 | Workflow diagrams and step tables | **generated** — `bin/make_diagrams.py` → [workflow_reference.md](workflow_reference.md), `diagrams/*.mmd` |
