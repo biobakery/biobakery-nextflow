@@ -103,12 +103,20 @@ Nextflow integration tests with mocked bioBakery executables. It checks multiple
 databases, downstream selection and isolation, legacy settings, and validation.
 It requires Java, Nextflow, bzip2 and zip, without reference databases or a cluster.
 
-### DNAnexus configuration
+### Site configuration
+
+`python3 bin/check_profile_resources.py` resolves every declared profile and
+checks that its base CPU, memory and time directives survive profile merging.
+`python3 -m unittest discover -s tests -p test_site_configs.py` loads each site's
+example YAML through Nextflow, checks profile reference/version defaults and
+CLI precedence, and requires no tools, databases, containers or scheduler.
+
+### Hopper and DNAnexus configuration
 
 `python3 -m unittest discover -s tests -p test_wellesley_hopper.py` resolves
 Hopper's Docker image assignments, resources, reference modes and example YAML
 using native Nextflow probe tasks. It needs no Docker daemon or databases and
-checks that DNAnexus download/FUSE settings are absent from the local profile.
+checks that DNAnexus download settings are absent from the local profile.
 It also verifies the three full HUMAnN bind targets used by BAQLaVa.
 
 `python3 -m unittest discover -s tests -p test_dnanexus_extensions.py` exercises
@@ -134,27 +142,18 @@ work share tasks, all cohort merges share a task, and tool threads follow task
 CPU overrides. It needs Java and Nextflow, without
 Docker, reference databases or a DNAnexus connection.
 
-`python3 -m unittest discover -s tests -p test_dnanexus_dxfuse_config.py` checks
-the opt-in KneadData FUSE profile: mounting is enabled only for analysis tasks,
-resources and the image entrypoint are preserved, project/folder overrides are
-quoted, helpers skip mounting, the smoke YAML disables downstream stages, and
-cache discovery selects exactly the KneadData image. Docker command construction is
-checked locally; these tests do not perform an actual FUSE mount.
-Download-mode checks simulate the worker SDK, verify downloads land in allocated
-scratch rather than the launching directory, preserve quoted project paths,
-prevent analysis after a transfer failure, and check the read-only Docker bind.
-A real Nextflow Bash wrapper with scratch enabled exercises the staging order;
-no platform connection, real Docker daemon or reference transfer is used.
-The full-profile tests exercise selected MetaPhlAn database staging, HUMAnN's
-three reference directories and custom mapping-file downloads, transfer deduplication,
-and three-image cache discovery. Config resolution for all eight other profiles
-checks that neither local-download directives nor reference bind mounts leak
-into those profiles.
-They also exercise the generated reference checks against a missing mount, a
-missing database directory and a successful simulated mount without logging
-credentials. The mocked pipeline integration checks that only QC and its merge
-run, and that QC tasks execute
-these checks in their command scripts, rather than in host-side startup hooks.
+`python3 -m unittest discover -s tests -p test_dnanexus_download_config.py` checks
+the project-reference download profile: transfers are limited to analysis tasks,
+resources and Micromamba activation are preserved, project/folder overrides are
+quoted, and helpers skip reference staging. It verifies the QC-only smoke YAML,
+four-image cache discovery, selected MetaPhlAn/HUMAnN/BAQLaVa references, custom
+mapping-file downloads and transfer deduplication. Generated Docker commands use
+read-only local binds without FUSE privileges or forwarded credentials.
+Mocked SDK checks exercise worker scratch staging, transfer failure before
+analysis and missing-database diagnostics. A real Nextflow Bash wrapper verifies
+the scratch/beforeScript ordering. These tests require no cloud connection,
+Docker daemon or reference databases. Other profiles are checked for absence of
+these download hooks.
 
 `python3 -m unittest discover -s tests -p test_dnanexus_archives.py` exercises
 archive staging with real tar extraction and a mocked worker SDK. It verifies
