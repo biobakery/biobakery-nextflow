@@ -21,7 +21,9 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROFILES = ["local", "harvard_rc", "tufts_hpc", "amazon", "dnanexus"]
+with open(os.path.join(REPO, "nextflow.config")) as config_file:
+    # Profile declarations are indented one level in the root profiles block.
+    PROFILES = re.findall(r"^    (\w+)\s+\{", config_file.read(), re.MULTILINE)
 DIRECTIVES = ("cpus", "memory", "time")
 
 
@@ -47,10 +49,13 @@ def blocks(text):
 
 
 def resolve(profile=None):
-    cmd = ["nextflow", "config"]
+    # Resolve only repository configuration; user configs must not mask a loss.
+    cmd = ["nextflow", "-C", os.path.join(REPO, "nextflow.config"), "config"]
     if profile:
         cmd += ["-profile", profile]
-    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+    env = dict(os.environ)
+    env.setdefault("NXF_SYNTAX_PARSER", "v1")
+    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         sys.exit(f"ERROR: {' '.join(cmd)} failed:\n{proc.stderr.strip()}")
     return blocks(proc.stdout)
