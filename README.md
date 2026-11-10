@@ -1,12 +1,27 @@
-# biobakery-nextflow
+# bioBakery Nextflow
 
 > Nextflow implementation of the [bioBakery](https://github.com/biobakery) metagenomics suite,
 > ported from the [anadama2 biobakery-workflows](https://github.com/biobakery/biobakery_workflows)
 > with multi-cluster support, nf-core-style modules, and an SGB assembly pipeline.
 
-![Static Badge](https://img.shields.io/badge/Author-Kevin_Bonham_PhD-purple)
-![Static Badge](https://img.shields.io/badge/Author-Guilherme_Fahur_Bottino_PhD-purple)
+![Static Badge](https://img.shields.io/badge/Author-Kevin_Bonham-purple)
+![Static Badge](https://img.shields.io/badge/Author-Guilherme_Fahur_Bottino-purple)
 ![Static Badge](https://img.shields.io/badge/Author-Danielle_Pinto-purple)
+![Static Badge](https://img.shields.io/badge/Author-Sagun_Maharjan-purple)
+![Static Badge](https://img.shields.io/badge/Author-Curtis_Huttenhower-purple)
+
+[Quick start](#quick-start) · [Site configuration](conf/README.md) · [Workflow reference](docs/workflow_reference.md)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/biobakery-metro-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/biobakery-metro-light.svg">
+  <img src="docs/diagrams/biobakery-metro-light.svg" alt="bioBakery workflow map: DNA and RNA reads pass through KneadData to taxonomic and functional profiling, optional strain and viral analysis, paired RNA/DNA ratios, or MAG assembly, with visualization and optional statistics reports." width="100%">
+</picture>
+
+An overview of the supported routes; optional strain and viral branches are dashed.
+`mgx_mtx` profiles both assays before normalization. `vis` and `stats` can also run
+on existing bioBakery output. [Full-size map](docs/diagrams/biobakery-metro-light.svg)
+· [Source and rendering](docs/diagrams/README.md) · [nf-metro](https://github.com/seqeralabs/nf-metro)
 
 ---
 
@@ -107,18 +122,19 @@ Database paths are automatically loaded when you use `-profile harvard_rc`
 
 ### Tufts HPC
 
-Tools are provided via Apptainer containers already configured in the `tufts_hpc` profile.
+Tools must be on `PATH` or supplied through explicit container assignments.
+The `tufts_hpc` profile enables Apptainer but assigns no images.
 
 ```sh
 # Add Nextflow and shared binaries to PATH
 module load nextflow
 export PATH="/cluster/tufts/bonhamlab/shared/bin:$PATH"
 
-# Database paths are loaded from conf/databases/tufts.config
+# Database paths are loaded from conf/databases/tufts_hpc.config
 ```
 
-The profile already sets the executor, the containers and the database paths,
-so a run only has to say where the reads are:
+With the tool environment prepared, the profile supplies the executor and
+database paths, so a run only has to say where the reads are:
 
 ```sh
 nextflow run main.nf -profile tufts_hpc \
@@ -126,10 +142,10 @@ nextflow run main.nf -profile tufts_hpc \
 ```
 
 To write those settings down instead, copy the site template — it is a list of
-commented-out settings, not a file you have to fill in:
+optional settings; add your inputs and output location:
 
 ```sh
-cp conf/tufts_hpc.yaml my-run.yaml
+cp conf/example_yamls/tufts_hpc.yaml my-run.yaml
 nextflow run main.nf -profile tufts_hpc -params-file my-run.yaml
 ```
 
@@ -138,13 +154,14 @@ nextflow run main.nf -profile tufts_hpc -params-file my-run.yaml
 ### AWS Batch
 
 Requires prior setup of AMIs, job queues, S3 buckets, and ECR containers.
-ECR container URIs are already configured in `conf/profiles/aws.config`.
+ECR container URIs are already configured in `conf/profiles/amazon.config`.
 
 ```sh
-nextflow run main.nf -profile amazon -params-file params.yaml
+nextflow run main.nf -profile amazon -params-file my-run.yaml -w s3://BUCKET/work
 ```
 
-See `conf/profiles/aws.config` for queue and container assignments per process.
+Copy `conf/example_yamls/amazon.yaml` as a starting point. This profile is
+incomplete; see [site setup and limitations](conf/README.md).
 
 ---
 
@@ -296,35 +313,25 @@ for destination, importer instance, and runtime head options.
 The DNAnexus KneadData image may include its Bowtie2 database directly. In that
 case, set `--host_genome` to the absolute database directory **inside the
 container** and use `--kneaddata_db_location container`. The process checks
-that directory before starting KneadData. The `dnanexus` profile does not mount a
-project folder, request FUSE privileges, or run mount hooks. The `dxfuse` and
-DNAnexus mount helper programs remain in `bin/` as independent operational
-utilities, but the workflow does not invoke them. Supply the new database-bearing
-tarball explicitly with `--dnanexus_container`, or use the profile's registry
-image with `bash dxbuild.sh --refresh-images`.
+that directory before starting KneadData. The `dnanexus` profile uses the
+configured database-bearing images.
 
-The `dnanexus_dxfuse` profile currently tests KneadData alone using its database-free
-image. By default the worker downloads the selected project database folders to
-local SSD and mounts them read-only into the same task's container; no image
-change is required. Set `dnanexus_reference_mode: fuse` for direct FUSE comparison.
-MetaPhlAn and HUMAnN are disabled and their images are excluded from cache
-discovery. Rebuild with `bash dxbuild.sh --profile dnanexus_dxfuse`; add
-`--refresh-images` only when the image cache needs populating/updating. Select your own
-samplesheet and optionally `conf/example_yamls/dnanexus_dxfuse.yaml` at launch.
-Project/folder settings and the image entrypoint requirements are described in
-the [dxfuse guide](docs/dnanexus.md#database-free-profiling-with-dxfuse).
-The opt-in `dnanexus_dxfuse_full` profile adds the database-free MetaPhlAn and
-HUMAnN images and stages their selected project references on local SSD using
-the same mechanism. It downloads the existing MetaPhlAn and HUMAnN tarballs
-from `/Databases/tarballs/` and extracts them in each analysis allocation;
-`dnanexus_reference_archives: []` restores directory downloads. Publish those
-images before building that profile, and finish uploading the archives before
-launching it. See the guide for archive paths and extraction roots.
-The full profile also enables StrainPhlAn: consensus-marker extraction shares
-each selected MetaPhlAn task, followed by cohort phylogenies in the same image.
-Fewer than four samples retain markers and skip tree building. BAQLaVa support
-uses its own configurable image and project references; it remains opt-in until
-those are supplied. See [strain and viral configuration](docs/dnanexus.md#strainphlan-and-baqlava).
+Use `dnanexus_download` for lean images and references copied from the project
+onto worker SSD with `dx download`. It enables QC, taxonomic, functional, strain
+and viral profiling. Rebuild with `bash dxbuild.sh --profile dnanexus_download`;
+add `--refresh-images` when populating/updating the image cache. Select your
+samplesheet and optionally `conf/example_yamls/dnanexus_download.yaml` at launch.
+For QC only, use `conf/example_yamls/dnanexus_download_smoke.yaml` with the same
+executable. Only references required by enabled tasks are downloaded.
+
+The old `dnanexus_dxfuse` and `dnanexus_dxfuse_full` profiles and FUSE execution
+have been removed. Use `dnanexus_download` and remove the old
+`dnanexus_reference_mode` / `dnanexus_reference_mountpoint` parameters.
+The existing cached images retain two fixed compatibility settings, described
+in the [local SSD reference guide](docs/dnanexus.md#project-references-on-local-ssd).
+HUMAnN/BAQLaVa use the configured HUMAnN reference archive; MetaPhlAn/StrainPhlAn
+use corrected extracted indexes. Set `dnanexus_reference_archives: []` to use
+directory downloads for all references. See the guide for required project paths.
 
 The root `nextflow_schema.json` defines the DNAnexus applet inputs. The
 DNAnexus Nextflow builder does not support array parameters, so
@@ -459,7 +466,7 @@ nextflow run main.nf [same params as original run] -resume
 
 ```sh
 # Copy your site's template and uncomment what you need
-cp conf/harvard_rc.yaml my-params.yaml     # or conf/tufts_hpc.yaml
+cp conf/example_yamls/harvard_rc.yaml my-params.yaml     # or conf/example_yamls/tufts_hpc.yaml
 # Edit my-params.yaml ...
 
 nextflow run main.nf -profile harvard_rc -params-file my-params.yaml
@@ -976,17 +983,20 @@ the report was built from, and point a later standalone run straight at it.
 
 ## Configuration layers
 
+See [the configuration guide](conf/README.md) for every site's matching files,
+setup instructions, example YAML and limitations.
+
 Each kind of setting has exactly one home. `nextflow.config` is an index that
 includes them in order, and later layers win:
 
 | | File | Scope | Change it when |
 |---|---|---|---|
-| 1 | `conf/params.config` | **global defaults** — every parameter's default value | a default is wrong for everyone |
+| 1 | `conf/params.config` | **global defaults** — common pipeline parameter defaults | a default is wrong for everyone |
 | 2 | `conf/base.config` | **default resources** — cpus/memory/time per process, and `check_max()` | a process is mis-sized everywhere |
 | 3 | `conf/reports.config` | **runtime** — the timeline/report/trace/dag files written next to the output | never, normally |
 | 4 | `conf/profiles/<site>.config` | **site runtime** (`-profile`) — executor, queue, containers, tool environment | something about a machine changes |
 | 5 | `conf/databases/<site>.config` | **site defaults** (`-profile`) — database paths and the tool versions tied to them | a database moves or is rebuilt |
-| 6 | `-params-file my.yaml` | **this run** — `conf/harvard_rc.yaml`, `conf/tufts_hpc.yaml` are templates | you want a run written down |
+| 6 | `-params-file my.yaml` | **this run** — `conf/example_yamls/harvard_rc.yaml`, `conf/example_yamls/tufts_hpc.yaml` are templates | you want a run written down |
 | 7 | `--flag value` on the CLI | **this run**, highest precedence | one-off |
 
 So: a default for everyone goes in layer 1; a fact about a cluster goes in 4 or
@@ -995,11 +1005,9 @@ site-specific and nothing in 4–5 is run-specific — that split is the point.
 
 Two consequences worth knowing:
 
-* **A params file should be almost empty.** `conf/harvard_rc.yaml` — the file
-  `$BIOBAKERY_NF_PARAMS` points at — is a list of commented-out settings, not a
-  configuration you must complete. Everything a FASRC run needs is already a
-  default of `-profile harvard_rc`. Restating database paths there is how the
-  two drift apart.
+* **A params file records study choices.** `conf/example_yamls/harvard_rc.yaml`
+  contains input/output settings and optional overrides. The profile supplies
+  its database paths and tool environment; avoid copying those into every study.
 * **A site profile should only override what genuinely differs** — but a
   `withName:` block in a profile *replaces* `base.config`'s block for the same
   selector, so an override has to restate cpus, memory and time in full, and a
@@ -1007,8 +1015,8 @@ Two consequences worth knowing:
   `base.config` does not also use. Leaving a directive out deletes it rather
   than inheriting it, and the process falls back to the bare `process {}`
   default. Keep the `* task.attempt` form as well: a plain `memory = '32.G'`
-  disables the retry escalation. `bin/check_profile_resources.py` checks all of
-  this against the resolved config, and CI runs it. See
+  disables the retry escalation. `bin/check_profile_resources.py` checks that
+  CPU, memory and time directives survive in every resolved profile, and CI runs it. See
   [Changing Resources](#changing-resources).
 
 To see what a profile actually resolves to, ask Nextflow:
@@ -1027,9 +1035,13 @@ Use `-profile <name>` to select the execution environment.
 | Profile | Environment | Executor | Tool delivery |
 |---|---|---|---|
 | `standard` / `local` | Laptop / workstation | local | conda / system PATH |
-| `tufts_hpc` | Tufts HPC | SLURM `batch` | Apptainer containers |
+| `tufts_hpc` | Tufts HPC | SLURM `batch` | PATH or user-supplied Apptainer images |
 | `harvard_rc` | Harvard FASRC Cannon | SLURM `hsph` | hutlab module system |
-| `amazon` | AWS | AWS Batch | ECR containers — **incomplete**, six processes only |
+| `wellesley_hpc` | Wellesley HPC | SLURM `day-long-cpu` | local Apptainer images; partial environment |
+| `wellesley_hopper` | Wellesley Hopper | local | Docker images and host references |
+| `amazon` | AWS | AWS Batch | ECR containers — **incomplete**, profilers and HUMAnN helpers |
+| `dnanexus` | DNAnexus | platform-supplied | database-bearing Docker images |
+| `dnanexus_download` | DNAnexus | platform-supplied | lean profiling images + worker-local project references; smoke YAML for QC only |
 
 > The `harvard_rc` and `tufts_hpc` profiles also auto-load their respective `conf/databases/*.config`,
 > so database paths are set automatically — override them on the CLI if needed.
@@ -1362,8 +1374,8 @@ green as of 2026-09-02.
 > the nf-test cases deleted; `test/` and `tests/` merged; params moved out of
 > `nextflow.config` into `conf/params.config`; execution reports into
 > `conf/reports.config`; site profiles reduced to real overrides;
-> `template-params.yaml` folded into `conf/harvard_rc.yaml`;
-> `conf/tufts_hpc.yaml` added; `docs/workflow_reference.md`,
+> `template-params.yaml` folded into `conf/example_yamls/harvard_rc.yaml`;
+> `conf/example_yamls/tufts_hpc.yaml` added; `docs/workflow_reference.md`,
 > `docs/diagrams/` and `docs/dependencies.md` added. Re-run
 > `sbatch tests/submit_tests.sh` before cutting a new module.
 
