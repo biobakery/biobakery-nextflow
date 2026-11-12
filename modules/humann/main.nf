@@ -17,6 +17,7 @@ process humann {
     tuple val(sample), path("${sample}_pathcoverage_${params.humann_version}.tsv"),   emit: pathcoverage,  optional: true
     tuple val(sample), path("${sample}_reactions_${params.humann_version}.tsv"),      emit: reactions,     optional: true
     tuple val(sample), path("${sample}_humann_${params.humann_version}.log"),         emit: log,           optional: true
+    tuple val(sample), path("${sample}_humann_temp/${sample}_bowtie2_unaligned.fa"), emit: unaligned_reads, optional: true
     tuple val("${task.process}"), val('humann'), eval('humann --version 2>&1 | head -1 | sed "s/^humann v//"'), topic: versions
 
     when:
