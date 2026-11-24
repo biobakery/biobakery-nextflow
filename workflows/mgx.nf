@@ -20,6 +20,8 @@ workflow MGX {
     main:
     def no_file = file("${projectDir}/assets/NO_FILE")
     unaligned_reads_ch = Channel.empty()
+    cleaned            = Channel.empty()
+    read_counts_ch     = Channel.empty()
 
     // ── Build input channel ────────────────────────────────────────────────
     // Discovery and samplesheet modes emit the same canonical read channel.
@@ -37,6 +39,7 @@ workflow MGX {
         if (params.run_qc) {
             QUALITY_CONTROL(read_ch, [params.host_genome], '')
             cleaned = QUALITY_CONTROL.out.reads
+            read_counts_ch = QUALITY_CONTROL.out.read_counts
 
             // Enabled only by an explicit bring-up profile/parameter. The input is
             // the all-sample aggregate, so the intentional failure cannot happen
@@ -114,5 +117,7 @@ workflow MGX {
     }
 
     emit:
+    cleaned         = cleaned            // [meta, reads] after QC, or merged raw pairs with --run_qc false
+    read_counts     = read_counts_ch     // KneadData read-count table
     unaligned_reads = unaligned_reads_ch // [database context, sample, nucleotide-unaligned FASTA]
 }
