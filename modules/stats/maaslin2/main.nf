@@ -10,16 +10,17 @@ nextflow.enable.dsl=2
 // a run only ever depend on that run's own figures, and a separate process
 // would have to write into its staged input folder to place them.
 process maaslin2 {
+    label 'stats_viz'
     tag "${feature_type}"
-    publishDir "${params.outdir}/stats", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/stats" }, mode: 'copy'
 
     input:
-    tuple val(feature_type), path(features)
+    tuple val(db), val(feature_type), path(features)
     path metadata
 
     output:
-    tuple val(feature_type), path(out_folder),                          emit: results
-    tuple val(feature_type), path("${out_folder}/significant_results.tsv"), emit: significant, optional: true
+    tuple val(db), val(feature_type), path(out_folder),                          emit: results
+    tuple val(db), val(feature_type), path("${out_folder}/significant_results.tsv"), emit: significant, optional: true
     tuple val("${task.process}"), val('Maaslin2'), eval('Rscript -e "cat(format(packageVersion(as.character(quote(Maaslin2)))))" 2>&1 | tail -1'), topic: versions
     tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(format(getRversion()))" 2>&1 | tail -1'), topic: versions
 
@@ -38,11 +39,11 @@ process maaslin2 {
         optional_args += ",random_effects='${params.stats_random_effects}'"
     // MaAsLin2 1.22.0 calls labs("") and dies on ggplot2 4.x once it reaches the
     // first continuous metadata variable; the shim makes that call a no-op again
-    def labs_shim = "${projectDir}/bin/Rscripts/ggplot2_labs_shim.R"
+    def labs_shim = "${params.reporting_root}/bin/Rscripts/ggplot2_labs_shim.R"
     """
     R -e "source('${labs_shim}'); library('Maaslin2'); results <- Maaslin2('${features}','${metadata}','${out_folder}'${optional_args})"
 
-    python ${projectDir}/bin/scripts/maaslin_image_tiles.py \\
+    python ${params.reporting_root}/bin/scripts/maaslin_image_tiles.py \\
         --figures-folder ${out_folder}/figures
     """
 }

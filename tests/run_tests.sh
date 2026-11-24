@@ -51,8 +51,8 @@ if [ -n "${BIOBAKERY_NF_PIPELINE:-}" ] && command -v nextflow >/dev/null 2>&1; t
 else
     NF="/n/lab_storage/huttenhower_lab/tools/nextflow/24.10.4/bin/nextflow"
 fi
-# The profile carries the databases and the tool modules; conf/harvard_rc.yaml
-# is a template of commented-out settings and is deliberately not passed, so
+# The profile carries the databases and the tool modules; conf/example_yamls/harvard_rc.yaml
+# is a study template and is deliberately not passed, so
 # each test states its own input and nothing is inherited silently.
 PROFILE="-profile harvard_rc"
 COMMON="--run_viral_profiling false --run_strain_profiling false"

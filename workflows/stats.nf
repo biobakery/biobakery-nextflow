@@ -1,7 +1,8 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
+include { prepare_report_summaries } from '../modules/stats/prepare_summaries/main.nf' 
 
 include { identify_inputs }                        from '../modules/vis/identify_inputs/main.nf'
 include { feature_table; trim_taxonomy }           from '../modules/stats/feature_table/main.nf'
@@ -27,12 +28,10 @@ include { archive_output }                         from '../modules/utils/archiv
 workflow STATS {
 
     take:
-    // A value channel, so every consumer below can read it: Channel.value for a
-    // standalone run, and stage_report_input's output for a chained one, which
-    // is a value channel because all of its inputs are.
-    input_dir_ch    // the bioBakery output folder to analyse
+    source_dir_ch // [database context, bioBakery output folder]; empty context for standalone runs
 
     main:
+    input_dir_ch = prepare_report_summaries(source_dir_ch).folder
     def no_file = file("${projectDir}/assets/NO_FILE")
 
     // stats.py marks --input-metadata as required
@@ -45,162 +44,100 @@ workflow STATS {
 
     metadata_ch = Channel.value(file(params.input_metadata))
 
-    // ── Identify the input files ───────────────────────────────────────────
     identify_inputs(input_dir_ch, metadata_ch, 'stats')
-
     manifest_ch = identify_inputs.out.manifest
-    info_ch     = manifest_ch.map { json -> new JsonSlurper().parse(json.toFile()) }
-
-    // ── Feature tables ─────────────────────────────────────────────────────
-    // create_feature_table_inputs(): taxonomy first, then pathways, then any
-    // other data files. The order is preserved so the report sections match.
-    // the manifest holds paths relative to the folder, so both travel together
-    feature_inputs_ch = info_ch.combine(input_dir_ch).flatMap { m, input_dir ->
+    info_ch = manifest_ch.map { db, json -> tuple(db, new JsonSlurperClassic().parse(json.toFile())) }
+    contexts = input_dir_ch.map { db, dir -> tuple(db, []) }
+    feature_inputs_ch = info_ch.join(input_dir_ch).flatMap { db, m, dir ->
         def items = []
-        def taxonomy = file("${input_dir}/${m.taxonomic_profile}")
-
-        if (m.study_type == '16s')
-            items << [ 'trim', 'taxonomy', taxonomy, '' ]
-        else
-            items << [ 'feature', 'taxonomy', taxonomy,
-                       "--sample-tag-column '_taxonomic_profile' --reduce-stratified-species-only" ]
-
+        def taxonomy = file("${dir}/${m.taxonomic_profile}")
+        items << [db, m.study_type.toLowerCase() == '16s' ? 'trim' : 'feature', 'taxonomy', taxonomy,
+            "--sample-tag-column '_taxonomic_profile' --reduce-stratified-species-only"]
         if (m.pathabundance)
-            items << [ 'feature', 'pathways', file("${input_dir}/${m.pathabundance}"),
-                       "--sample-tag-column '_Abundance' --remove-stratified" ]
-
+            items << [db, 'feature', 'pathways', file("${dir}/${m.pathabundance}"), "--sample-tag-column '_Abundance' --remove-stratified"]
         (m.other_data_files ?: [:]).each { path, type ->
-            items << [ 'feature', type, file("${input_dir}/${path}"),
-                       "--sample-tag-column '_Abundance' --remove-stratified" ]
+            items << [db, 'feature', type, file("${dir}/${path}"), "--sample-tag-column '_Abundance' --remove-stratified"]
         }
-        return items
+        items
     }
-
-    // published to stats/features, as create_feature_table_inputs() does
-    features_ch = feature_table(
-            feature_inputs_ch.filter { it[0] == 'feature' }.map { [ it[1], it[2], it[3], true ] }
-        ).features
-        .mix(
-            trim_taxonomy(
-                feature_inputs_ch.filter { it[0] == 'trim' }.map { [ it[1], it[2], true ] }
-            ).features)
-
-    // the report needs the types in the original order, so derive them from the
-    // manifest rather than from the (unordered) process outputs
-    feature_types_ch = info_ch.map { m ->
-        def types = [ 'taxonomy' ]
+    features_ch = feature_table(feature_inputs_ch.filter { it[1] == 'feature' }
+        .map { db, kind, type, f, opts -> tuple(db, type, f, opts, true) }).features
+        .mix(trim_taxonomy(feature_inputs_ch.filter { it[1] == 'trim' }
+            .map { db, kind, type, f, opts -> tuple(db, type, f, true) }).features)
+    all_features = features_ch.map { db, type, f -> tuple(db, f) }.groupTuple()
+    feature_types_ch = info_ch.map { db, m ->
+        def types = ['taxonomy']
         if (m.pathabundance) types << 'pathways'
         (m.other_data_files ?: [:]).each { path, type -> types << type }
-        types.join(',')
+        tuple(db, types.join(','))
     }
+    taxonomy_profile_ch = info_ch.join(input_dir_ch)
+        .map { db, m, dir -> tuple(db, file("${dir}/${m.taxonomic_profile}")) }
 
-    taxonomy_profile_ch = info_ch.combine(input_dir_ch)
-        .map { m, input_dir -> file("${input_dir}/${m.taxonomic_profile}") }
-
-    // ── Mantel tests ───────────────────────────────────────────────────────
-    // Only run when there is more than one data set to compare.
-    mantel_input_ch = features_ch.map { type, features -> features }
-        .collect()
-        .filter { it.size() > 1 }
-
-    mantel_ch = mantel_test(mantel_input_ch, metadata_ch).plot.ifEmpty([])
-
-    // ── MaAsLin2 ───────────────────────────────────────────────────────────
+    mantel_ch = report_files_or_empty(contexts,
+        mantel_test(all_features.filter { db, fs -> fs.size() > 1 }, metadata_ch).plot)
     if (!params.stats_bypass_maaslin) {
         maaslin2(features_ch, metadata_ch)
-        maaslin_ch = maaslin2.out.results.map { type, folder -> folder }.collect().ifEmpty([])
+        maaslin_ch = report_files_or_empty(contexts, maaslin2.out.results.map { db, type, folder -> tuple(db, folder) })
     } else {
-        maaslin_ch = Channel.value([])
+        maaslin_ch = contexts
     }
-
-    // ── HAllA ──────────────────────────────────────────────────────────────
     if (!params.stats_bypass_halla) {
-        // HAllA needs samples as columns
-        halla_metadata_ch = info_ch
-            .filter { m -> !m.samples_as_columns }
-            .map { m -> file(params.input_metadata) }
-
-        transposed_ch = halla_transpose_metadata(halla_metadata_ch).metadata
-
-        // gene family tables are skipped, matching run_halla_on_input_file_set()
-        halla(features_ch.filter { type, features -> !type.contains('gene') },
-              transposed_ch.mix(
-                  info_ch.filter { m -> m.samples_as_columns }.map { file(params.input_metadata) }
-              ).first())
-
-        halla_ch = halla.out.results.map { type, folder -> folder }.collect().ifEmpty([])
+        transposed_ch = halla_transpose_metadata(info_ch.filter { db, m -> !m.samples_as_columns }
+            .map { db, m -> tuple(db, file(params.input_metadata)) }).metadata
+        halla_metadata = transposed_ch.mix(info_ch.filter { db, m -> m.samples_as_columns }
+            .map { db, m -> tuple(db, file(params.input_metadata)) })
+        halla(features_ch.filter { db, type, f -> !type.contains('gene') }.combine(halla_metadata, by: 0))
+        halla_ch = report_files_or_empty(contexts, halla.out.results.map { db, type, folder -> tuple(db, folder) })
     } else {
-        halla_ch = Channel.value([])
+        halla_ch = contexts
     }
-
-    // ── Stratified pathway barplots ────────────────────────────────────────
     if (!params.stats_bypass_maaslin) {
-        pathabundance_ch = info_ch.combine(input_dir_ch)
-            .filter { m, input_dir -> m.pathabundance && m.study_type == 'wmgx' }
-            .map    { m, input_dir -> file("${input_dir}/${m.pathabundance}") }
-
+        pathabundance_ch = info_ch.join(input_dir_ch)
+            .filter { db, m, dir -> m.pathabundance && m.study_type.toLowerCase() in ['wmgx', 'wgx'] }
+            .map { db, m, dir -> tuple(db, file("${dir}/${m.pathabundance}")) }
         stratified_metadata(pathabundance_ch, metadata_ch)
-
-        plan_ch = stratified_metadata.out.plan.map { json -> new JsonSlurper().parse(json.toFile()) }
-
-        barplot_input_ch = plan_ch
-            .combine(maaslin2.out.significant.filter { type, results -> type == 'pathways' }
-                                             .map { type, results -> results })
-            .combine(stratified_metadata.out.merged)
-            .flatMap { plan, significant, merged ->
-                plan.plots.collect { plot ->
-                    [ plot.number, plot.variable, plan.metadata_end, significant, merged ]
-                }
+        plan_ch = stratified_metadata.out.plan.map { db, json -> tuple(db, new JsonSlurperClassic().parse(json.toFile())) }
+        barplot_input_ch = plan_ch.join(maaslin2.out.significant.filter { db, type, f -> type == 'pathways' }
+                .map { db, type, f -> tuple(db, f) })
+            .join(stratified_metadata.out.merged)
+            .flatMap { db, plan, significant, merged ->
+                plan.plots.collect { plot -> tuple(db, plot.number, plot.variable, plan.metadata_end, significant, merged) }
             }
-
-        stratified_ch = stratified_barplot(barplot_input_ch).plot.collect().ifEmpty([])
+        stratified_ch = report_files_or_empty(contexts, stratified_barplot(barplot_input_ch).plot)
     } else {
-        stratified_ch = Channel.value([])
+        stratified_ch = contexts
     }
-
-    // ── Beta diversity or PERMANOVA ────────────────────────────────────────
-    // stats.py runs the PERMANOVA for longitudinal studies (random effects set)
-    // and beta diversity otherwise.
     if (params.stats_random_effects) {
-        permanova(features_ch.map { type, features -> features }.collect(), metadata_ch)
-        permanova_ch = permanova.out.plots.collect().ifEmpty([])
-        beta_ch      = Channel.value([])
-        covariate_ch = Channel.value('')
+        permanova_ch = report_files_or_empty(contexts, permanova(all_features, metadata_ch).plots)
+        beta_ch = contexts
+        covariate_ch = contexts.map { db, fs -> tuple(db, '') }
     } else {
         covariate_json_ch = covariate_equation(manifest_ch).json
-            .map { json -> new JsonSlurper().parse(json.toFile()) }
-
-        beta_input_ch = features_ch.combine(covariate_json_ch)
-            .flatMap { type, features, covariate ->
-                def runs = [ [ type, features, 'univariate', '' ] ]
-                if (covariate.run_multivariate)
-                    runs << [ type, features, 'multivariate', covariate.covariate_equation ]
-                if (covariate.run_pairwise)
-                    runs << [ type, features, 'pairwise', '' ]
-                return runs
+            .map { db, json -> tuple(db, new JsonSlurperClassic().parse(json.toFile())) }
+        beta_input_ch = features_ch.combine(covariate_json_ch, by: 0)
+            .flatMap { db, type, features, covariate ->
+                def runs = [tuple(db, type, features, 'univariate', '')]
+                if (covariate.run_multivariate) runs << tuple(db, type, features, 'multivariate', covariate.covariate_equation)
+                if (covariate.run_pairwise) runs << tuple(db, type, features, 'pairwise', '')
+                runs
             }
-
-        beta_ch      = beta_diversity(beta_input_ch, metadata_ch).plot.collect().ifEmpty([])
-        permanova_ch = Channel.value([])
-        covariate_ch = covariate_json_ch.map { it.covariate_equation }
+        beta_ch = report_files_or_empty(contexts, beta_diversity(beta_input_ch, metadata_ch).plot)
+        permanova_ch = contexts
+        covariate_ch = covariate_json_ch.map { db, m -> tuple(db, m.covariate_equation) }
     }
-
-    // ── Report and archive ─────────────────────────────────────────────────
-    stats_report(
-        taxonomy_profile_ch,
-        features_ch.map { type, features -> features }.collect(),
-        maaslin_ch,
-        halla_ch,
-        mantel_ch,
-        beta_ch,
-        permanova_ch,
-        stratified_ch,
-        feature_types_ch,
-        covariate_ch)
-
+    stats_report(taxonomy_profile_ch.join(all_features).join(maaslin_ch).join(halla_ch)
+        .join(mantel_ch).join(beta_ch).join(permanova_ch).join(stratified_ch)
+        .join(feature_types_ch).join(covariate_ch))
     archive_output(stats_report.out.report_folder, metadata_ch, 'stats')
 
     emit:
     report  = stats_report.out.report
     archive = archive_output.out.archive
+}
+
+// Seed each database so optional branches always yield one (possibly empty) list.
+def report_files_or_empty(contexts, files) {
+    contexts.mix(files.map { db, fs -> tuple(db, fs instanceof List ? fs : [fs]) })
+        .groupTuple().map { db, fs -> tuple(db, fs.flatten()) }
 }

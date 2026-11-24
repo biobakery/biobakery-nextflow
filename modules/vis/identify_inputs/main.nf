@@ -8,22 +8,23 @@ nextflow.enable.dsl=2
 // matching how the AnADAMA workflows are run. The manifest this emits is what
 // the Nextflow workflows build their channels from.
 process identify_inputs {
+    label 'stats_viz'
     tag "${report_type}"
-    publishDir "${params.outdir}/${report_type}", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}/${report_type}" }, mode: 'copy'
 
     input:
-    path input_folder, stageAs: 'input_folder'
+    tuple val(db), path(input_folder, stageAs: 'input_folder')
     path metadata
     val  report_type
 
     output:
-    path "${report_type}_inputs.json", emit: manifest
+    tuple val(db), path("${report_type}_inputs.json"), emit: manifest
 
     script:
     def metadata_opt = metadata.name != 'NO_FILE' ? "--input-metadata ${metadata}" : ''
     def file_types = optionList(params.input_file_type, '--input-file-type')
     """
-    python ${projectDir}/bin/scripts/biobakery_identify_inputs.py \\
+    python ${params.reporting_root}/bin/scripts/biobakery_identify_inputs.py \\
         --input input_folder \\
         --output ${report_type}_inputs.json \\
         --workflow ${report_type} \\

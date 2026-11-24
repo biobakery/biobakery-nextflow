@@ -23,23 +23,15 @@ process stage_report_input {
     tag "${subdir ?: 'report'}"
     // Published so the folder vis and stats actually read is inspectable, and
     // so a later standalone run can be pointed straight at it.
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}" }, mode: 'copy'
 
     input:
-    // Each optional input is staged under its own name: they share the one
-    // assets/NO_FILE sentinel, and two of them are NO_FILE together whenever a
-    // stage is skipped -- a mapped mgx_mtx run has no MetaPhlAn output for its
-    // metatranscriptome half at all -- which fails the task with "multiple
-    // input files for each of the following file names: NO_FILE".
-    path taxonomic_profile, stageAs: 'taxonomy/*'   // merged MetaPhlAn profile, or NO_FILE
-    path species_counts,    stageAs: 'species/*'    // MetaPhlAn species counts, or NO_FILE
-    path kneaddata_counts,  stageAs: 'qc/*'         // KneadData read count table, or NO_FILE
-    path humann_tables, stageAs: 'humann_tables/*'   // merged HUMAnN tables
-    path humann_counts, stageAs: 'humann_counts/*'   // HUMAnN count tables
-    val  subdir                   // '' or 'whole_metagenome_shotgun'
+    tuple val(db), path(taxonomic_profile, stageAs: 'taxonomy/*'), path(humann_tables, stageAs: 'humann_tables/*'), path(humann_logs, stageAs: 'humann_logs/*')
+    path kneaddata_counts, stageAs: 'qc/*'
+    val subdir
 
     output:
-    path "report_input", emit: folder
+    tuple val(db), path("report_input"), emit: folder
 
     script:
     def base = subdir ? "report_input/${subdir}" : "report_input"
@@ -47,17 +39,14 @@ process stage_report_input {
     // be null, which is the same convention rna_dna_norm uses. Test it here on
     // the basename, because stageAs puts each input in its own directory.
     def tax_dst     = "${base}/metaphlan/merged/metaphlan_taxonomic_profiles.tsv"
-    def species_dst = "${base}/metaphlan/merged/metaphlan_species_counts_table.tsv"
     def qc_dst      = "${base}/kneaddata/merged/kneaddata_read_count_table.tsv"
     def copy_tax     = taxonomic_profile.name != 'NO_FILE' ? "cp -L ${taxonomic_profile} ${tax_dst}"     : ''
-    def copy_species = species_counts.name    != 'NO_FILE' ? "cp -L ${species_counts} ${species_dst}"    : ''
     def copy_qc      = kneaddata_counts.name  != 'NO_FILE' ? "cp -L ${kneaddata_counts} ${qc_dst}"       : ''
     """
     mkdir -p ${base}/metaphlan/merged ${base}/kneaddata/merged \\
-             ${base}/humann/merged ${base}/humann/counts
+             ${base}/humann/merged ${base}/humann/logs
 
     ${copy_tax}
-    ${copy_species}
     ${copy_qc}
 
     # merged_<feature>_<version>.tsv -> <feature>.tsv, the upstream spelling:
@@ -71,11 +60,11 @@ process stage_report_input {
     done
 
     # the count tables already carry the names files.ShotGun looks for
-    for f in humann_counts/*; do
+    for f in humann_logs/*; do
         [ -e "\$f" ] || continue
         b=\$(basename "\$f")
         case "\$b" in NO_FILE) continue ;; esac
-        cp -L "\$f" ${base}/humann/counts/"\$b"
+        cp -L "\$f" ${base}/humann/logs/"\$b"
     done
 
     # leave no empty directories behind: identify_data_files() does not mind

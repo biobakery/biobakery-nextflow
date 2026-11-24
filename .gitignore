@@ -17,6 +17,23 @@ tests/data/tutorial_output/metaphlan/mpa_vOct22_CHOCOPhlAnSGB_202403/
 tests/data/tutorial_output/**/.anadama/
 
 .DS_Store
+# Documentation site and local preview environment
+/site/
+/.cache/
+/.venv-docs/
 # python bytecode from the bin/scripts helpers
 __pycache__/
 *.pyc
+
+# Locally acquired DNAnexus container artifacts. Keep the staging directory,
+# never the multi-GB image archives or generated identity/checksum records.
+containers/*.tar
+containers/*.tar.gz
+containers/*.tgz
+containers/*.sha256
+containers/*.inspect.json
+containers/SHA256SUMS
+containers/container-lock.*
+
+dxbuild.sh
+dxupload.sh

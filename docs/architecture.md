@@ -24,14 +24,14 @@
 | HUMAnN 3/4 compatibility | `--utility-database` conditional; v37 vs v4a output renaming |
 | Version logging | each tool step → `versions` topic → `modules/utils/version_log/main.nf` → `results/pipeline_info/pipeline_log.txt` + `software_versions.tsv` |
 | Harvard FASRC (HSPH) profile | `hsph` SLURM partition, hutlab module integration, DB paths in `conf/databases/harvard_rc.config` |
-| Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts.config` |
+| Tufts HPC profile | Apptainer/SLURM, DB paths in `conf/databases/tufts_hpc.config` |
 | AWS Batch profile | Per-process ECR containers, S3 I/O |
 | Execution reports | Timeline, report, trace, DAG — all timestamped to `results/pipeline_info/` |
 | Workflow diagrams and step tables | **generated** — `bin/make_diagrams.py` → [workflow_reference.md](workflow_reference.md), `diagrams/*.mmd` |
 | Architecture diagram | **generated** — `docs/diagrams/architecture.mmd`, also embedded at the top of [workflow_reference.md](workflow_reference.md): the four layers — router, workflows, stages, modules — with each box naming who calls it |
 | Older architecture drawings | draw.io source files in `assets/diagrams/` (hand-drawn, predate the generated ones, and can drift) |
 | Demo test sample | `tests/data/single_end_rawfastq/HD32R1_subsample.fastq.gz` |
-| Integration suite | `tests/run_tests.sh` — 16 cases, 39 checks; see [tests/README.md](../tests/README.md) |
+| Integration suite | `tests/run_tests.sh` — 16 cases, 39 checks; see [tests/README.md](https://github.com/biobakery/biobakery-nextflow/blob/main/tests/README.md) |
 | CI | `bin/check_profile_resources.py` — no profile has deleted a process's cpus/memory/time; `bin/make_diagrams.py --check` — the graphs and docs are current |
 
 ---
@@ -139,7 +139,7 @@ biobakery-nextflow/
 > It shows all four layers — the router, the workflows, the reusable stages and
 > the modules those pull in — grouped so that each box names who calls it.
 
-![Architecture overview](../assets/diagrams/architecture_overview.drawio.png)
+![Architecture overview](https://raw.githubusercontent.com/biobakery/biobakery-nextflow/main/assets/diagrams/architecture_overview.drawio.png)
 
 > This diagram is hand-drawn and predates the port's later stages. The
 > authoritative, generated view is [workflow_reference.md](workflow_reference.md).
@@ -201,7 +201,7 @@ biobakery-nextflow/
 
 ## 4. Workflow Step Toggles
 
-![MGX workflow](../assets/diagrams/mgx_workflow.drawio.png)
+![MGX workflow](https://raw.githubusercontent.com/biobakery/biobakery-nextflow/main/assets/diagrams/mgx_workflow.drawio.png)
 
 > Hand-drawn; see [workflow_reference.md](workflow_reference.md#mgx) for the
 > generated version, which is rebuilt from the pipeline and checked by CI.
@@ -308,7 +308,7 @@ nextflow run main.nf -profile harvard_rc --workflow mgx \
 nextflow run main.nf -profile harvard_rc --workflow mgx \
   --readsdir /path/to/fastqs --outdir /path/to/output \
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref
 ```
 
 ### Viral profiling options (BAQLaVa)
@@ -355,7 +355,7 @@ nextflow run main.nf -profile harvard_rc --workflow mgx \
 
 # Switch to HUMAnN4 databases
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref
 ```
 
 ### Database compatibility matrix (Harvard FASRC)
@@ -512,8 +512,8 @@ These are auto-applied when using `-profile harvard_rc`. Override any on the CLI
 | `--host_genome` (rRNA) | `/n/lab_storage/huttenhower_lab/data/kneaddata_databases/ribosomal_RNA/SILVA_128_LSUParc_SSUParc_ribosomal_RNA_v0.2` |
 | `--metaphlan_db` | `/n/lab_storage/huttenhower_lab/tools/metaphlan4/rocky8/v4.1.1/lib/python3.10/site-packages/metaphlan/metaphlan_databases` |
 | `--metaphlan_index` | `mpa_vJun23_CHOCOPhlAnSGB_202307` |
-| `--humann_db` (v3.9) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3` |
-| `--humann_db` (v4a) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4` |
+| `--humann_db_chocophlan` (v3.9) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann3` |
+| `--humann_db_chocophlan` (v4a) | `/n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4` |
 | `--phylophlan_path` | Set manually if running `--workflow assembly` |
 
 ### Cluster-side files (not in repo)

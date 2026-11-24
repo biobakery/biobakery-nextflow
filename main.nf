@@ -2,7 +2,7 @@
 nextflow.enable.dsl=2
 // Every tool step sends its version to the `versions` topic, which version_log
 // collects (modules/utils/version_log/main.nf). A preview feature until 25.04.
-nextflow.preview.topic = true
+if (nextflow.version < '25.04.0') nextflow.preview.topic = true
 
 // ── Workflow imports ───────────────────────────────────────────────────────
 include { MGX }          from './workflows/mgx.nf'
@@ -17,16 +17,22 @@ include { run_header } from './modules/utils/version_log/main.nf'
 // ── Router ─────────────────────────────────────────────────────────────────
 workflow {
 
-    // Version, run and databases first, so they head the console output and
-    // .nextflow.log as well as pipeline_info/pipeline_log.txt.
+    // Print the source revision and resolved references before starting tasks.
     log.info run_header()
 
-    // Validate required params for read-based workflows. mgx_mtx is the
-    // exception: it takes two input folders instead of one, and validates them
-    // itself, mirroring wmgx_wmtx.py replacing --input with --input-metagenome
-    // and --input-metatranscriptome.
-    if (!params.readsdir && params.workflow in ['mgx', 'mtx', '16s', 'assembly']) {
-        error "ERROR: --readsdir is required. Example: --readsdir /path/to/fastqs"
+    // Read-based workflows accept exactly one input mode. mgx_mtx validates its
+    // two-folder alternative itself because it has two assays.
+    if (params.workflow in ['mgx', 'mtx', 'assembly']) {
+        def input_modes = (params.readsdir ? 1 : 0) + (params.samplesheet ? 1 : 0)
+        if (input_modes != 1) {
+            error "ERROR: choose exactly one read input mode: --readsdir or --samplesheet."
+        }
+    }
+    if (params.stop_after_qc && !params.run_qc) {
+        error "ERROR: --stop_after_qc requires --run_qc true."
+    }
+    if (params.workflow == '16s' && !params.readsdir) {
+        error "ERROR: the current 16s stub requires --readsdir."
     }
 
     // --check_inputs_only runs the read-based workflow as far as its input
@@ -60,11 +66,11 @@ workflow {
             break
 
         case 'vis':
-            VIS(Channel.value(report_input_dir(params.vis_input, 'vis')))
+            VIS(Channel.value(tuple('', report_input_dir(params.vis_input, 'vis'))))
             break
 
         case 'stats':
-            STATS(Channel.value(report_input_dir(params.stats_input, 'stats')))
+            STATS(Channel.value(tuple('', report_input_dir(params.stats_input, 'stats'))))
             break
 
         case 'assembly':

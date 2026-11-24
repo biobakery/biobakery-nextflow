@@ -1,12 +1,31 @@
-# biobakery-nextflow
+# bioBakery Nextflow
 
 > Nextflow implementation of the [bioBakery](https://github.com/biobakery) metagenomics suite,
 > ported from the [anadama2 biobakery-workflows](https://github.com/biobakery/biobakery_workflows)
 > with multi-cluster support, nf-core-style modules, and an SGB assembly pipeline.
 
-![Static Badge](https://img.shields.io/badge/Author-Kevin_Bonham_PhD-purple)
-![Static Badge](https://img.shields.io/badge/Author-Guilherme_Fahur_Bottino_PhD-purple)
+![Static Badge](https://img.shields.io/badge/Author-Kevin_Bonham-purple)
+![Static Badge](https://img.shields.io/badge/Author-Guilherme_Fahur_Bottino-purple)
 ![Static Badge](https://img.shields.io/badge/Author-Danielle_Pinto-purple)
+![Static Badge](https://img.shields.io/badge/Author-Sagun_Maharjan-purple)
+![Static Badge](https://img.shields.io/badge/Author-Curtis_Huttenhower-purple)
+
+[Quick start](#quick-start) · [New HPC installation](docs/get-started/index.md) · [Site configuration](conf/README.md) · [Workflow reference](docs/workflow_reference.md)
+
+The documentation site is built from `docs/` with Zensical and deployed through
+GitHub Actions. See [Writing and publishing documentation](docs/documentation.md)
+for local previews and the GitHub Pages setup.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/biobakery-metro-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/diagrams/biobakery-metro-light.svg">
+  <img src="docs/diagrams/biobakery-metro-light.svg" alt="bioBakery workflow map: DNA and RNA reads pass through KneadData to taxonomic and functional profiling, optional strain and viral analysis, paired RNA/DNA ratios, or MAG assembly, with visualization and optional statistics reports." width="100%">
+</picture>
+
+An overview of the supported routes; optional strain and viral branches are dashed.
+`mgx_mtx` profiles both assays before normalization. `vis` and `stats` can also run
+on existing bioBakery output. [Full-size map](docs/diagrams/biobakery-metro-light.svg)
+· [Source and rendering](docs/diagrams/README.md) · [nf-metro](https://github.com/seqeralabs/nf-metro)
 
 ---
 
@@ -19,17 +38,17 @@
    - [Tufts HPC](#tufts-hpc)
    - [AWS Batch](#aws-batch)
    - [Local / Docker](#local--docker)
+   - [Preparing DNAnexus container tarballs](#preparing-dnanexus-container-tarballs)
 4. [Quick Start](#quick-start)
-5. [Input checks](#input-checks)
-6. [Use Cases](#use-cases)
-7. [All Parameters](#all-parameters)
-8. [Configuration layers](#configuration-layers)
-9. [Compute Profiles](#compute-profiles)
-10. [Changing Databases](#changing-databases)
-11. [Changing Resources](#changing-resources)
-12. [Output Structure](#output-structure)
-13. [Testing](#testing)
-14. [Project Status](#project-status)
+5. [Use Cases](#use-cases)
+6. [All Parameters](#all-parameters)
+7. [Configuration layers](#configuration-layers)
+8. [Compute Profiles](#compute-profiles)
+9. [Changing Databases](#changing-databases)
+10. [Changing Resources](#changing-resources)
+11. [Output Structure](#output-structure)
+12. [Testing](#testing)
+13. [Project Status](#project-status)
 
 ---
 
@@ -107,18 +126,19 @@ Database paths are automatically loaded when you use `-profile harvard_rc`
 
 ### Tufts HPC
 
-Tools are provided via Apptainer containers already configured in the `tufts_hpc` profile.
+Tools must be on `PATH` or supplied through explicit container assignments.
+The `tufts_hpc` profile enables Apptainer but assigns no images.
 
 ```sh
 # Add Nextflow and shared binaries to PATH
 module load nextflow
 export PATH="/cluster/tufts/bonhamlab/shared/bin:$PATH"
 
-# Database paths are loaded from conf/databases/tufts.config
+# Database paths are loaded from conf/databases/tufts_hpc.config
 ```
 
-The profile already sets the executor, the containers and the database paths,
-so a run only has to say where the reads are:
+With the tool environment prepared, the profile supplies the executor and
+database paths, so a run only has to say where the reads are:
 
 ```sh
 nextflow run main.nf -profile tufts_hpc \
@@ -126,10 +146,10 @@ nextflow run main.nf -profile tufts_hpc \
 ```
 
 To write those settings down instead, copy the site template — it is a list of
-commented-out settings, not a file you have to fill in:
+optional settings; add your inputs and output location:
 
 ```sh
-cp conf/tufts_hpc.yaml my-run.yaml
+cp conf/example_yamls/tufts_hpc.yaml my-run.yaml
 nextflow run main.nf -profile tufts_hpc -params-file my-run.yaml
 ```
 
@@ -138,13 +158,14 @@ nextflow run main.nf -profile tufts_hpc -params-file my-run.yaml
 ### AWS Batch
 
 Requires prior setup of AMIs, job queues, S3 buckets, and ECR containers.
-ECR container URIs are already configured in `conf/profiles/aws.config`.
+ECR container URIs are already configured in `conf/profiles/amazon.config`.
 
 ```sh
-nextflow run main.nf -profile amazon -params-file params.yaml
+nextflow run main.nf -profile amazon -params-file my-run.yaml -w s3://BUCKET/work
 ```
 
-See `conf/profiles/aws.config` for queue and container assignments per process.
+Copy `conf/example_yamls/amazon.yaml` as a starting point. This profile is
+incomplete; see [site setup and limitations](conf/README.md).
 
 ---
 
@@ -163,11 +184,44 @@ nextflow run main.nf -profile local \
   --outdir   /path/to/results \
   --host_genome  /path/to/kneaddata/hg38 \
   --metaphlan_db  /path/to/metaphlan_db \
-  --humann_db     /path/to/humann_db
+  --humann_db_chocophlan /path/to/humann_db/chocophlan --humann_db_utilitymapping /path/to/humann_db/utility_mapping --humann_db_protein /path/to/humann_db/uniref
 ```
 
 > **Note:** MetaPhlAn requires ≥ 15 GB RAM. A 16 GB laptop is often insufficient.
 > Prefer HPC or cloud for production runs.
+
+### DNAnexus
+
+Use `dnanexus_download` for lightweight images and databases downloaded from your
+project onto each analysis worker's SSD. Set up the project references as
+explained in the [DNAnexus guide](docs/dnanexus.md#project-references-on-local-ssd).
+The [software-stack record](docs/software-stack.md) lists the exact tool commits,
+image tags, and reference contents to reproduce at another site.
+
+With the local `dxbuild.sh` helper, cache the profile's images and build:
+
+```bash
+bash dxbuild.sh --profile dnanexus_download --refresh-images \
+  --destination project-EXAMPLE:/Applets/wmgx/
+```
+
+For later source changes with the same cached images, omit `--refresh-images`.
+Upload your samplesheet and optionally a run YAML, then select them in the launch
+form or run the new applet directly:
+
+```bash
+dx run applet-REPLACE \
+  -isamplesheet=project-EXAMPLE:file-SAMPLESHEET \
+  -inextflow_params_file=project-EXAMPLE:file-RUN_YAML \
+  --destination project-EXAMPLE:/results/
+```
+
+Use `conf/example_yamls/dnanexus_download.yaml` for full profiling or
+`conf/example_yamls/dnanexus_download_smoke.yaml` for a QC-only test. The
+samplesheet is always chosen at launch. Keep **Soft Configuration Files** empty
+for the standard run. The `dnanexus` profile remains available for images with
+bundled references. See the [full guide](docs/dnanexus.md) for cache behavior,
+instance sizes, reference staging, and manual container archives.
 
 ---
 
@@ -182,7 +236,7 @@ nextflow run main.nf \
   --outdir       results \
   --host_genome /path/to/kneaddata/hg38 \
   --metaphlan_db /path/to/metaphlan_db \
-  --humann_db    /path/to/humann_db
+  --humann_db_chocophlan /path/to/humann_db/chocophlan --humann_db_utilitymapping /path/to/humann_db/utility_mapping --humann_db_protein /path/to/humann_db/uniref
 ```
 
 ### Single-end reads
@@ -200,12 +254,89 @@ reads that do pair up. `--filepattern` is only for a naming convention the
 defaults do not match — `*.fastq.gz` for single-end and
 `*<pair_identifier>*.fastq.gz` for paired-end.
 
-### Check the input reads first
+### Explicit samplesheet input
 
-Every run checks its raw reads before profiling them and leaves out any sample
-whose files are truncated or corrupt. To check a folder without starting a run,
-add `--check_inputs_only true`. See [Input checks](#input-checks) for what is
-checked and the standalone script.
+Read-based workflows accept exactly one input mode: `--readsdir` discovery or
+an explicit `--samplesheet`. Samplesheet mode is recommended for reproducible
+and DNAnexus runs. The CSV columns are:
+
+```csv
+sample,assay,read_1,read_2
+sample_a,mgx,/reads/sample_a_R1.fastq.gz,/reads/sample_a_R2.fastq.gz
+sample_b,mgx,/reads/sample_b.fastq.gz,
+```
+
+`assay` may be omitted for a single-assay run. It is required for `mgx_mtx`,
+where rows must use `mgx` or `mtx`. `read_2` is empty for single-end samples.
+The workflow rejects duplicate samples, duplicate read assignments, inaccessible
+files, invalid assay values, and malformed sample IDs before emitting tasks.
+
+Build a sheet independently from a local folder:
+
+```sh
+bin/build_samplesheet.py \
+  --reads-dir /path/to/fastqs \
+  --output samplesheet.csv \
+  --assay mgx
+```
+
+Or discover DNAnexus file objects and explicitly upload the completed sheet:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-xxxx:/inputs/reads \
+  --output samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_R(?P<mate>[12])(?:_001)?\.(?:fastq|fq)\.gz$' \
+  --upload-to project-xxxx:/inputs/samplesheets/
+```
+
+The upload form prints the qualified `project-...:file-...` reference to
+standard output, ready to pass as the applet's samplesheet input. It uses a
+command-scoped project context and does not run `dx select`. Generation never
+uploads unless `--upload-to` is present. Use `--layout single` to prevent mate
+detection, `--layout paired` to require every file to match a pair, or
+`--pair-regex` to state the naming convention explicitly. The expression must
+match the complete filename and define named `sample` and `mate` groups. Keep
+the expression in single quotes so the shell passes it unchanged.
+
+Read references inside the CSV use Nextflow project paths, for example
+`dx://project-xxxx:/inputs/reads/sample_R1.fastq.gz`. They must not use the
+`dx://project-xxxx:file-yyyy` object-ID form: Nextaur's filesystem parser needs
+a path after `:/`.
+
+For Illumina-style names such as `sample_R1.fastq.gz`, `sample_R2.fastq.gz`,
+or the corresponding `_R1_001`/`_R2_001` forms:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-xxxx:/inputs/reads \
+  --output samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_R(?P<mate>[12])(?:_001)?\.(?:fastq|fq)\.gz$'
+```
+
+For SRA-style names such as `SRR27200889_1.fastq.gz` and
+`SRR27200889_2.fastq.gz`:
+
+```sh
+bin/build_samplesheet.py \
+  --dx-folder project-EXAMPLE:/Processing/rawfastq \
+  --output SRR27200889.samplesheet.csv \
+  --assay mgx \
+  --layout paired \
+  --pair-regex '^(?P<sample>.+)_(?P<mate>[12])\.(?:fastq|fq)\.gz$'
+```
+
+Run the resulting sheet with:
+
+```sh
+nextflow run main.nf --workflow mgx \
+  --samplesheet samplesheet.csv \
+  [other required params]
+```
 
 ### Resume an interrupted run
 
@@ -217,7 +348,7 @@ nextflow run main.nf [same params as original run] -resume
 
 ```sh
 # Copy your site's template and uncomment what you need
-cp conf/harvard_rc.yaml my-params.yaml     # or conf/tufts_hpc.yaml
+cp conf/example_yamls/harvard_rc.yaml my-params.yaml     # or conf/example_yamls/tufts_hpc.yaml
 # Edit my-params.yaml ...
 
 nextflow run main.nf -profile harvard_rc -params-file my-params.yaml
@@ -231,157 +362,19 @@ not belong in it — see [Configuration layers](#configuration-layers).
 
 ## Input checks
 
-A FASTQ that ends early — an interrupted copy, a download cut short, a gzip
-stream truncated mid-file — is not noticed until a tool reads to the end of it.
-On a large study that is hours into the run, and the error names neither the
-problem nor the file:
+Every read-based run checks raw FASTQs before profiling. Truncated or corrupt
+samples are reported under `input_check/` and omitted from the analysis. To
+validate inputs without running profiling:
 
-```
-EOFError: Compressed file ended before the end-of-stream marker was reached
-```
-
-Under the default `errorStrategy 'finish'` that one task stops the whole run.
-So every read-based run (`mgx`, `mtx`, `mgx_mtx`, `assembly`) now starts by
-reading each raw FASTQ through once. A bad sample is logged, listed under
-`<outdir>/input_check/`, and **left out**, and the run finishes on the rest.
-
-### What is checked
-
-| Check | Catches | Reported as |
-|---|---|---|
-| File exists | a broken symlink, a missing file | `file not found (broken symlink)` |
-| File is readable | permissions that stop the pipeline reading it | `file is not readable (permission denied)` |
-| File is not empty | a zero-byte file | `file is empty` |
-| Compressed stream is complete | a truncated or corrupt `.gz` / `.bz2` — the usual case | `compressed stream is truncated or corrupt: gzip: …: unexpected end of file` |
-| Every record has 4 lines | a plain or gzipped file that ends mid-record | `file ends inside a record (4001 lines, not a multiple of 4)` |
-| Header line starts with `@` | a malformed or misaligned record | `line 801: header does not start with '@'` |
-| Separator line starts with `+` | the same | `line 803: separator does not start with '+'` |
-| Quality length = sequence length | a record cut or corrupted mid-line | `line 404: quality length 10 differs from sequence length 99` |
-| At least one read | a valid but empty FASTQ | `no reads` |
-| Mates hold the same number of reads | one mate truncated cleanly, or mates from different runs | `mates hold different read counts (250 vs 100)` |
-| Every mate has its partner | an R1 whose R2 is missing, or a file the pair identifier does not match | `no mate found: S12_R2.fastq.gz is missing` |
-
-A sample fails if any of its files fails. For a pair, both mates are reported.
-The check stops at the first malformed record, because one is enough to drop
-the sample.
-
-**Not checked:** read quality, adapters, host content, or whether a file holds
-the sample its name says. Those are KneadData's and the analyst's job. The
-check also does not look past filenames the run would not pick up. A file the
-glob does not match is not read; see `--filepattern`.
-
-Broken symlinks and unpaired mates are never read: Nextflow cannot stage a
-link whose target is gone, and a lone mate cannot be run as a pair. They are
-named in a warning at startup and listed in the report as FAIL, so the report
-holds every file the run left out, whatever the reason.
-
-### Three ways to run it
-
-**1. Automatically, as part of every run** (default, `--check_inputs true`).
-Nothing to do. Each sample waits only on its own check, so profiling of the
-first good samples starts while the rest are still being checked. The log
-says which samples were left out in three places:
-
-```
-# as each bad sample is found
-WARN: [mgx] Sample S12 failed the input check and is left out: S12_R2.fastq.gz: compressed stream is truncated or corrupt: gzip: S12_R2.fastq.gz: unexpected end of file
-
-# once every sample is checked
-WARN: [mgx] 1 of 1600 samples failed the input check and were left out: S12. Details: results/input_check/mgx_input_check.tsv
-
-# and again as the last thing the run prints, so it is not lost hours earlier
-WARN: Input check [mgx]: 1 sample(s) were left out of this run:
-  S12  --  S12_R2.fastq.gz: compressed stream is truncated or corrupt: gzip: S12_R2.fastq.gz: unexpected end of file
-  Full list: /path/to/results/input_check/mgx_failed_samples.txt
-  Details:   /path/to/results/input_check/mgx_input_check.tsv
+```bash
+nextflow run main.nf -profile harvard_rc \
+  --readsdir /path/to/fastqs --outdir results --check_inputs_only true
 ```
 
-A run that left samples out still exits 0, because it did what it was asked
-to. To stop the run instead, pass `--fail_on_bad_inputs true`. No sample is
-then profiled until every one has passed, and a bad one ends the run with exit
-status 1 and the same list.
-
-**2. Check only, then run** (`--check_inputs_only true`). Add the flag to the
-command you are about to run. The inputs are found exactly as the real run
-finds them, with the same layout detection and pairing, and the run stops
-after the check:
-
-```sh
-nextflow run $BIOBAKERY_NF_PIPELINE/main.nf -profile harvard_rc \
-  -params-file my-params.yaml --workflow mgx \
-  --readsdir /path/to/fastqs --outdir results \
-  --check_inputs_only true
-
-cat results/input_check/mgx_failed_samples.txt   # one bad sample per line
-```
-
-Then fix or remove the bad files and drop the flag. Run the same command again
-from the **same launch directory** with `-resume`, and the checks already done
-are reused rather than repeated. On the cluster each check is its own small
-SLURM job (2 cores, 2 GB), so a large folder is checked in parallel.
-
-**3. Standalone, without Nextflow.** `bin/check_fastq_inputs.py` needs only
-Python 3.6+, `gzip` and `awk`, so it runs on any node. It prints one line per
-file, writes the table with `--output`, and exits 1 if any sample failed.
-Loading the hutlab module puts it on `PATH`, so on FASRC it is just
-`check_fastq_inputs.py`; elsewhere, call it by path as below.
-
-```sh
-# a whole folder, 16 files at a time, printing only the failures
-python3 $BIOBAKERY_NF_PIPELINE/bin/check_fastq_inputs.py \
-  --input /path/to/fastqs --threads 16 --output input_check.tsv --quiet
-
-# one sample (one file, or the two mates)
-python3 $BIOBAKERY_NF_PIPELINE/bin/check_fastq_inputs.py S12_R1.fastq.gz S12_R2.fastq.gz
-```
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--input DIR` | — | Check every `*.fastq[.gz\|.bz2]` / `*.fq[...]` in this folder |
-| `--pattern GLOB` | `*` | Only files matching this glob |
-| `--pair-identifier` | `_R{1,2}` | How mates are named, as in the pipeline. Mates are paired and their read counts compared |
-| `--single-end` | off | Do not pair mates |
-| `--threads N` | `4` | Files checked at once. Each uses about two cores (gzip + awk) |
-| `--quick` | off | Only test that each compressed file decompresses to its end. About twice as fast and catches truncation, but not malformed records or mismatched mates |
-| `--output FILE` | — | Also write the table to this file |
-| `--quiet` | off | Print only failures and the summary |
-
-The script reads every byte, so it takes time. Expect about a minute per 1.5
-GB gzipped file at full depth, or half that with `--quick`. Do not run a large
-folder on a login node; submit it:
-
-```sh
-sbatch -p hsph -c 32 --mem 16G -t 6:00:00 --wrap \
-  "python3 $BIOBAKERY_NF_PIPELINE/bin/check_fastq_inputs.py --input /path/to/fastqs --threads 32 --output input_check.tsv --quiet"
-```
-
-### Output
-
-```
-<outdir>/input_check/
-├── <label>_input_check.tsv     # one row per file: sample, file, status, reads, problem
-└── <label>_failed_samples.txt  # the samples left out, one per line; empty if none
-```
-
-`<label>` is `mgx`, `mtx` or `assembly`. `mgx_mtx` writes one pair of files
-per input folder. The failed list is rewritten on every run, so a rerun after
-fixing the files leaves it empty rather than stale.
-
-```
-sample     file                   status  reads  problem
-good       good_R1.fastq.gz       PASS    1000
-good       good_R2.fastq.gz       PASS    1000
-truncated  truncated_R1.fastq.gz  PASS    1000
-truncated  truncated_R2.fastq.gz  FAIL           compressed stream is truncated or corrupt: gzip: truncated_R2.fastq.gz: unexpected end of file
-```
-
-### After a sample fails
-
-The sample is simply absent from the merged tables. To bring it back, replace
-the file, from the source or by re-running KneadData on the raw reads, and
-rerun the same command with `-resume`. Only the replaced sample is checked and
-profiled again, plus the merge steps. To run with the check off, for example on
-inputs already vetted another way, use `--check_inputs false`.
+Use `--fail_on_bad_inputs true` to stop instead of omitting failed samples.
+For input that has already been validated, `--check_inputs false` skips this
+stage. See [input-check details](docs/input-checks.md) for the checks, reports,
+standalone validation command, and resume behavior.
 
 ---
 
@@ -418,29 +411,44 @@ nextflow run main.nf -profile harvard_rc \
   --run_functional_profiling false \
   --metaphlan_read_min_len 100
 
-# Switch to a different MetaPhlAn database index
+# Select database arrays and downstream indices from a run-specific params file
 nextflow run main.nf -profile harvard_rc \
   --readsdir /path/to/fastqs \
-  --outdir   results \
-  --metaphlan_db   /path/to/other/metaphlan_databases \
-  --metaphlan_index mpa_vOct22_CHOCOPhlAnSGB_202403 \
-  --metaphlan_version metaphlan_v4
+  --outdir results \
+  -params-file my-databases.yaml
 ```
 
-> On Harvard FASRC hutlab builds, pass `--metaphlan_version metaphlan_v3` — the hutlab binary uses v3-style CLI flags (`--bowtie2db`) even though it is MetaPhlAn 4.
+Use `metaphlan_databases` to run each sample against multiple databases, and
+`metaphlan_downstream_indices` to choose one or more for downstream profiling
+and reports. See [database configuration examples](docs/metaphlan_databases.md).
 
 ---
 
 ### 3. Functional profiling — HUMAnN options
 
-Tune the regrouping target, skip internal searches, or disable post-processing:
+Configure HUMAnN profiling and post-processing through YAML or command-line
+parameters. To publish HUMAnN's nucleotide-unaligned FASTA and forward it through
+workflow output channels, set this in your run YAML:
+
+```yaml
+humann_save_unaligned_reads: true
+```
+
+The default is `false`. Files are published under
+`humann/<version>/unaligned_reads/`, with the existing database/assay prefixes
+where applicable. These are reads unaligned after nucleotide search; some can
+still align during protein search. See [HUMAnN unaligned reads](docs/humann_unaligned_reads.md)
+for channel names and cases where HUMAnN produces no FASTA. This runs within
+the existing HUMAnN task.
+
+Other examples:
 
 ```sh
 # KEGG orthologs instead of MetaCyc reactions (default: uniref90_rxn)
 nextflow run main.nf -profile harvard_rc \
   --readsdir /path/to/fastqs \
   --outdir   results \
-  --humann_regroup_grouping uniref90_ko
+  -params-file humann-mappings.yaml
 
 # Available groupings: uniref90_rxn | uniref90_ko | uniref90_eggnog | uniref90_pfam
 
@@ -578,7 +586,7 @@ Switch both the software module and the database:
 ```sh
 nextflow run main.nf -profile harvard_rc \
   --humann_version humann_v4a \
-  --humann_db /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4 \
+  --humann_db_chocophlan /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/chocophlan --humann_db_utilitymapping /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/utility_mapping --humann_db_protein /n/lab_storage/huttenhower_lab/tools/nextflow/databases/humann4/uniref \
   --readsdir /path/to/fastqs \
   --outdir   results
 ```
@@ -727,7 +735,8 @@ the report was built from, and point a later standalone run straight at it.
 | Parameter | Default | Description |
 |---|---|---|
 | `--workflow` | `mgx` | Workflow: `mgx \| mtx \| mgx_mtx \| 16s \| vis \| stats \| assembly` |
-| `--readsdir` | *required* | Directory containing input FASTQ files (all workflows except `mgx_mtx`) |
+| `--readsdir` | *one of `readsdir` or `samplesheet`* | Discovery-mode directory containing input FASTQ files |
+| `--samplesheet` | *one of `readsdir` or `samplesheet`* | Explicit CSV assigning `sample`, optional `assay`, `read_1`, and optional `read_2` |
 | `--input_metagenome` | *required for `mgx_mtx`* | Folder of raw metagenome reads |
 | `--input_metatranscriptome` | *required for `mgx_mtx`* | Folder of raw metatranscriptome reads |
 | `--input_mapping` | `null` | `mgx_mtx` only. Tab-delimited `<rna sample>\t<dna sample>` per line, `#` comments allowed. With a mapping, RNA samples reuse the paired DNA sample's MetaPhlAn profile instead of being profiled themselves. |
@@ -735,9 +744,6 @@ the report was built from, and point a later standalone run straight at it.
 | `--host_transcriptome` | *set per profile* | Host mRNA bowtie2 index, used by `mtx` QC and the mtx half of `mgx_mtx` |
 | `--rrna_db` | *set per profile* | SILVA rRNA bowtie2 index, same |
 | `--outdir` | `results` | Output directory |
-| `--check_inputs` | `true` | Read every raw FASTQ through before profiling; truncated or corrupt samples are logged to `<outdir>/input_check/` and left out rather than failing the run |
-| `--check_inputs_only` | `false` | Run that check on the workflow's inputs and stop. See [Input checks](#input-checks) |
-| `--fail_on_bad_inputs` | `false` | Stop the run, with exit status 1, if any sample fails the check, rather than leaving it out |
 | `--paired_end` | `true` | `true` for paired-end, `false` for single-end |
 | `--filepattern` | `*_R{1,2}*.fastq.gz` | Glob to match reads. Paired-end must use `{1,2}`. |
 
@@ -746,6 +752,7 @@ the report was built from, and point a later standalone run straight at it.
 | Parameter | Default | Description |
 |---|---|---|
 | `--run_qc` | `true` | Run KneadData QC. Set `false` to start from cleaned reads. |
+| `--stop_after_qc` | `false` | Development gate: after all KneadData samples and the aggregate read-count table finish, fail intentionally without scheduling downstream stages. Leave false for the complete MGX run. |
 | `--run_taxonomic_profiling` | `true` | Run MetaPhlAn |
 | `--run_functional_profiling` | `true` | Run HUMAnN |
 | `--run_viral_profiling` | `false` | Run BAQLaVa viral profiling |
@@ -755,11 +762,21 @@ the report was built from, and point a later standalone run straight at it.
 
 ### QC options (KneadData)
 
+Both single-end and paired-end tasks use `--threads ${task.cpus} --processes 1`.
+Set `cpus` for `single_end_kneaddata|paired_end_kneaddata` in the site profile to
+change their thread budget. KneadData forwards threads to Trimmomatic, Bowtie2
+and TRF; its process count controls concurrent database/tool jobs, rather than
+threads within each tool. One internal process avoids multiplying the CPU
+budget and filters multiple databases serially. Nextflow runs independent
+samples in parallel, and output compression also uses `task.cpus` threads.
+
 | Parameter | Default | Description |
 |---|---|---|
 | `--host_genome` | *required* | KneadData Bowtie2 reference directory (hg38, mouse, rRNA, etc.) |
 | `--kneaddata_bypass_trim` | `false` | Skip Trimmomatic trimming step |
 | `--kneaddata_remove_intermediate_files` | `true` | Delete intermediate files to save disk |
+| `--kneaddata_db_location` | `host` (`container` in the DNAnexus profile) | Stage external database paths, or use absolute paths already present in the process container |
+| `--kneaddata_database_identity` | `null` | Immutable database or database-bearing image identity included in the task command and resume hash |
 
 ### Taxonomic profiling options (MetaPhlAn)
 
@@ -775,12 +792,15 @@ the report was built from, and point a later standalone run straight at it.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--humann_db` | *required* | Parent directory; pipeline appends `/chocophlan`, `/uniref`, `/utility_mapping` |
+| `--humann_db_chocophlan` | *required* | Exact nucleotide database directory |
+| `--humann_db_utilitymapping` | *required for HUMAnN 4* | Exact utility mapping directory |
+| `--humann_db_protein` | *required* | Exact protein database directory |
 | `--humann_version` | `humann_v37` | Output naming: `humann_v37` or `humann_v4a` |
 | `--humann_bypass_prescreen` | `false` | Skip MetaPhlAn-based taxonomic prescreen |
 | `--humann_bypass_nucleotide_search` | `false` | Skip nucleotide (ChocoPhlAn) search |
+| `--humann_save_unaligned_reads` | `false` | Publish and emit the nucleotide-unaligned FASTA when HUMAnN produces it |
 | `--run_humann_regroup` | `true` | Regroup gene families (`humann_regroup_table`) |
-| `--humann_regroup_grouping` | `uniref90_rxn` | Target grouping: `uniref90_rxn \| uniref90_ko \| uniref90_eggnog \| uniref90_pfam` |
+| `--humann_regroups` | ECs and reactions | Array of mappings with unique `output_label`, either `groups` or `group_mapping_database`, and optional `rename`; `[]` disables all regrouping |
 | `--run_humann_rename` | `true` | Add human-readable names (`humann_rename_table`) |
 | `--run_humann_merge` | `true` | Merge per-sample tables into one matrix (`humann_join_tables`) |
 
@@ -881,23 +901,26 @@ the report was built from, and point a later standalone run straight at it.
 | `--max_memory` | `128.GB` | Global memory cap (used by `check_max()` in `conf/base.config`) |
 | `--max_cpus` | `32` | Global CPU cap |
 | `--max_time` | `240.h` | Global walltime cap |
-| `--log_versions` | `true` | Write `pipeline_info/pipeline_log.txt` (run header, databases, each step's tool versions, parameters) and `pipeline_info/software_versions.tsv` |
+| `--log_versions` | `true` | Write tool and database versions to `results/pipeline_info/` |
 
 ---
 
 ## Configuration layers
+
+See [the configuration guide](conf/README.md) for every site's matching files,
+setup instructions, example YAML and limitations.
 
 Each kind of setting has exactly one home. `nextflow.config` is an index that
 includes them in order, and later layers win:
 
 | | File | Scope | Change it when |
 |---|---|---|---|
-| 1 | `conf/params.config` | **global defaults** — every parameter's default value | a default is wrong for everyone |
+| 1 | `conf/params.config` | **global defaults** — common pipeline parameter defaults | a default is wrong for everyone |
 | 2 | `conf/base.config` | **default resources** — cpus/memory/time per process, and `check_max()` | a process is mis-sized everywhere |
 | 3 | `conf/reports.config` | **runtime** — the timeline/report/trace/dag files written next to the output | never, normally |
 | 4 | `conf/profiles/<site>.config` | **site runtime** (`-profile`) — executor, queue, containers, tool environment | something about a machine changes |
 | 5 | `conf/databases/<site>.config` | **site defaults** (`-profile`) — database paths and the tool versions tied to them | a database moves or is rebuilt |
-| 6 | `-params-file my.yaml` | **this run** — `conf/harvard_rc.yaml`, `conf/tufts_hpc.yaml` are templates | you want a run written down |
+| 6 | `-params-file my.yaml` | **this run** — `conf/example_yamls/harvard_rc.yaml`, `conf/example_yamls/tufts_hpc.yaml` are templates | you want a run written down |
 | 7 | `--flag value` on the CLI | **this run**, highest precedence | one-off |
 
 So: a default for everyone goes in layer 1; a fact about a cluster goes in 4 or
@@ -906,11 +929,9 @@ site-specific and nothing in 4–5 is run-specific — that split is the point.
 
 Two consequences worth knowing:
 
-* **A params file should be almost empty.** `conf/harvard_rc.yaml` — the file
-  `$BIOBAKERY_NF_PARAMS` points at — is a list of commented-out settings, not a
-  configuration you must complete. Everything a FASRC run needs is already a
-  default of `-profile harvard_rc`. Restating database paths there is how the
-  two drift apart.
+* **A params file records study choices.** `conf/example_yamls/harvard_rc.yaml`
+  contains input/output settings and optional overrides. The profile supplies
+  its database paths and tool environment; avoid copying those into every study.
 * **A site profile should only override what genuinely differs** — but a
   `withName:` block in a profile *replaces* `base.config`'s block for the same
   selector, so an override has to restate cpus, memory and time in full, and a
@@ -918,8 +939,8 @@ Two consequences worth knowing:
   `base.config` does not also use. Leaving a directive out deletes it rather
   than inheriting it, and the process falls back to the bare `process {}`
   default. Keep the `* task.attempt` form as well: a plain `memory = '32.G'`
-  disables the retry escalation. `bin/check_profile_resources.py` checks all of
-  this against the resolved config, and CI runs it. See
+  disables the retry escalation. `bin/check_profile_resources.py` checks that
+  CPU, memory and time directives survive in every resolved profile, and CI runs it. See
   [Changing Resources](#changing-resources).
 
 To see what a profile actually resolves to, ask Nextflow:
@@ -938,9 +959,13 @@ Use `-profile <name>` to select the execution environment.
 | Profile | Environment | Executor | Tool delivery |
 |---|---|---|---|
 | `standard` / `local` | Laptop / workstation | local | conda / system PATH |
-| `tufts_hpc` | Tufts HPC | SLURM `batch` | Apptainer containers |
+| `tufts_hpc` | Tufts HPC | SLURM `batch` | PATH or user-supplied Apptainer images |
 | `harvard_rc` | Harvard FASRC Cannon | SLURM `hsph` | hutlab module system |
-| `amazon` | AWS | AWS Batch | ECR containers — **incomplete**, six processes only |
+| `wellesley_hpc` | Wellesley HPC | SLURM `day-long-cpu` | local Apptainer images; partial environment |
+| `wellesley_hopper` | Wellesley Hopper | local | Docker images and host references |
+| `amazon` | AWS | AWS Batch | ECR containers — **incomplete**, profilers and HUMAnN helpers |
+| `dnanexus` | DNAnexus | platform-supplied | database-bearing Docker images |
+| `dnanexus_download` | DNAnexus | platform-supplied | lean profiling images + worker-local project references; smoke YAML for QC only |
 
 > The `harvard_rc` and `tufts_hpc` profiles also auto-load their respective `conf/databases/*.config`,
 > so database paths are set automatically — override them on the CLI if needed.
@@ -1048,17 +1073,12 @@ nextflow run main.nf -profile harvard_rc \
 ```
 results/
 ├── pipeline_info/
-│   ├── pipeline_log.txt                           # Run header (version, commit, databases), each
-│   │                                              #   step's tool versions, then the parameters
-│   ├── software_versions.tsv                      # tool, version, and the steps that ran it
+│   ├── versions.txt                               # Tool versions (kneaddata, metaphlan, humann, ...)
+│   ├── db_paths.txt                               # Database paths used in this run
 │   ├── execution_timeline_YYYY-MM-DD_HH-mm-ss.html
 │   ├── execution_report_YYYY-MM-DD_HH-mm-ss.html
 │   ├── execution_trace_YYYY-MM-DD_HH-mm-ss.txt
 │   └── pipeline_dag_YYYY-MM-DD_HH-mm-ss.svg
-│
-├── input_check/                                   # (check_inputs=true)
-│   ├── mgx_input_check.tsv                        # per file: PASS/FAIL, read count, problem
-│   └── mgx_failed_samples.txt                     # samples left out of the run (empty if none)
 │
 ├── kneaddata/                                     # (run_qc=true)
 │   ├── merged/
@@ -1262,8 +1282,8 @@ stack that `tests/run_tests.sh` already exercises.
 
 The port from `biobakery_workflows` 3.2 (AnADAMA2) is **feature complete except
 16s**. Every workflow below is verified on the real tool stack for single-end
-and paired-end input by `tests/run_tests.sh` — 45 checks over 18 cases, 43
-green on 2026-10-08; the two red are test 12, below.
+and paired-end input by `tests/run_tests.sh` — 39 checks over 16 cases, all
+green as of 2026-09-02.
 
 > **The v0.0.4 cleanup changed layout, and in one place behaviour.** Re-run on
 > 2026-09-17 it came back **22 passed / 17 failed**: stripping resources out of
@@ -1278,8 +1298,8 @@ green on 2026-10-08; the two red are test 12, below.
 > the nf-test cases deleted; `test/` and `tests/` merged; params moved out of
 > `nextflow.config` into `conf/params.config`; execution reports into
 > `conf/reports.config`; site profiles reduced to real overrides;
-> `template-params.yaml` folded into `conf/harvard_rc.yaml`;
-> `conf/tufts_hpc.yaml` added; `docs/workflow_reference.md`,
+> `template-params.yaml` folded into `conf/example_yamls/harvard_rc.yaml`;
+> `conf/example_yamls/tufts_hpc.yaml` added; `docs/workflow_reference.md`,
 > `docs/diagrams/` and `docs/dependencies.md` added. Re-run
 > `sbatch tests/submit_tests.sh` before cutting a new module.
 
@@ -1309,7 +1329,7 @@ green on 2026-10-08; the two red are test 12, below.
 | Chained `stats` at scale | the chained path is wired and covered for `vis`; chained `stats` needs a study large enough for its analyses to fit, which the test data is not. Standalone `stats` is covered |
 | MAG-level assembly test data | tests 13-14 use simulated reads from two genomes. Real multi-species data would exercise SGB clustering harder |
 | Non-FASRC profiles | only `harvard_rc` sets a software environment per process. `tufts_hpc` and `local` expect the tools on `PATH`, and `aws` has containers for six processes out of ~59. Resources now come from `conf/base.config` everywhere, so that part is no longer per-profile work |
-| A working `rocky8/halla/0.8.20` module | the shared install lost numpy, scipy, pandas and matplotlib on 2026-09-16, so `STATS:halla` fails on import and test 12 cannot pass until it is reinstalled. Everything else in the suite is green (43/45 on 2026-10-08) |
+| A working `rocky8/halla/0.8.20` module | the shared install lost numpy, scipy, pandas and matplotlib on 2026-09-16, so `STATS:halla` fails on import and test 12 cannot pass until it is reinstalled. Everything else in the suite is green (37/39 on 2026-09-17) |
 
 ---
 
@@ -1328,7 +1348,6 @@ biobakery-nextflow/
 │   └── stats.nf                         # Statistics
 ├── subworkflows/
 │   ├── read_input.nf                    # input channel + per-sample layout detection
-│   ├── check_inputs.nf                  # drop truncated/corrupt samples before profiling
 │   ├── reporting.nf                     # chained vis/stats at the end of a read run
 │   ├── quality_control.nf               # KneadData (single + paired routing)
 │   ├── taxonomic_profiling.nf           # MetaPhlAn + bzip + merge
@@ -1352,7 +1371,6 @@ biobakery-nextflow/
 │   └── utils/
 │       ├── align_and_depth/main.nf      # Bowtie2 + jgi_summarize_bam_contig_depths
 │       ├── archive/main.nf              # zip an output folder (ports workflow.add_archive)
-│       ├── check_reads/main.nf          # per-sample FASTQ integrity check
 │       ├── humann_merge/main.nf
 │       ├── humann_regroup/main.nf
 │       ├── humann_rename/main.nf
@@ -1378,7 +1396,6 @@ biobakery-nextflow/
 ├── bin/
 │   ├── make_diagrams.py                 # generates docs/diagrams/ + workflow_reference.md
 │   ├── check_profile_resources.py       # CI guard: no profile deletes a resource request
-│   ├── check_fastq_inputs.py            # FASTQ integrity check, standalone or per sample
 │   ├── scripts/                         # Python helpers (from anadama2 assembly_tasks/)
 │   │   ├── checkm_wrangling.py
 │   │   ├── mag_n50_calc.py
@@ -1395,16 +1412,14 @@ biobakery-nextflow/
 │   │   ├── biobakery_log.py
 │   │   ├── anadama2_fallback/           # import stand-in for `import anadama2`
 │   │   └── LICENSE-anadama2             # MIT
-│   └── Rscripts/                        # every R script the pipeline runs
-│       ├── mash_clusters.R              # SGB clustering (assembly)
-│       ├── merge_tax_and_abundance.R
-│       ├── ggplot2_labs_shim.R          # sourced by the maaslin2 step
-│       └── alpha_diversity.R, beta_diversity.R, mantel_test.R
-│                                        #   patched copies that shadow the
-│                                        #   biobakery_workflows ones
+│   └── Rscripts/
+│       ├── mash_clusters.R
+│       └── merge_tax_and_abundance.R
 ├── assets/
 │   ├── diagrams/                        # draw.io source files
-│   └── document_templates/              # vendored .pmd report templates
+│   ├── document_templates/              # vendored .pmd report templates
+│   └── Rscripts/                        # only R scripts patched for the current R stack;
+│                                        #   these shadow the biobakery_workflows copies
 ├── docs/
 │   ├── workflow_reference.md            # GENERATED — diagram + step table per workflow
 │   ├── diagrams/architecture.mmd        # GENERATED — the four layers: router, workflows,
@@ -1414,7 +1429,7 @@ biobakery-nextflow/
 │   ├── architecture.md
 │   └── vis_stats_port_status.md         # vis/stats port status and known divergences
 └── tests/
-    ├── run_tests.sh                     # the integration suite (18 cases, 45 checks)
+    ├── run_tests.sh                     # the integration suite (16 cases, 39 checks)
     ├── submit_tests.sh                  # run it as a SLURM job
     └── data/                            # test FASTQ files + reference tutorial output
 ```
@@ -1422,7 +1437,8 @@ biobakery-nextflow/
 ### Processes, modules, subworkflows, workflows
 
 Four words that sound interchangeable, so: a **process** is Nextflow's unit of
-execution — one tool invocation. A **module** is a file under `modules/` holding
+execution — one scheduled task, which may run several related tool commands.
+A **module** is a file under `modules/` holding
 one or more closely related processes and nothing else; modules are the only
 place a `process` is defined. A **subworkflow** under `subworkflows/` wires
 modules into a reusable stage (`QUALITY_CONTROL`, `TAXONOMIC_PROFILING`) with
@@ -1434,3 +1450,65 @@ There was also a top-level `processes/` directory up to v0.0.4, holding an
 earlier flat copy of the KneadData, MetaPhlAn, HUMAnN and BAQLaVa processes. It
 had been superseded by `modules/`, was imported by nothing, and is now deleted —
 there is one definition of each process again.
+
+
+HUMAnN mappings are configured independently in a parameter file:
+
+```yaml
+humann_regroups:
+  - output_label: rxn
+    groups: uniref90_rxn
+    rename: metacyc-rxn
+  - output_label: ko
+    groups: uniref90_ko
+  - output_label: custom_pathways
+    group_mapping_database: /path/to/mapping.tsv.gz
+```
+
+Run with `-params-file humann-mappings.yaml`. Omit `rename` (or use null) to
+skip naming for that mapping. Use `humann_regroups: []` to run no regroups.
+The global `run_humann_regroup` and `run_humann_rename` switches remain master
+disable switches. The former single `humann_regroup_grouping` and
+`humann_rename_names` parameters are replaced by this array.
+
+No EC regroup is imposed. To request EC tables, configure a supported mapping
+with `output_label: ecs`, either a built-in `groups` name supported by your HUMAnN image
+or a `group_mapping_database` mapping file. Built-in availability depends on the image and its
+installed utility mappings; the pipeline does not infer it from the version.
+
+Each mapping gets per-sample outputs under `regrouped/<output_label>/`, optional named
+copies under `renamed/<output_label>/`, and raw and relative abundance merged matrices.
+Named copies are companions; merging and RNA/DNA ratios retain stable feature
+identifiers. All configured mappings participate in the RNA/DNA ratio when it
+is enabled, independently for every selected MetaPhlAn database.
+
+
+To supply both mapping databases explicitly, use `group_mapping_database` for regrouping and
+`renaming_database` for the optional name mapping:
+
+```yaml
+humann_regroups:
+  - output_label: ecs
+    group_mapping_database: /Databases/humann4/full_mapping/map_level4ec_uniclust90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_level4ec_name.txt.gz
+  - output_label: kos
+    group_mapping_database: /Databases/humann4/full_mapping/map_ko_uniref90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_ko_name.txt.gz
+  - output_label: pfams
+    group_mapping_database: /Databases/humann4/full_mapping/map_pfam_uniref90.txt.gz
+    renaming_database: /Databases/humann4/full_mapping/map_pfam_name.txt.gz
+```
+
+With `humann_db_location: host` (the default), both files are staged
+Nextflow `path` inputs. With `humann_db_location: container`, their paths
+are passed directly to HUMAnN and checked inside the task image. Each mapping
+can override this with `database_location: host` or `container`. The Hopper
+database config selects `container` because its HUMAnN image bundles these files. `group_mapping_database` invokes
+`humann_regroup_table --custom`; `renaming_database` invokes
+`humann_rename_table --custom`. Omit both `rename` and `renaming_database` to skip
+naming; specify only one of them. The Hopper profile configures these three
+pairs using its `humann_db_utilitymapping` directory. YAML overrides should
+provide the complete mapping list with explicit paths.
+
+
+See [Wellesley Hopper configuration](docs/wellesley_hopper.md) for the site configs, run YAML, and database path resolution.

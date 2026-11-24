@@ -1,0 +1,485 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://github.com/biobakery/biobakery-nextflow/nextflow_schema.json",
+  "title": "bioBakery Nextflow \u2014 DNAnexus MGX",
+  "description": "Typed DNAnexus applet interface for whole-metagenome profiling. Samplesheet input is recommended; directory discovery remains available for compatibility.",
+  "type": "object",
+  "definitions": {
+    "input_output_options": {
+      "title": "Input and output",
+      "type": "object",
+      "properties": {
+        "workflow": {
+          "type": "string",
+          "enum": [
+            "mgx"
+          ],
+          "default": "mgx",
+          "description": "The DNAnexus interface exposes the MGX workflow."
+        },
+        "readsdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Discovery mode: DNAnexus URI for the project folder containing FASTQ files, for example dx://project-id:/inputs/reads. Mutually exclusive with samplesheet."
+        },
+        "samplesheet": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Samplesheet mode (recommended): CSV with sample, assay, read_1, and read_2 columns. Pass a qualified DNAnexus file reference such as project-id:file-id. Mutually exclusive with readsdir."
+        },
+        "outdir": {
+          "type": "string",
+          "default": "results",
+          "pattern": "^(?!/)(?![A-Za-z][A-Za-z0-9+.-]*://).+$",
+          "description": "Relative publication folder beneath the DNAnexus job destination. Absolute paths and URIs are not allowed."
+        },
+        "input_metadata": {
+          "type": "string",
+          "format": "file-path",
+          "description": "Optional study metadata file used only when reporting stages are enabled later."
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "readsdir"
+          ],
+          "not": {
+            "required": [
+              "samplesheet"
+            ]
+          }
+        },
+        {
+          "required": [
+            "samplesheet"
+          ],
+          "not": {
+            "required": [
+              "readsdir"
+            ]
+          }
+        }
+      ]
+    },
+    "container_options": {
+      "title": "Container",
+      "type": "object",
+      "properties": {
+        "dnanexus_container": {
+          "type": "string",
+          "minLength": 1,
+          "default": "public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1",
+          "description": "Database-bearing KneadData registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI. Also used for shell helpers."
+        },
+        "dnanexus_metaphlan_container": {
+          "type": "string",
+          "minLength": 1,
+          "default": "public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1",
+          "description": "Database-bearing MetaPhlAn registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI."
+        },
+        "dnanexus_humann_container": {
+          "type": "string",
+          "minLength": 1,
+          "default": "public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1",
+          "description": "Database-bearing HUMAnN registry image for automatic Docker caching, or a fully qualified dx://project-id:file-id Docker tarball URI."
+        },
+        "dnanexus_baqlava_container": {
+          "type": "string",
+          "minLength": 1,
+          "description": "BAQLaVa software image. Configure it in the build profile before refreshing the project image cache; no KneadData image fallback."
+        }
+      }
+    },
+    "library_options": {
+      "title": "Read layout",
+      "type": "object",
+      "properties": {
+        "paired_end": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow paired-end detection from read filenames."
+        },
+        "single_end": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force all reads to be processed as single-end."
+        },
+        "pair_identifier": {
+          "type": "string",
+          "default": "_R{1,2}",
+          "description": "Filename token used to identify read mates."
+        },
+        "filepattern": {
+          "type": "string",
+          "description": "Optional FASTQ glob overriding pair_identifier."
+        },
+        "filepattern_single": {
+          "type": "string",
+          "default": "*.fastq.gz",
+          "description": "FASTQ glob used for single-end input."
+        }
+      }
+    },
+    "stage_options": {
+      "title": "Pipeline stages",
+      "type": "object",
+      "properties": {
+        "run_qc": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run KneadData quality control and host depletion."
+        },
+        "run_taxonomic_profiling": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run MetaPhlAn taxonomic profiling."
+        },
+        "run_functional_profiling": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run HUMAnN functional profiling."
+        },
+        "stop_after_qc": {
+          "type": "boolean",
+          "default": false,
+          "description": "Wait for every KneadData task and the aggregate read-count table, then fail intentionally before later stages."
+        },
+        "run_vis": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable visualization after making the stats/viz image available."
+        },
+        "run_stats": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable statistics after making the stats/viz image and study metadata available."
+        },
+        "run_strain_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable StrainPhlAn consensus markers and cohort phylogenies. Enabled by dnanexus_download; fewer than four samples retain markers and skip tree building."
+        },
+        "run_viral_profiling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable BAQLaVa after supplying its software image and references. Requires MetaPhlAn profiles."
+        },
+        "check_inputs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate raw FASTQ inputs before profiling."
+        },
+        "check_inputs_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Validate inputs and finish before profiling."
+        },
+        "fail_on_bad_inputs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Stop when input validation fails instead of omitting failed samples."
+        }
+      }
+    },
+    "database_options": {
+      "title": "Reference databases",
+      "type": "object",
+      "properties": {
+        "host_genome": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "KneadData host reference database directory. With the DNAnexus profile, this is the absolute path baked into the KneadData container image. Required when run_qc is true."
+        },
+        "kneaddata_database_identity": {
+          "type": "string",
+          "description": "Optional semantic database identity included in the task command and resume hash. When omitted, the immutable DNAnexus container URI is used."
+        },
+        "metaphlan_db": {
+          "type": "string",
+          "format": "directory-path",
+          "default": "/Databases/metaphlan/mpa_vOct22_202403/mpa_vOct22_202403_default",
+          "description": "MetaPhlAn database directory. Required when taxonomic profiling is enabled."
+        },
+        "metaphlan_index": {
+          "type": "string",
+          "default": "mpa_vOct22_CHOCOPhlAnSGB_202403",
+          "description": "Exact MetaPhlAn database index identifier."
+        },
+        "humann_db_chocophlan": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Exact HUMAnN nucleotide database directory."
+        },
+        "humann_db_utilitymapping": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Exact HUMAnN utility mapping directory (HUMAnN 4)."
+        },
+        "humann_db_protein": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Exact HUMAnN protein database directory."
+        },
+        "metaphlan_db_root": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Site base path for relative metaphlan_db entries selected in the run parameters."
+        },
+        "strainphlan_db": {
+          "type": "string",
+          "format": "path",
+          "description": "Optional MetaPhlAn .pkl override for StrainPhlAn; adjacent Bowtie2 indexes must also be available. Defaults to the exact database used for each MetaPhlAn profile."
+        },
+        "baqlava_db_nucleotide": {
+          "type": "string",
+          "format": "path",
+          "description": "BAQLaVa nucleotide database directory (--nucdb)."
+        },
+        "baqlava_db_protein": {
+          "type": "string",
+          "format": "path",
+          "description": "BAQLaVa protein database directory (--protdb)."
+        },
+        "baqlava_nucleotide_mapping": {
+          "type": "string",
+          "format": "path",
+          "description": "BAQLaVa nucleotide annotation mapping file (--nucindex)."
+        },
+        "baqlava_protein_mapping": {
+          "type": "string",
+          "format": "path",
+          "description": "BAQLaVa protein annotation mapping file (--protindex)."
+        },
+        "baqlava_depletion_db": {
+          "type": "string",
+          "format": "path",
+          "description": "Full HUMAnN nucleotide reference used by BAQLaVa bacterial depletion. Its configured path or read-only bind alias must identify this directory."
+        },
+        "baqlava_depletion_protein_db": {
+          "type": "string",
+          "format": "path",
+          "description": "Optional full HUMAnN protein reference required by the BAQLaVa bacterial-depletion environment."
+        },
+        "baqlava_depletion_mapping_db": {
+          "type": "string",
+          "format": "path",
+          "description": "Optional full HUMAnN utility mapping reference required by the BAQLaVa bacterial-depletion environment."
+        }
+      }
+    },
+    "tool_options": {
+      "title": "Tool contracts",
+      "type": "object",
+      "properties": {
+        "metaphlan_version": {
+          "type": "string",
+          "enum": [
+            "metaphlan_v3",
+            "metaphlan_v4",
+            "metaphlan_4.0.6_fixed"
+          ],
+          "default": "metaphlan_v4",
+          "description": "MetaPhlAn command-line contract selector."
+        },
+        "metaphlan_analysis_type": {
+          "type": "string",
+          "enum": [
+            "rel_ab",
+            "rel_ab_w_read_stats",
+            "marker_ab_table"
+          ],
+          "default": "rel_ab_w_read_stats"
+        },
+        "metaphlan_read_min_len": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 70
+        },
+        "humann_version": {
+          "type": "string",
+          "enum": [
+            "humann_v37",
+            "humann_v4a"
+          ],
+          "default": "humann_v4a",
+          "description": "HUMAnN command-line contract selector."
+        },
+        "humann_bypass_prescreen": {
+          "type": "boolean",
+          "default": false
+        },
+        "humann_bypass_nucleotide_search": {
+          "type": "boolean",
+          "default": false
+        },
+        "humann_save_unaligned_reads": {
+          "type": "boolean",
+          "default": false,
+          "description": "Publish and emit HUMAnN's nucleotide-unaligned FASTA when produced. These reads may still align during translated search."
+        },
+        "run_humann_regroup": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_humann_rename": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_humann_merge": {
+          "type": "boolean",
+          "default": true
+        },
+        "kneaddata_bypass_trim": {
+          "type": "boolean",
+          "default": false
+        },
+        "kneaddata_remove_intermediate_files": {
+          "type": "boolean",
+          "default": true
+        },
+        "humann_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of humann reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "kneaddata_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of kneaddata reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "metaphlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of metaphlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "strainphlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of strainphlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "baqlava_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of baqlava reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "phylophlan_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of phylophlan reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "checkm2_db_location": {
+          "type": "string",
+          "enum": [
+            "host",
+            "container"
+          ],
+          "default": "host",
+          "description": "Location of checkm2 reference paths: staged host inputs or paths inside the task runtime."
+        },
+        "checkm2_db": {
+          "type": "string",
+          "description": "Optional explicit CheckM2 database file; omit to use the tool environment default."
+        },
+        "strainphlan_clades": {
+          "type": "string",
+          "description": "Comma-separated StrainPhlAn clades; omit or use all to discover eligible clades. At least four samples are required for phylogenies."
+        },
+        "strainphlan_marker_in_n_samples_perc": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 50,
+          "description": "Minimum percentage of primary samples retaining a marker in StrainPhlAn 4."
+        },
+        "baqlava_bypass_depletion": {
+          "type": "boolean",
+          "default": false,
+          "description": "Explicitly skip bacterial depletion in BAQLaVa. Normally keep false."
+        }
+      }
+    },
+    "provenance_options": {
+      "title": "Provenance",
+      "type": "object",
+      "properties": {
+        "log_versions": {
+          "type": "boolean",
+          "default": false,
+          "description": "Record observed tool versions and run parameters."
+        }
+      }
+    },
+    "resource_options": {
+      "title": "Resource ceilings",
+      "type": "object",
+      "properties": {
+        "max_memory": {
+          "type": "string",
+          "default": "128.GB",
+          "pattern": "^[1-9][0-9]*(\\.[0-9]+)?\\s*(KB|MB|GB|TB)$"
+        },
+        "max_cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 32
+        },
+        "max_time": {
+          "type": "string",
+          "default": "240.h",
+          "pattern": "^[1-9][0-9]*(\\.[0-9]+)?\\s*(ms|s|m|h|d)$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/input_output_options"
+    },
+    {
+      "$ref": "#/definitions/container_options"
+    },
+    {
+      "$ref": "#/definitions/library_options"
+    },
+    {
+      "$ref": "#/definitions/stage_options"
+    },
+    {
+      "$ref": "#/definitions/database_options"
+    },
+    {
+      "$ref": "#/definitions/tool_options"
+    },
+    {
+      "$ref": "#/definitions/provenance_options"
+    },
+    {
+      "$ref": "#/definitions/resource_options"
+    }
+  ]
+}

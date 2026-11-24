@@ -15,7 +15,10 @@ the profile — `conf/profiles/<site>.config` — and nowhere else.
 | Harvard FASRC (Cannon) | `harvard_rc` | a `beforeScript` per process group, loading hutlab environment modules |
 | Tufts HPC | `tufts_hpc` | tools on `PATH`, or Apptainer where a process declares a `container` |
 | This machine | `local` | tools on `PATH` |
-| AWS Batch | `amazon` | per-process containers — **incomplete**, six processes only |
+| Wellesley HPC | `wellesley_hpc` | local Apptainer images; additional software needed for BAQLaVa, assembly and reports |
+| Wellesley Hopper | `wellesley_hopper` | Docker tool images plus host references |
+| DNAnexus | `dnanexus`, `dnanexus_download` | cached Docker images; image or project references depending on profile |
+| AWS Batch | `amazon` | per-process containers — **incomplete**, profilers and HUMAnN helpers |
 
 Harvard is the only site where the whole pipeline is wired up. There, one Groovy
 variable per software stack is defined at the top of the profile and referenced

@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+import sys, json, re
+from pathlib import Path
+args=sys.argv[1:]; tool=Path(sys.argv[0]).name
+if '--version' in args:
+ print(tool+' version 4.2.5');sys.exit(0)
+if tool=='Rscript' and args[:1]==['-e']:
+ print('4.5.1');sys.exit(0)
+if tool=='python' and args[:3]==['-m','pip','show']:
+ print('Version: 0.8.20');sys.exit(0)
+def opt(*keys):
+ for key in keys:
+  if key in args: return args[args.index(key)+1]
+def write(p,text='test\n'):
+ Path(p).parent.mkdir(parents=True,exist_ok=True);Path(p).write_text(text)
+if tool=='metaphlan':
+ idx=opt('--index','-x');write(opt('-o'),idx+'\n');write(opt('--mapout','--bowtie2out'));write(opt('--samout'))
+elif tool=='merge_metaphlan_tables.py':
+ values=[Path(p).read_text().strip() for p in args]
+ assert len(set(values))==1,values
+ print('\n'.join(values))
+elif tool=='humann':
+ sample=opt('--output-basename')
+ identity=Path(opt('--taxonomic-profile')).read_text()
+ if '--utility-database' in args:
+  for suffix in ['2_genefamilies','3_reactions','4_pathabundance','5_pathcoverage']:write(sample+'_'+suffix+'.tsv',identity)
+  write(sample+'_0.log')
+ else:
+  for suffix in ['genefamilies','pathabundance','pathcoverage']:write(sample+'_'+suffix+'.tsv',identity)
+  write(sample+'_humann_humann_v37.log')
+ if not any(flag in args for flag in ['--remove-temp-output','--bypass-nucleotide-search','--mock-empty-pangenome']):
+  write(sample+'_humann_temp/'+sample+'_bowtie2_unaligned.fa','' if '--mock-empty-unaligned' in args else '>'+identity.strip()+'-'+sample+'\nACGT\n')
+elif tool=='humann_join_tables':
+ fs=list(Path(opt('--input')).glob('*'));write(opt('--output'),''.join(p.read_text() for p in fs))
+elif tool in ['humann_regroup_table','humann_renorm_table','humann_rename_table']:
+ if '--custom' in args:
+  mapping=Path(opt('--custom')); assert mapping.is_file(),mapping
+  role='names' if tool=='humann_rename_table' else 'groups'
+  label='ecs' if '_ecs_' in opt('--output') else 'kos'
+  assert mapping.read_text().strip()==role+'-'+label,(mapping,mapping.read_text())
+ write(opt('-o','--output'),Path(opt('-i','--input')).read_text())
+elif tool in ['count_features.py','get_counts_from_humann_logs.py','create_feature_table.py','trim_taxonomy.py']:write(opt('--output'))
+elif tool=='baqlava':write(opt('-o')+'/result.tsv')
+elif tool=='sample2markers.py':
+ name=Path(opt('-i')).name
+ assert opt('-f') == 'sam' and opt('-d').endswith('.pkl'), args
+ write(opt('-o')+'/'+name.removesuffix('.sam')+'.json.bz2')
+elif tool=='strainphlan.py':write('output/tree.tre')
+elif tool=='python':
+ script=Path(args.pop(0)).name
+ if script=='biobakery_bootstrap.py':print(opt('--rscript'))
+ elif script=='prepare_report_summaries.py':
+  import shutil
+  shutil.copytree(opt('--input'),opt('--output'),symlinks=False)
+ elif script=='biobakery_identify_inputs.py':
+  write(opt('--output'),json.dumps(dict(study_type='WGX',taxonomic_profile='metaphlan/merged/metaphlan_taxonomic_profiles.tsv',ecsabundance='humann/merged/ecs_relab.tsv' if Path('input_folder/humann/merged/ecs_relab.tsv').exists() else None,pathabundance='humann/merged/pathabundance_relab.tsv' if Path('input_folder/humann/merged/pathabundance_relab.tsv').exists() else None,samples_as_columns=True)))
+ elif script=='stats_covariate_equation.py':write(opt('--output'),json.dumps(dict(run_multivariate=True,run_pairwise=True,covariate_equation='age')))
+ elif script in ['biobakery_vis_report.py','biobakery_stats_report.py']:
+  folder=opt('--output'); taxonomy=Path('input_folder/metaphlan/merged/metaphlan_taxonomic_profiles.tsv') if folder=='vis' else Path(opt('--taxonomic-profile'))
+  identity=taxonomy.read_text()
+  write(folder+'/'+folder+'_report.html',identity);write(folder+'/'+folder+'_report.pdf',identity)
+ elif script=='stats_stratified_metadata.py':
+  write(opt('--output'));write(opt('--plan'),json.dumps(dict(metadata_end=2,plots=[dict(number=1,variable='age')])))
+ elif script=='maaslin_image_tiles.py':pass
+ elif script=='rna_dna_norm_py3.py':
+  identity=Path(opt('--input-dna')).read_text(); assert set(identity.split())==set(Path(opt('--input-rna')).read_text().split())
+  for suffix in ['unstratified','no_unclassifed']:write(opt('--output')+'/rna_dna_relative_expression_'+suffix+'.tsv')
+  write(opt('--output')+'/rna_dna_relative_expression.tsv',identity)
+ else:write(opt('--output'))
+elif tool=='Rscript':
+ script=args[0]
+ if script=='alpha_diversity':write(args[3]+'/plot.png')
+ elif script in ['beta_diversity','mantel_test']:write(args[3])
+ elif script=='permanova_hmp2':write(args[3])
+ else:raise RuntimeError(args)
+elif tool=='R':
+ match=re.search(r"'((?:maaslin2_)[^']+)'",args[1]);write(match[1]+'/significant_results.tsv')
+elif tool=='halla':write(opt('-o')+'/all_associations.txt')
+else:raise RuntimeError(tool)

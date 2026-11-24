@@ -1,0 +1,58 @@
+# DNAnexus — KneadData, MetaPhlAn and HUMAnN functional profiling.
+# Upload this YAML and pass -inextflow_params_file=project-id:file-id to dx run.
+# File references INSIDE a Nextflow YAML use dx:// URIs; the applet's file-class
+# inputs (such as nextflow_params_file or samplesheet) use project-id:file-id.
+# Choose the uploaded samplesheet in the applet launch form; no input is preset here.
+# outdir stays relative to --destination.
+# References inside containers are set by conf/databases/dnanexus.config.
+# Images and machineType assignments are in conf/profiles/dnanexus.config.
+# Images are read from the existing project cache; dxbuild.sh avoids global image bundles.
+# KneadData uses public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1.
+# MetaPhlAn uses public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1.
+# HUMAnN uses public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1.
+# Optional image overrides (also supply these during caching if changed):
+# dnanexus_container: public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1
+# dnanexus_metaphlan_container: public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1
+# dnanexus_humann_container: public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1
+
+workflow: mgx
+outdir: results
+
+run_qc: true
+stop_after_qc: false
+run_taxonomic_profiling: true
+run_functional_profiling: true
+run_viral_profiling: false
+run_strain_profiling: false
+# Enable after building/installing the dedicated stats/viz image.
+run_vis: false
+run_stats: false
+
+# Optional YAML runs both bundled references; the profile alone uses the primary.
+metaphlan_databases:
+  - metaphlan_db: mpa_vOct22_202403_default
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403
+    metaphlan_version: metaphlan_v4
+  - metaphlan_db: mpa_vOct22_202403_lon_subsp
+    metaphlan_index: mpa_vOct22_CHOCOPhlAnSGB_202403_lon_subsp
+    metaphlan_version: metaphlan_v4
+# Both references run MetaPhlAn; only the selected one feeds downstream analyses.
+metaphlan_downstream_indices:
+  - mpa_vOct22_CHOCOPhlAnSGB_202403
+
+run_humann_regroup: true
+run_humann_rename: true
+run_humann_merge: true
+humann_regroups:
+  - output_label: ecs
+    group_mapping_database: map_level4ec_uniclust90.txt.gz
+    renaming_database: map_level4ec_name.txt.gz
+  - output_label: kos
+    group_mapping_database: map_ko_uniref90.txt.gz
+    renaming_database: map_ko_name.txt.gz
+  - output_label: pfams
+    group_mapping_database: map_pfam_uniref90.txt.gz
+    renaming_database: map_pfam_name.txt.gz
+
+# Profiling outputs include per-sample/merged tables and compressed SAM files.
+log_versions: false

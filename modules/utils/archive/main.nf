@@ -6,16 +6,17 @@ nextflow.enable.dsl=2
 // stats.py (lines 206-209): an archive named after the output folder, with the
 // workflow log removed, and the metadata file included when one was given.
 process archive_output {
+    label 'stats_viz'
     tag "${report_type}"
-    publishDir "${params.outdir}", mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}" : ""}" }, mode: 'copy'
 
     input:
-    path report_folder, stageAs: 'report_folder'
+    tuple val(db), path(report_folder, stageAs: 'report_folder')
     path metadata
     val  report_type
 
     output:
-    path "${report_type}.zip", emit: archive
+    tuple val(db), path("${report_type}.zip"), emit: archive
 
     script:
     def add_metadata = metadata.name != 'NO_FILE' ? "cp ${metadata} ${report_type}/" : ''

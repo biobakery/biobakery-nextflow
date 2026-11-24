@@ -8,20 +8,22 @@ include { TAXONOMIC_PROFILING }  from '../subworkflows/taxonomic_profiling.nf'
 include { FUNCTIONAL_PROFILING } from '../subworkflows/functional_profiling.nf'
 include { VIRAL_PROFILING }      from '../subworkflows/viral_profiling.nf'
 include { STRAIN_PROFILING }     from '../subworkflows/strain_profiling.nf'
-include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
-include { stage_report_input }   from '../modules/utils/report_input/main.nf'
+include { version_log; run_header_file; software_versions }          from '../modules/utils/version_log/main.nf'
+include { PREPARE_REPORTS } from '../subworkflows/prepare_reports.nf'
 include { REPORTING }            from '../subworkflows/reporting.nf'
 include { merge_pairs }          from '../modules/utils/merge_pairs/main.nf'
+include { intentional_stop_after_qc } from '../modules/utils/stop_after_qc/main.nf'
 
 // Whole Metagenome Shotgun (MGX) workflow
 workflow MGX {
 
     main:
     def no_file = file("${projectDir}/assets/NO_FILE")
+    unaligned_reads_ch = Channel.empty()
 
     // ── Build input channel ────────────────────────────────────────────────
-    // Layout is detected from the filenames; see subworkflows/read_input.nf
-    read_ch = read_input(params.readsdir, 'mgx')
+    // Discovery and samplesheet modes emit the same canonical read channel.
+    read_ch = read_input(params.readsdir, 'mgx', params.samplesheet, false)
 
     // ── Input check ───────────────────────────────────────────────────────
     // Truncated or corrupt read files are logged and dropped here rather than
@@ -29,78 +31,88 @@ workflow MGX {
     read_ch = CHECK_INPUTS(read_ch, 'mgx').reads
 
     // --check_inputs_only: the check above was the whole run.
-    if (params.check_inputs_only) return
+    if (!params.check_inputs_only) {
+        // ── QC (KneadData) ────────────────────────────────────────────────────
+        // A metagenome run decontaminates against the host genome only.
+        if (params.run_qc) {
+            QUALITY_CONTROL(read_ch, [params.host_genome], '')
+            cleaned = QUALITY_CONTROL.out.reads
 
-    // ── QC (KneadData) ────────────────────────────────────────────────────
-    // A metagenome run decontaminates against the host genome only.
-    if (params.run_qc) {
-        QUALITY_CONTROL(read_ch, [params.host_genome], '')
-        cleaned = QUALITY_CONTROL.out.reads
-    } else {
-        // Upstream bypasses quality control by merging each pair into one file
-        // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
-        // per sample, so handing them the two raw mates passed the second one
-        // as a positional argument. Single-end samples pass straight through.
-        merged_pairs = merge_pairs(
-            read_ch.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
-        ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
+            // Enabled only by an explicit bring-up profile/parameter. The input is
+            // the all-sample aggregate, so the intentional failure cannot happen
+            // until every KneadData task has completed successfully.
+            if (params.stop_after_qc) {
+                intentional_stop_after_qc(QUALITY_CONTROL.out.read_counts)
+            }
+        } else {
+            // Upstream bypasses quality control by merging each pair into one file
+            // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
+            // per sample, so handing them the two raw mates passed the second one
+            // as a positional argument. Single-end samples pass straight through.
+            merged_pairs = merge_pairs(
+                read_ch.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
+            ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
 
-        cleaned = merged_pairs.mix( read_ch.filter { meta, r -> !meta.paired_end } )
-    }
+            cleaned = merged_pairs.mix( read_ch.filter { meta, r -> !meta.paired_end } )
+        }
 
-    // ── Taxonomic profiling (MetaPhlAn) ───────────────────────────────────
-    if (params.run_taxonomic_profiling) {
-        TAXONOMIC_PROFILING(cleaned, '')
-    }
+        // ── Taxonomic profiling (MetaPhlAn) ───────────────────────────────────
+        if (!params.stop_after_qc && params.run_taxonomic_profiling) {
+            TAXONOMIC_PROFILING(cleaned, '')
+        }
 
-    // Functional, viral and strain profiling all consume MetaPhlAn output, so
-    // fail fast and consistently rather than silently skipping the stage.
-    if (!params.run_taxonomic_profiling) {
-        def dependents = []
-        if (params.run_functional_profiling) dependents << 'run_functional_profiling (HUMAnN needs the MetaPhlAn profile)'
-        if (params.run_viral_profiling)      dependents << 'run_viral_profiling (BAQLaVa needs the MetaPhlAn profile)'
-        if (params.run_strain_profiling)     dependents << 'run_strain_profiling (StrainPhlAn needs the MetaPhlAn SAM)'
-        if (dependents) {
-            error "ERROR: run_taxonomic_profiling = false, but these require it:\n  - " +
-                  dependents.join("\n  - ") +
-                  "\nEnable run_taxonomic_profiling, or turn the above off."
+        // Functional, viral and strain profiling all consume MetaPhlAn output, so
+        // fail fast and consistently rather than silently skipping the stage.
+        if (!params.stop_after_qc && !params.run_taxonomic_profiling) {
+            def dependents = []
+            if (params.run_functional_profiling) dependents << 'run_functional_profiling (HUMAnN needs the MetaPhlAn profile)'
+            if (params.run_viral_profiling)      dependents << 'run_viral_profiling (BAQLaVa needs the MetaPhlAn profile)'
+            if (params.run_strain_profiling)     dependents << 'run_strain_profiling (StrainPhlAn needs the MetaPhlAn SAM)'
+            if (dependents) {
+                error "ERROR: run_taxonomic_profiling = false, but these require it:\n  - " +
+                      dependents.join("\n  - ") +
+                      "\nEnable run_taxonomic_profiling, or turn the above off."
+            }
+        }
+
+        // ── Functional profiling (HUMAnN) ─────────────────────────────────────
+        if (!params.stop_after_qc && params.run_functional_profiling) {
+            FUNCTIONAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile, '')
+            unaligned_reads_ch = FUNCTIONAL_PROFILING.out.unaligned_reads
+        }
+
+        // ── Viral profiling (BAQLaVa) ──────────────────────────────────────────
+        if (!params.stop_after_qc && params.run_viral_profiling) {
+            VIRAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile)
+        }
+
+        // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
+        if (!params.stop_after_qc && params.run_strain_profiling) {
+            STRAIN_PROFILING(TAXONOMIC_PROFILING.out.markers)
+        }
+
+
+        // ── Reports (vis / stats) ─────────────────────────────────────────────
+        // Chained from the profiling channels rather than from params.outdir: see
+        // modules/utils/report_input.
+        if (!params.stop_after_qc && (params.run_vis || params.run_stats)) {
+            REPORTING(
+                PREPARE_REPORTS(
+                    params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(tuple('', no_file)),
+                    params.run_qc                   ? QUALITY_CONTROL.out.read_counts                  : Channel.value(no_file),
+                    params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables : Channel.empty(),
+                    params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.logs  : Channel.empty(),
+                    ''
+                ).folder
+            )
+        }
+
+        // ── Version logging ────────────────────────────────────────────────────
+        if (!params.stop_after_qc && params.log_versions) {
+            version_log(run_header_file(), software_versions())
         }
     }
 
-    // ── Functional profiling (HUMAnN) ─────────────────────────────────────
-    if (params.run_functional_profiling) {
-        FUNCTIONAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile, '')
-    }
-
-    // ── Viral profiling (BAQLaVa) ──────────────────────────────────────────
-    if (params.run_viral_profiling) {
-        VIRAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile)
-    }
-
-    // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
-    if (params.run_strain_profiling) {
-        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
-    }
-
-
-    // ── Reports (vis / stats) ─────────────────────────────────────────────
-    // Chained from the profiling channels rather than from params.outdir: see
-    // modules/utils/report_input.
-    if (params.run_vis || params.run_stats) {
-        REPORTING(
-            stage_report_input(
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(no_file),
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.species_counts           : Channel.value(no_file),
-                params.run_qc                   ? QUALITY_CONTROL.out.read_counts                  : Channel.value(no_file),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables.collect() : Channel.value([]),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.count_tables.collect()  : Channel.value([]),
-                ''
-            ).folder
-        )
-    }
-
-    // ── Version logging ────────────────────────────────────────────────────
-    if (params.log_versions) {
-        version_log(run_header_file(), software_versions())
-    }
+    emit:
+    unaligned_reads = unaligned_reads_ch // [database context, sample, nucleotide-unaligned FASTA]
 }
