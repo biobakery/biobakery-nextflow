@@ -7,13 +7,13 @@
 # References inside containers are set by conf/databases/dnanexus.config.
 # Images and machineType assignments are in conf/profiles/dnanexus.config.
 # Images are read from the existing project cache; dxbuild.sh avoids global image bundles.
-# KneadData uses public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1.
-# MetaPhlAn uses public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403-r1.
-# HUMAnN uses public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1.
+# KneadData uses public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1.
+# MetaPhlAn uses public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1.
+# HUMAnN uses public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1.
 # Optional image overrides (also supply these during caching if changed):
-# dnanexus_container: public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1
-# dnanexus_metaphlan_container: public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403-r1
-# dnanexus_humann_container: public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1
+# dnanexus_container: public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1
+# dnanexus_metaphlan_container: public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1
+# dnanexus_humann_container: public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1
 
 workflow: mgx
 outdir: results

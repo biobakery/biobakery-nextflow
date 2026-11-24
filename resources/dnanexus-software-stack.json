@@ -2,35 +2,35 @@
   "verified_on": "2026-11-23",
   "images": {
     "kneaddata-bundled": {
-      "reference": "public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1",
       "digest": "sha256:a42a22db0039868f2b6de43dc8001771f5d9cb7057902410564d1bcf2105ee04"
     },
     "metaphlan-bundled": {
-      "reference": "public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1",
       "digest": "sha256:7cd3c0727115e3d033ac3a4562cbc5e286579508ebfac4efbc1d2e4764c6d185"
     },
     "humann-bundled": {
-      "reference": "public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1",
       "digest": "sha256:77af326ed4ae9b6ea51fb81222d001b212dbc5b8241056a296d66a391c576103",
       "tool_version": "4.0.0a2",
       "source_commit": "9cb1a8253e11a0a8ed8f58f85f53e04a690e40a6"
     },
     "kneaddata-lean": {
-      "reference": "public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-nodb-dnanexus-r1",
       "digest": "sha256:87f9fe73578cffa73d30e08c90099e1fdf69831c42778d3b2a7cd7791f8ae4b3"
     },
     "metaphlan-lean": {
-      "reference": "public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-nodb-dnanexus-r1",
       "digest": "sha256:bcbba3807ce7bbfda6526dd8598232025c9cc9a3f7689b9ad639dab9d8c81787"
     },
     "humann-lean": {
-      "reference": "public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-nodb-dnanexus-r1",
       "digest": "sha256:3d245ae23c5b5015e6ca2a16b5963c0d178fd5f0786890e7eb57fa8cf7fe2acd",
       "tool_version": "4.0.0a2",
       "source_commit": "9cb1a8253e11a0a8ed8f58f85f53e04a690e40a6"
     },
     "baqlava": {
-      "reference": "public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1",
+      "reference": "public.ecr.aws/klepac-ceraj-lab/baqlava:4.0.0-r1",
       "digest": "sha256:6070af8e5635b44a6aa8e63aee70858004db3e12b68d8d6336ec82bfce555c97",
       "tool_version": "1.2.0.dev0",
       "source_commit": "629c744a553eb534be457050ca8b7b33f177e0da",

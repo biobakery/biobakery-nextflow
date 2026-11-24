@@ -13,9 +13,9 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-KNEADDATA_IMAGE = 'public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1'
-METAPHLAN_IMAGE = 'public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403-r1'
-HUMANN_IMAGE = 'public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1'
+KNEADDATA_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1'
+METAPHLAN_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1'
+HUMANN_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1'
 
 
 @unittest.skipUnless(shutil.which('nextflow'), 'Nextflow is required')

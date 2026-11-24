@@ -40,9 +40,9 @@ The profile has three configured images:
 
 | Processes | Image | Override parameter |
 | --- | --- | --- |
-| KneadData and its read-count table | `public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1` | `dnanexus_container` |
-| MetaPhlAn, consensus markers, StrainPhlAn and profile merging | `public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-mpa_vOct22_202403-r1` | `dnanexus_metaphlan_container` |
-| HUMAnN and its table-processing steps | `public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1` | `dnanexus_humann_container` |
+| KneadData and its read-count table | `public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1` | `dnanexus_container` |
+| MetaPhlAn, consensus markers, StrainPhlAn and profile merging | `public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-mpa_vOct22_202403-r1` | `dnanexus_metaphlan_container` |
+| HUMAnN and its table-processing steps | `public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1` | `dnanexus_humann_container` |
 
 The images have already been cached as Platform files under
 `/.cached_docker_images/` in the destination project. Routine `dxbuild.sh` builds
@@ -118,10 +118,10 @@ Reports and version logging remain disabled. It uses four cached images:
 
 | Tool | Image |
 | --- | --- |
-| KneadData | `public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1` |
-| MetaPhlAn / StrainPhlAn | `public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1` |
-| HUMAnN | `public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1` |
-| BAQLaVa | `public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1` |
+| KneadData | `public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-nodb-dnanexus-r1` |
+| MetaPhlAn / StrainPhlAn | `public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-nodb-dnanexus-r1` |
+| HUMAnN | `public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-nodb-dnanexus-r1` |
+| BAQLaVa | `public.ecr.aws/klepac-ceraj-lab/baqlava:4.0.0-r1` |
 
 Build using the existing cache, or add `--refresh-images` to populate/update it:
 
@@ -257,7 +257,7 @@ MetaPhlAn 4.0.6 contract. DNAnexus strain workers retain 8 CPUs and 28 GB reques
 memory on `mem3_ssd2_v3_x16`.
 
 The full profile enables BAQLaVa in its separate software image,
-`public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1`, through
+`public.ecr.aws/klepac-ceraj-lab/baqlava:4.0.0-r1`, through
 `dnanexus_baqlava_container`. The ordinary `dnanexus` profile and QC smoke YAML
 keep viral profiling disabled. Download-profile defaults include:
 
@@ -332,7 +332,7 @@ printing environment variables when collecting diagnostics.
 
 ## HUMAnN configuration
 
-`public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-chocophlan-v4-201901-r1` was verified against the local
+`public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-chocophlan-v4-201901-r1` was verified against the local
 database-bearing image and reports `humann v4.0.0.alpha.2`. The profile sets
 `humann_version = 'humann_v4a'`, which selects its utility-database argument and
 numbered output filenames. The databases remain inside the container:
@@ -612,7 +612,7 @@ and execution platform with the archive.
 2. From the repository root, pull the execution architecture explicitly:
 
    ```sh
-   IMAGE_REF='public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-hg37dec-r1'
+   IMAGE_REF='public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-hg37dec-r1'
    IMAGE_PLATFORM='linux/amd64'
 
    docker pull --platform "$IMAGE_PLATFORM" "$IMAGE_REF"

@@ -15,9 +15,9 @@ Run downloads on the node your site permits. Set these identifiers once in
 this shell; the database-installation commands in the next chapter reuse them:
 
 ```bash
-export KNEADDATA_IMAGE=public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1
-export METAPHLAN_IMAGE=public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1
-export HUMANN_IMAGE=public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1
+export KNEADDATA_IMAGE=public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-nodb-dnanexus-r1
+export METAPHLAN_IMAGE=public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-nodb-dnanexus-r1
+export HUMANN_IMAGE=public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-nodb-dnanexus-r1
 ```
 
 Select the tab for your runtime. You only need one of these sets of commands.

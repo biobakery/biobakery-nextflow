@@ -6,6 +6,10 @@ in [dnanexus-software-stack.json](https://github.com/biobakery/biobakery-nextflo
 Tags were checked against public ECR on 2026-11-23; installed package metadata
 and commit environment variables were inspected in the existing images.
 
+Image references use the public ECR registry alias `klepac-ceraj-lab`. The
+registry alias change preserves the recorded image digests. Refresh the
+DNAnexus image cache when switching existing builds to these identifiers.
+
 ## Tool versions
 
 | Tool | Installed version | Source or reference |

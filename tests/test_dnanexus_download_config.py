@@ -9,10 +9,10 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = 'public.ecr.aws/j5i5h1i5/kneaddata:0.12.1-nodb-dnanexus-r1'
-FULL_METAPHLAN_IMAGE = 'public.ecr.aws/j5i5h1i5/metaphlan:4.2.5-nodb-dnanexus-r1'
-FULL_HUMANN_IMAGE = 'public.ecr.aws/j5i5h1i5/humann:4.0.0-experimental-nodb-dnanexus-r1'
-FULL_BAQLAVA_IMAGE = 'public.ecr.aws/j5i5h1i5/baqlava:4.0.0-r1'
+IMAGE = 'public.ecr.aws/klepac-ceraj-lab/kneaddata:0.12.1-nodb-dnanexus-r1'
+FULL_METAPHLAN_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/metaphlan:4.2.5-nodb-dnanexus-r1'
+FULL_HUMANN_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/humann:4.0.0-experimental-nodb-dnanexus-r1'
+FULL_BAQLAVA_IMAGE = 'public.ecr.aws/klepac-ceraj-lab/baqlava:4.0.0-r1'
 
 
 @unittest.skipUnless(shutil.which('nextflow'), 'Nextflow is required')
