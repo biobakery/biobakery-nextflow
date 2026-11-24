@@ -3,21 +3,25 @@ nextflow.enable.dsl=2
 
 // KneadData QC — single-end reads
 //
-// db_args is a pre-formed "--reference-db A --reference-db B ..." string rather
-// than a list: a Groovy List handed to a process `val` input is implicitly
-// converted with Channel.from(), which would fan the databases out into one
-// task per database instead of one task with several databases.
+// reference_dbs is a collection of staged directory inputs. Building the
+// command line inside the task ensures KneadData always receives ordinary
+// filesystem paths, regardless of whether the source was local, shared, or a
+// cloud URI handled by the active Nextflow executor.
 //
 // subdir places the published output under a per-assay folder ('' for a plain
 // mgx run, 'whole_metatranscriptome_shotgun/' for the mtx half of mgx_mtx), so
 // the two halves of mgx_mtx do not overwrite each other's merged tables.
+// Both layouts give each tool the task's full thread budget. Internal processes
+// can launch threaded database/TRF jobs concurrently; keep one to
+// avoid oversubscription and let Nextflow parallelize independent samples.
 process single_end_kneaddata {
     tag "$sample"
     publishDir path: { "${params.outdir}/${subdir}kneaddata" }, mode: 'copy'
 
     input:
     tuple val(sample), path(reads)
-    val db_args
+    path reference_dbs
+    val reference_db_paths
     val subdir
 
     output:
@@ -35,17 +39,33 @@ process single_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass      = params.kneaddata_bypass_trim               ? "--bypass-trim"                  : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"   : ""
+    def db_args = params.kneaddata_db_location == 'container'
+        ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
+        : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
+            .collect { "--reference-db ${it}" }
+            .join(' ')
+    def db_checks = params.kneaddata_db_location == 'container'
+        ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
+        : ':'
+    def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${task.ext.get('reference_check') ?: ''}
+    ${db_checks}
+
+    kneaddata_started_seconds=\$SECONDS
     kneaddata \\
         --unpaired $reads \\
         $db_args \\
         --output ./ \\
         --threads ${task.cpus} \\
+        --processes 1 \\
         --output-prefix ${sample}_kneaddata \\
         $bypass \\
         $remove_inter \\
         $extra_args
 
+    printf '[kneaddata] analysis completed in %s seconds\\n' "\$((SECONDS-kneaddata_started_seconds))" >&2
+    echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
     """
 }
@@ -58,7 +78,8 @@ process paired_end_kneaddata {
 
     input:
     tuple val(sample), path(reads)
-    val db_args
+    path reference_dbs
+    val reference_db_paths
     val subdir
 
     output:
@@ -79,18 +100,34 @@ process paired_end_kneaddata {
     def extra_args = params.kneaddata_options ?: ""
     def bypass       = params.kneaddata_bypass_trim               ? "--bypass-trim"                 : ""
     def remove_inter = params.kneaddata_remove_intermediate_files ? "--remove-intermediate-output"  : ""
+    def db_args = params.kneaddata_db_location == 'container'
+        ? reference_db_paths.collect { "--reference-db ${it}" }.join(' ')
+        : (reference_dbs instanceof List ? reference_dbs : [reference_dbs])
+            .collect { "--reference-db ${it}" }
+            .join(' ')
+    def db_checks = params.kneaddata_db_location == 'container'
+        ? reference_db_paths.collect { "test -d ${it} || { echo 'ERROR: container database directory not found: ${it}' >&2; exit 72; }" }.join('\n')
+        : ':'
+    def db_identity = params.kneaddata_database_identity ?: params.dnanexus_container ?: 'not-declared'
     """
+    ${task.ext.get('reference_check') ?: ''}
+    ${db_checks}
+
+    kneaddata_started_seconds=\$SECONDS
     kneaddata \\
         -i1 ${reads[0]} \\
         -i2 ${reads[1]} \\
         $db_args \\
         --output ./ \\
-        --processes ${task.cpus} \\
+        --threads ${task.cpus} \\
+        --processes 1 \\
         --output-prefix ${sample}_kneaddata \\
         $bypass \\
         $remove_inter \\
         $extra_args
 
+    printf '[kneaddata] analysis completed in %s seconds\\n' "\$((SECONDS-kneaddata_started_seconds))" >&2
+    echo "KneadData database identity: ${db_identity}" >&2
     for f in *.fastq; do [ -f "\$f" ] && pigz -p ${task.cpus} "\$f"; done
 
     cat ${sample}_kneaddata_paired_1.fastq.gz \\

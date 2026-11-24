@@ -25,16 +25,16 @@ nextflow.enable.dsl=2
 // for the two defects it patches in memory.
 process rna_dna_norm {
     tag "$feature"
-    publishDir path: { "${params.outdir}/humann/rna_dna_norm" }, mode: 'copy'
+    publishDir path: { "${params.outdir}/${db ? "databases/${db}/" : ""}humann/rna_dna_norm" }, mode: 'copy'
 
     input:
-    tuple val(feature), path(dna, stageAs: 'dna/*'), path(rna, stageAs: 'rna/*')
+    tuple val(db), val(feature), path(dna, stageAs: 'dna/*'), path(rna, stageAs: 'rna/*')
     path mapping
 
     output:
-    tuple val(feature), path("${feature}/rna_dna_relative_expression_unstratified.tsv"),   emit: unstratified
-    tuple val(feature), path("${feature}/rna_dna_relative_expression.tsv"),                 emit: stratified
-    tuple val(feature), path("${feature}/rna_dna_relative_expression_no_unclassifed.tsv"),  emit: no_unclassified
+    tuple val(db), val(feature), path("${feature}/rna_dna_relative_expression_unstratified.tsv"),   emit: unstratified
+    tuple val(db), val(feature), path("${feature}/rna_dna_relative_expression.tsv"),                 emit: stratified
+    tuple val(db), val(feature), path("${feature}/rna_dna_relative_expression_no_unclassifed.tsv"),  emit: no_unclassified
 
     script:
     // assets/NO_FILE is the sentinel for "no mapping file", since a path

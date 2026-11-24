@@ -1,0 +1,2 @@
+sample,assay,read_1,read_2
+TEST01,mgx,/shared/YOUR_GROUP/biobakery/data/test/TEST01_R1.fastq.gz,/shared/YOUR_GROUP/biobakery/data/test/TEST01_R2.fastq.gz

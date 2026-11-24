@@ -1,0 +1,92 @@
+[project]
+site_name = "bioBakery Nextflow"
+site_description = "Nextflow workflows for metagenomic and metatranscriptomic profiling, assembly, visualization, and statistics."
+site_url = "https://biobakery.github.io/biobakery-nextflow/"
+repo_url = "https://github.com/biobakery/biobakery-nextflow"
+repo_name = "biobakery/biobakery-nextflow"
+edit_uri = "edit/main/docs/"
+docs_dir = "docs"
+site_dir = "site"
+exclude_docs = "/requirements.txt\n/diagrams/requirements.txt\n"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Get started" = [
+    { "Introduction" = "get-started/index.md" },
+    { "1. Choose your runtime" = "get-started/prepare-hpc.md" },
+    { "2. Download images" = "get-started/obtain-images.md" },
+    { "3. Install databases" = "get-started/containers-and-databases.md" },
+    { "4. Configure your site and test" = "get-started/site-configuration.md" },
+    { "5. Run your first analysis" = "get-started/first-run.md" },
+    { "Supported environments" = [
+      { "Choose an environment" = "environments/index.md" },
+      { "Harvard FASRC / Cannon" = "environments/harvard-rc.md" },
+      { "Wellesley HPC" = "environments/wellesley-hpc.md" },
+      { "Wellesley Hopper" = "environments/wellesley-hopper.md" },
+      { "Tufts HPC" = "environments/tufts.md" },
+      { "Local / workstation" = "environments/local.md" },
+      { "DNAnexus" = "environments/dnanexus.md" },
+      { "AWS Batch" = "environments/aws-batch.md" },
+    ] },
+  ] },
+  { "User guide" = [
+    { "Workflow reference" = "workflow_reference.md" },
+    { "Input checks" = "input-checks.md" },
+    { "MetaPhlAn databases" = "metaphlan_databases.md" },
+    { "HUMAnN unaligned reads" = "humann_unaligned_reads.md" },
+    { "Software stack and versions" = "software-stack.md" },
+    { "DNAnexus" = "dnanexus.md" },
+    { "Wellesley Hopper" = "wellesley_hopper.md" },
+  ] },
+  { "Developer guide" = [
+    { "Software dependencies" = "dependencies.md" },
+    { "Workflow utilities" = "workflow_utilities.md" },
+    { "Architecture and migration" = "architecture.md" },
+    { "Visualization and statistics port" = "vis_stats_port_status.md" },
+    { "Workflow map sources" = "diagrams/README.md" },
+    { "Writing and publishing documentation" = "documentation.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"
+features = [
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.sections",
+  "navigation.top",
+  "search.highlight",
+  "content.code.copy",
+  "content.action.edit",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "teal"
+accent = "teal"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "teal"
+accent = "teal"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.highlight.anchor_linenums = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
+[project.validation]
+invalid_links = true
+invalid_link_anchors = true

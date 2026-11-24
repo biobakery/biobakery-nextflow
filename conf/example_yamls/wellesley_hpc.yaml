@@ -1,0 +1,24 @@
+# Wellesley HPC — SLURM + local Apptainer images (partial environment).
+# Runtime: conf/profiles/wellesley_hpc.config
+# References: conf/databases/wellesley_hpc.config
+# nextflow run main.nf -profile wellesley_hpc -params-file my-run.yaml -w /shared/work
+
+# Input / output (choose samplesheet OR readsdir; paths are launch-relative).
+workflow: mgx
+outdir: results
+# samplesheet: /path/to/samplesheet.csv
+# readsdir: /path/to/fastqs
+
+# Analyses: core QC/taxonomy/function use the configured site images.
+# Verify access to /home/gz101/containers and /home/gz101/Databases first.
+run_vis: false
+run_stats: false
+log_versions: false
+# run_strain_profiling: true   # uses the MetaPhlAn image
+# run_viral_profiling: true    # requires a BAQLaVa environment and references
+
+# Supply real site references before selecting mtx / mgx_mtx / assembly.
+# host_transcriptome: /path/to/kneaddata/transcriptome
+# rrna_db: /path/to/kneaddata/rrna
+# phylophlan_path: /path/to/phylophlan
+# checkm2_db: /path/to/checkm2.dmnd

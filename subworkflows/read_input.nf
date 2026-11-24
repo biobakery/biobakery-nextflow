@@ -1,8 +1,8 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-// Build an input read channel, detecting library layout from the filenames
-// rather than making the user assert it.
+// Build one canonical read channel from either directory discovery or a CSV
+// samplesheet. Both modes return [ [id: sample, paired_end: bool], reads ].
 //
 // Behaviour, following the anadama2 workflow:
 //   * look for the pair identifier in the read filenames
@@ -18,11 +18,21 @@ nextflow.enable.dsl=2
 // a channel, which cannot be globbed. Being a function also lets mgx_mtx build
 // two independent read channels in one run, one per input folder.
 //
-// Returns: Channel of [ [id: sample, paired_end: bool], reads ]
-//   plus one [ [id, paired_end: false, skipped: reason], file ] per file the run
-//   cannot use (a broken symlink, a mate without its partner). CHECK_INPUTS
-//   reports and removes those, so every workflow takes this through it.
-def read_input(indir, label) {
+// Samplesheet columns:
+//   sample,assay,read_1,read_2
+// assay is optional for single-assay workflows and mandatory for mgx_mtx.
+// read_2 is empty for a single-end sample.
+def read_input(indir, label, samplesheet = null, require_assay = false) {
+
+    def modes = (indir ? 1 : 0) + (samplesheet ? 1 : 0)
+    if (modes != 1) {
+        error "ERROR: [${label}] choose exactly one input mode: directory discovery or samplesheet."
+    }
+
+    if (samplesheet) {
+        log.info "[${label}] Reading explicit sample assignments from ${samplesheet}."
+        return samplesheet_input(samplesheet, label, require_assay)
+    }
 
     if (!indir) {
         error "ERROR: no input read folder given for ${label}"
@@ -31,7 +41,7 @@ def read_input(indir, label) {
     def readsdir = indir.toString() - ~/\/$/
 
     // Both spellings select single-end. --paired_end false is what the README
-    // and conf/harvard_rc.yaml document; --single_end true is the newer flag
+    // and conf/example_yamls/harvard_rc.yaml document; --single_end true is the newer flag
     // the layout auto-detection added. Honouring only the latter meant a run
     // that followed the docs matched the paired glob, found no {1,2} capture
     // group in it, and silently produced an empty channel -- the whole run
@@ -47,7 +57,7 @@ def read_input(indir, label) {
     def single_glob = params.filepattern ?: params.filepattern_single
 
     // ...except that a pair-identifier alternation like "*_R{1,2}*.fastq.gz"
-    // cannot match anything in single-end mode. conf/harvard_rc.yaml ships
+    // cannot match anything in single-end mode. conf/example_yamls/harvard_rc.yaml ships
     // exactly such a filepattern, so `--single_end true` with the default
     // params file would otherwise fail with "No files match pattern".
     // Fall back to the single-end default and say so.
@@ -148,9 +158,85 @@ def read_input(indir, label) {
     return reads
 }
 
-// '_R{1,2}' -> how to find a mate's partner by name: a regex capturing
-// (prefix, mate, suffix), and the pieces to rebuild the partner's name. null
-// when the identifier is not of that form, or when --filepattern overrides it.
+
+// Parse and validate the complete sheet before emitting any samples. Waiting
+// for the small manifest channel to close lets us reject duplicate samples and
+// duplicate file assignments deterministically rather than failing mid-run.
+def samplesheet_input(samplesheet, label, require_assay) {
+
+    return Channel
+        .fromPath(samplesheet, checkIfExists: true)
+        .splitCsv(header: true)
+        .collect()
+        .flatMap { rows ->
+            if (!rows) {
+                error "ERROR: samplesheet is empty: ${samplesheet}"
+            }
+
+            def headers = rows[0].keySet() as Set
+            def missing = ['sample', 'read_1'].findAll { !headers.contains(it) }
+            if (missing) {
+                error "ERROR: samplesheet ${samplesheet} is missing required column(s): " +
+                      missing.join(', ')
+            }
+
+            def assay_values = rows.collect { (it.assay ?: '').toString().trim() }
+            def has_assays = assay_values.any { it }
+            if (require_assay && (!headers.contains('assay') || !has_assays)) {
+                error "ERROR: samplesheet mode for mgx_mtx requires an assay column " +
+                      "with mgx and mtx values."
+            }
+            def invalid_assays = assay_values.findAll {
+                it && !(it in ['mgx', 'mtx', 'assembly'])
+            }.unique()
+            if (invalid_assays) {
+                error "ERROR: unsupported assay value(s) in ${samplesheet}: " +
+                      invalid_assays.join(', ')
+            }
+
+            def selected = has_assays
+                ? rows.findAll { (it.assay ?: '').toString().trim() == label }
+                : rows
+            if (!selected) {
+                error "ERROR: samplesheet ${samplesheet} has no rows for assay '${label}'."
+            }
+
+            def seen_samples = [] as Set
+            def seen_reads = [] as Set
+            selected.collect { row ->
+                def sample = (row.sample ?: '').toString().trim()
+                def read1 = (row.read_1 ?: '').toString().trim()
+                def read2 = (row.read_2 ?: '').toString().trim()
+
+                if (!(sample ==~ /[A-Za-z0-9][A-Za-z0-9_.-]*/)) {
+                    error "ERROR: invalid sample ID '${sample}' in ${samplesheet}; use only " +
+                          "letters, numbers, dot, underscore, or dash."
+                }
+                if (!seen_samples.add(sample)) {
+                    error "ERROR: duplicate sample ID '${sample}' for assay '${label}' in ${samplesheet}."
+                }
+                if (!read1) {
+                    error "ERROR: sample '${sample}' has no read_1 in ${samplesheet}."
+                }
+                if (read2 && read1 == read2) {
+                    error "ERROR: sample '${sample}' assigns the same file to read_1 and read_2."
+                }
+                for (reference in [read1, read2].findAll { it }) {
+                    if (!seen_reads.add(reference)) {
+                        error "ERROR: read '${reference}' is assigned more than once for assay '${label}'."
+                    }
+                }
+
+                def first = file(read1, checkIfExists: true)
+                if (read2) {
+                    def second = file(read2, checkIfExists: true)
+                    return [ [id: sample, paired_end: true], [first, second] ]
+                }
+                return [ [id: sample, paired_end: false], first ]
+            }
+        }
+}
+
 def mate_pattern(pair_identifier) {
     def m = pair_identifier ? (pair_identifier =~ /^(.*)\{(\w),(\w)\}(.*)$/) : null
     if (!m || !m.matches()) return null

@@ -1,0 +1,103 @@
+name: Documentation
+
+on:
+  push:
+    paths:
+      - "docs/**"
+      - "zensical.toml"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "zensical.toml"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r docs/requirements.txt
+
+      - name: Read GitHub Pages configuration
+        id: pages
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/configure-pages@v6
+
+      - name: Set deployment URLs
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.base_url || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          REPOSITORY_NAME: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          path = Path("zensical.toml")
+          config = path.read_text()
+          values = {
+              "site_url": os.environ["PAGES_URL"].rstrip("/") + "/",
+              "repo_url": os.environ["REPOSITORY_URL"],
+              "repo_name": os.environ["REPOSITORY_NAME"],
+              "edit_uri": "edit/" + os.environ["DEFAULT_BRANCH"] + "/docs/",
+          }
+          for key, value in values.items():
+              config, count = re.subn(
+                  rf"^{key} = .*$",
+                  lambda match: f"{key} = {json.dumps(value)}",
+                  config, count=1, flags=re.MULTILINE,
+              )
+              if count != 1:
+                  raise SystemExit(f"Missing documentation setting: {key}")
+          path.write_text(config)
+          PY
+
+      - name: Build and validate documentation
+        run: zensical build --clean --strict
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    name: Deploy documentation
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

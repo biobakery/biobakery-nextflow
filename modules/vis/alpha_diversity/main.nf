@@ -12,17 +12,18 @@ nextflow.enable.dsl=2
 // would target that same folder, and vis_report's later publish of the whole
 // directory would clobber them.
 process alpha_diversity {
+    label 'stats_viz'
     input:
-    tuple val(feature_type), path(features)
+    tuple val(db), val(feature_type), path(features)
     path metadata
 
     output:
-    path "alpha_diversity_plots", emit: plots
+    tuple val(db), path("alpha_diversity_plots"), emit: plots
 
     script:
     """
     set +e
-    Rscript \$(python ${projectDir}/bin/scripts/biobakery_bootstrap.py --rscript alpha_diversity) \\
+    Rscript \$(python ${params.reporting_root}/bin/scripts/biobakery_bootstrap.py --rscript alpha_diversity) \\
         ${features} \\
         ${metadata} \\
         alpha_diversity_plots \\

@@ -3,7 +3,8 @@
 flowchart LR
     subgraph STATS
         direction TB
-        identify_inputs(["<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder."])
+        prepare_report_summaries(["<b>prepare_report_summaries</b>"])
+        identify_inputs("<b>identify_inputs</b><br/>Identify the bioBakery data<br/>files in an input folder.")
         feature_table("<b>feature_table</b><br/>Build one feature table<br/>(taxonomy, pathways or any…")
         trim_taxonomy("<b>trim_taxonomy</b><br/>Reformat a 16s taxonomy<br/>profile into a feature table.")
         mantel_test("<b>mantel_test</b><br/>Mantel test across all pairs<br/>of feature tables.")
@@ -18,45 +19,107 @@ flowchart LR
         archive_output["<b>archive_output</b><br/>Archive a report folder."]
     end
 
+    prepare_report_summaries --> identify_inputs
+    prepare_report_summaries --> feature_table
+    prepare_report_summaries --> trim_taxonomy
+    prepare_report_summaries --> mantel_test
+    prepare_report_summaries --> maaslin2
+    prepare_report_summaries --> halla_transpose_metadata
+    prepare_report_summaries --> halla
+    prepare_report_summaries --> stratified_metadata
+    prepare_report_summaries --> beta_diversity
+    prepare_report_summaries --> stats_report
     identify_inputs --> feature_table
     identify_inputs --> trim_taxonomy
+    identify_inputs --> mantel_test
+    identify_inputs --> maaslin2
     identify_inputs --> halla_transpose_metadata
     identify_inputs --> halla
     identify_inputs --> stratified_metadata
     identify_inputs --> covariate_equation
+    identify_inputs --> beta_diversity
     identify_inputs --> stats_report
+    feature_table --> trim_taxonomy
     feature_table --> mantel_test
     feature_table --> maaslin2
+    feature_table --> halla_transpose_metadata
     feature_table --> halla
+    feature_table --> stratified_metadata
     feature_table --> beta_diversity
     feature_table --> stats_report
+    trim_taxonomy --> feature_table
     trim_taxonomy --> mantel_test
     trim_taxonomy --> maaslin2
+    trim_taxonomy --> halla_transpose_metadata
     trim_taxonomy --> halla
+    trim_taxonomy --> stratified_metadata
     trim_taxonomy --> beta_diversity
     trim_taxonomy --> stats_report
+    mantel_test --> feature_table
+    mantel_test --> trim_taxonomy
+    mantel_test --> maaslin2
+    mantel_test --> halla_transpose_metadata
+    mantel_test --> halla
+    mantel_test --> stratified_metadata
+    mantel_test --> beta_diversity
     mantel_test --> stats_report
+    maaslin2 --> feature_table
+    maaslin2 --> trim_taxonomy
+    maaslin2 --> mantel_test
+    maaslin2 --> halla_transpose_metadata
+    maaslin2 --> halla
+    maaslin2 --> stratified_metadata
     maaslin2 --> stratified_barplot
+    maaslin2 --> beta_diversity
     maaslin2 --> stats_report
     halla_transpose_metadata --> feature_table
     halla_transpose_metadata --> trim_taxonomy
+    halla_transpose_metadata --> mantel_test
+    halla_transpose_metadata --> maaslin2
     halla_transpose_metadata --> halla
     halla_transpose_metadata --> stratified_metadata
+    halla_transpose_metadata --> beta_diversity
     halla_transpose_metadata --> stats_report
+    halla --> feature_table
+    halla --> trim_taxonomy
+    halla --> mantel_test
+    halla --> maaslin2
+    halla --> halla_transpose_metadata
+    halla --> stratified_metadata
+    halla --> beta_diversity
     halla --> stats_report
     stratified_metadata --> stratified_barplot
+    stratified_barplot --> feature_table
+    stratified_barplot --> trim_taxonomy
+    stratified_barplot --> mantel_test
+    stratified_barplot --> maaslin2
+    stratified_barplot --> halla_transpose_metadata
+    stratified_barplot --> halla
+    stratified_barplot --> stratified_metadata
+    stratified_barplot --> beta_diversity
     stratified_barplot --> stats_report
+    covariate_equation --> feature_table
+    covariate_equation --> trim_taxonomy
     covariate_equation --> mantel_test
     covariate_equation --> maaslin2
+    covariate_equation --> halla_transpose_metadata
     covariate_equation --> halla
+    covariate_equation --> stratified_metadata
     covariate_equation --> beta_diversity
     covariate_equation --> stats_report
+    beta_diversity --> feature_table
+    beta_diversity --> trim_taxonomy
+    beta_diversity --> mantel_test
+    beta_diversity --> maaslin2
+    beta_diversity --> halla_transpose_metadata
+    beta_diversity --> halla
+    beta_diversity --> stratified_metadata
     beta_diversity --> stats_report
     stats_report --> archive_output
 
     style STATS fill:#e0e7ff22,stroke:#6366f1,stroke-width:1px,stroke-dasharray:4 3,color:#6366f1
 
     classDef stage0 fill:#e0e7ff,stroke:#6366f1,stroke-width:1.5px,color:#312e81
-    class identify_inputs,feature_table,trim_taxonomy,mantel_test,maaslin2,halla_transpose_metadata,halla,stratified_metadata,stratified_barplot,covariate_equation,beta_diversity,stats_report,archive_output stage0
+    class prepare_report_summaries,identify_inputs,feature_table,trim_taxonomy,mantel_test,maaslin2,halla_transpose_metadata,halla,stratified_metadata,stratified_barplot,covariate_equation,beta_diversity,stats_report,archive_output stage0
 
     linkStyle default stroke:#cbd5e1,stroke-width:1.5px

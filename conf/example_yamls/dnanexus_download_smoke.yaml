@@ -1,0 +1,21 @@
+# QC-only smoke run with project references on local SSD.
+# bash dxbuild.sh --profile dnanexus_download --refresh-images
+# Upload/select this YAML and your own samplesheet when launching the applet.
+workflow: mgx
+outdir: results
+run_qc: true
+stop_after_qc: false
+run_taxonomic_profiling: false
+run_functional_profiling: false
+run_viral_profiling: false
+run_strain_profiling: false
+run_vis: false
+run_stats: false
+log_versions: false
+
+# Default: references in the job's project, inside /Databases.
+# Uncomment/edit for a separate reference project or a different project folder.
+# dnanexus_reference_project: project-REPLACE
+# dnanexus_reference_folder: /Databases
+# Only the QC inputs are downloaded for this run; the full profile's four images
+# remain discoverable during cache builds.

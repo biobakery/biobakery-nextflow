@@ -1,0 +1,27 @@
+# Local / standard — copy this file and supply inputs and installed references.
+# Runtime: conf/profiles/local.config; no site databases are supplied.
+# nextflow run main.nf -profile local -params-file my-run.yaml -w work
+
+# Input / output (choose samplesheet OR readsdir; paths are launch-relative).
+workflow: mgx
+outdir: results
+# samplesheet: /path/to/samplesheet.csv
+# readsdir: /path/to/fastqs
+
+# References must match the tool versions installed on PATH.
+# host_genome: /db/kneaddata/hg38
+# metaphlan_db: /db/metaphlan
+# metaphlan_index: mpa_vJun23_CHOCOPhlAnSGB_202307
+# humann_db_chocophlan: /db/humann/chocophlan
+# humann_db_protein: /db/humann/uniref
+# humann_db_utilitymapping: /db/humann/utility_mapping
+
+# Resource ceilings: lower these to match the available local CPU/RAM.
+# max_cpus: 8
+# max_memory: 32.GB
+
+# Analyses: enable reporting only with its Python/R dependencies installed.
+run_vis: false
+run_stats: false
+# run_strain_profiling: true
+# run_viral_profiling: true

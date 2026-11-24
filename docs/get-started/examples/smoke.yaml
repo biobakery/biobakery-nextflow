@@ -1,0 +1,14 @@
+# Replace the shared root and supply the samplesheet before launching.
+workflow: mgx
+samplesheet: /shared/YOUR_GROUP/biobakery/config/smoke-samples.csv
+outdir: /shared/YOUR_GROUP/biobakery/runs/smoke/results
+
+run_qc: true
+stop_after_qc: false
+run_taxonomic_profiling: false
+run_functional_profiling: false
+run_strain_profiling: false
+run_viral_profiling: false
+run_vis: false
+run_stats: false
+log_versions: false

@@ -14,7 +14,7 @@ include { STRAIN_PROFILING }                               from '../subworkflows
 include { rna_dna_norm }                                   from '../modules/utils/rna_dna_norm/main.nf'
 include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
 include { mtx_kneaddata_dbs }                              from '../subworkflows/mtx_common.nf'
-include { stage_report_input }                             from '../modules/utils/report_input/main.nf'
+include { PREPARE_REPORTS } from '../subworkflows/prepare_reports.nf'
 include { REPORTING }                                      from '../subworkflows/reporting.nf'
 include { merge_pairs as MERGE_MGX }                       from '../modules/utils/merge_pairs/main.nf'
 include { merge_pairs as MERGE_MTX }                       from '../modules/utils/merge_pairs/main.nf'
@@ -35,11 +35,16 @@ include { merge_pairs as MERGE_MTX }                       from '../modules/util
 workflow MGX_MTX {
 
     main:
+    mgx_unaligned_reads_ch = Channel.empty()
+    mtx_unaligned_reads_ch = Channel.empty()
 
-    // Upstream replaces --input with two mandatory input folder options.
-    if (!params.input_metagenome || !params.input_metatranscriptome) {
-        error "ERROR: the mgx_mtx workflow needs both --input_metagenome and " +
-              "--input_metatranscriptome (folders of raw reads)."
+    // Either provide the two traditional discovery folders, or one samplesheet
+    // whose assay column separates mgx and mtx rows. Never combine the modes.
+    def any_folder = params.input_metagenome || params.input_metatranscriptome
+    def both_folders = params.input_metagenome && params.input_metatranscriptome
+    if ((params.samplesheet && any_folder) || (!params.samplesheet && !both_folders)) {
+        error "ERROR: mgx_mtx needs either --samplesheet (with assay=mgx/mtx) or " +
+              "both --input_metagenome and --input_metatranscriptome, but not both modes."
     }
 
     // Published under the same folder names biobakery_workflows 3.2 uses, so a
@@ -48,8 +53,8 @@ workflow MGX_MTX {
     def MGX_DIR = 'whole_metagenome_shotgun/'
     def MTX_DIR = 'whole_metatranscriptome_shotgun/'
 
-    mgx_reads = read_input(params.input_metagenome,        'mgx')
-    mtx_reads = read_input(params.input_metatranscriptome, 'mtx')
+    mgx_reads = read_input(params.input_metagenome,        'mgx', params.samplesheet, true)
+    mtx_reads = read_input(params.input_metatranscriptome, 'mtx', params.samplesheet, true)
 
     // ── Input check ───────────────────────────────────────────────────────
     // Truncated or corrupt read files are logged and dropped here rather than
@@ -60,108 +65,112 @@ workflow MGX_MTX {
     mtx_reads = CHECK_MTX(mtx_reads, 'mtx').reads
 
     // --check_inputs_only: the check above was the whole run.
-    if (params.check_inputs_only) return
+    if (!params.check_inputs_only) {
+        // ── Step 1: quality control, one database set per assay ───────────────
+        if (params.run_qc) {
+            QC_MGX(mgx_reads, [params.host_genome], MGX_DIR)
+            QC_MTX(mtx_reads, mtx_kneaddata_dbs(),  MTX_DIR)
+            mgx_clean = QC_MGX.out.reads
+            mtx_clean = QC_MTX.out.reads
+        } else {
+            // Upstream bypasses quality control by merging each pair into one file
+            // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
+            // per sample, so handing them the two raw mates passed the second one
+            // as a positional argument. Single-end samples pass straight through.
+            merged_mgx = MERGE_MGX(
+                mgx_reads.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
+            ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
 
-    // ── Step 1: quality control, one database set per assay ───────────────
-    if (params.run_qc) {
-        QC_MGX(mgx_reads, [params.host_genome], MGX_DIR)
-        QC_MTX(mtx_reads, mtx_kneaddata_dbs(),  MTX_DIR)
-        mgx_clean = QC_MGX.out.reads
-        mtx_clean = QC_MTX.out.reads
-    } else {
-        // Upstream bypasses quality control by merging each pair into one file
-        // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
-        // per sample, so handing them the two raw mates passed the second one
-        // as a positional argument. Single-end samples pass straight through.
-        merged_mgx = MERGE_MGX(
-            mgx_reads.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
-        ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
+            mgx_clean = merged_mgx.mix( mgx_reads.filter { meta, r -> !meta.paired_end } )
 
-        mgx_clean = merged_mgx.mix( mgx_reads.filter { meta, r -> !meta.paired_end } )
+            merged_mtx = MERGE_MTX(
+                mtx_reads.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
+            ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
 
-        merged_mtx = MERGE_MTX(
-            mtx_reads.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
-        ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
+            mtx_clean = merged_mtx.mix( mtx_reads.filter { meta, r -> !meta.paired_end } )
+        }
 
-        mtx_clean = merged_mtx.mix( mtx_reads.filter { meta, r -> !meta.paired_end } )
+        if (!params.run_taxonomic_profiling) {
+            error "ERROR: the mgx_mtx workflow requires run_taxonomic_profiling = true; " +
+                  "both HUMAnN halves are driven by a MetaPhlAn profile."
+        }
+
+        // ── Step 2: taxonomic profiling ───────────────────────────────────────
+        TAX_MGX(mgx_clean, MGX_DIR)
+
+        def mapping_given = params.input_mapping as boolean
+
+        if (mapping_given) {
+            // The RNA samples take the DNA sample's profile, so no MetaPhlAn run here.
+            mtx_profiles = map_profiles(mtx_clean, TAX_MGX.out.profile, params.input_mapping)
+        } else {
+            TAX_MTX(mtx_clean, MTX_DIR)
+            mtx_profiles = TAX_MTX.out.profile
+        }
+
+        // ── Step 3: functional profiling ──────────────────────────────────────
+        if (params.run_functional_profiling) {
+            FUNC_MGX(mgx_clean, TAX_MGX.out.profile, MGX_DIR)
+            FUNC_MTX(mtx_clean, mtx_profiles,        MTX_DIR)
+            mgx_unaligned_reads_ch = FUNC_MGX.out.unaligned_reads
+            mtx_unaligned_reads_ch = FUNC_MTX.out.unaligned_reads
+        }
+
+        // ── Step 4: RNA/DNA relative expression ratio ─────────────────────────
+        // Uses the un-normalised (RPK) merged tables from each half; rna_dna_norm.py
+        // normalises internally.
+        if (params.run_functional_profiling && !params.bypass_norm_ratio) {
+            dna_tables = FUNC_MGX.out.merged.map { db, label, f ->
+                tuple([db, [genefamilies: 'genes', pathabundance: 'paths'].get(label, label)], f)
+            }
+            rna_tables = FUNC_MTX.out.merged.map { db, label, f ->
+                tuple([db, [genefamilies: 'genes', pathabundance: 'paths'].get(label, label)], f)
+            }
+
+            mapping_file = mapping_given ? file(params.input_mapping, checkIfExists: true)
+                                         : no_file
+
+            rna_dna_norm(dna_tables.join(rna_tables).map { key, dna, rna -> tuple(key[0], key[1], dna, rna) }, mapping_file)
+        }
+
+        // ── Step 5: strain profiling, on the metagenome half only ─────────────
+        if (params.run_strain_profiling) {
+            STRAIN_PROFILING(TAX_MGX.out.markers)
+        }
+
+        // ── Reports (vis / stats) ─────────────────────────────────────────────
+        // On the metagenome half only, and staged at the root of the folder rather
+        // than under whole_metagenome_shotgun/. files.ShotGun.path() looks for
+        // <folder>/metaphlan/merged/metaphlan_taxonomic_profiles.tsv and, failing
+        // that, <folder>/metaphlan_taxonomic_profiles.tsv -- search_for_file does
+        // not walk subdirectories (files.py:79). A folder holding both assays is
+        // therefore not something vis can read, which is consistent with upstream:
+        // `biobakery_workflows vis` takes one assay's output folder.
+        //
+        // The metatranscriptome half is not reported. With a mapping file it has no
+        // taxonomic profile of its own at all, and without one it is a second assay
+        // needing its own report; either way `--workflow vis --vis_input
+        // <outdir>/whole_metatranscriptome_shotgun` runs it separately.
+        if (params.run_vis || params.run_stats) {
+            REPORTING(
+                PREPARE_REPORTS(
+                    TAX_MGX.out.merged,
+                    params.run_qc ? QC_MGX.out.read_counts : Channel.value(no_file),
+                    params.run_functional_profiling ? FUNC_MGX.out.merged_tables : Channel.empty(),
+                    params.run_functional_profiling ? FUNC_MGX.out.logs  : Channel.empty(),
+                    ''
+                ).folder
+            )
+        }
+
+        if (params.log_versions) {
+            version_log(run_header_file(), software_versions())
+        }
     }
 
-    if (!params.run_taxonomic_profiling) {
-        error "ERROR: the mgx_mtx workflow requires run_taxonomic_profiling = true; " +
-              "both HUMAnN halves are driven by a MetaPhlAn profile."
-    }
-
-    // ── Step 2: taxonomic profiling ───────────────────────────────────────
-    TAX_MGX(mgx_clean, MGX_DIR)
-
-    def mapping_given = params.input_mapping as boolean
-
-    if (mapping_given) {
-        // The RNA samples take the DNA sample's profile, so no MetaPhlAn run here.
-        mtx_profiles = map_profiles(mtx_clean, TAX_MGX.out.profile, params.input_mapping)
-    } else {
-        TAX_MTX(mtx_clean, MTX_DIR)
-        mtx_profiles = TAX_MTX.out.profile
-    }
-
-    // ── Step 3: functional profiling ──────────────────────────────────────
-    if (params.run_functional_profiling) {
-        FUNC_MGX(mgx_clean, TAX_MGX.out.profile, MGX_DIR)
-        FUNC_MTX(mtx_clean, mtx_profiles,        MTX_DIR)
-    }
-
-    // ── Step 4: RNA/DNA relative expression ratio ─────────────────────────
-    // Uses the un-normalised (RPK) merged tables from each half; rna_dna_norm.py
-    // normalises internally.
-    if (params.run_functional_profiling && !params.bypass_norm_ratio) {
-        dna_tables = FUNC_MGX.out.merged_genefamilies.map  { f -> tuple('genes', f) }
-            .mix( FUNC_MGX.out.merged_ecs.map              { f -> tuple('ecs',   f) } )
-            .mix( FUNC_MGX.out.merged_pathabundance.map    { f -> tuple('paths', f) } )
-
-        rna_tables = FUNC_MTX.out.merged_genefamilies.map  { f -> tuple('genes', f) }
-            .mix( FUNC_MTX.out.merged_ecs.map              { f -> tuple('ecs',   f) } )
-            .mix( FUNC_MTX.out.merged_pathabundance.map    { f -> tuple('paths', f) } )
-
-        mapping_file = mapping_given ? file(params.input_mapping, checkIfExists: true)
-                                     : no_file
-
-        rna_dna_norm(dna_tables.join(rna_tables), mapping_file)
-    }
-
-    // ── Step 5: strain profiling, on the metagenome half only ─────────────
-    if (params.run_strain_profiling) {
-        STRAIN_PROFILING(TAX_MGX.out.sam_bzip)
-    }
-
-    // ── Reports (vis / stats) ─────────────────────────────────────────────
-    // On the metagenome half only, and staged at the root of the folder rather
-    // than under whole_metagenome_shotgun/. files.ShotGun.path() looks for
-    // <folder>/metaphlan/merged/metaphlan_taxonomic_profiles.tsv and, failing
-    // that, <folder>/metaphlan_taxonomic_profiles.tsv -- search_for_file does
-    // not walk subdirectories (files.py:79). A folder holding both assays is
-    // therefore not something vis can read, which is consistent with upstream:
-    // `biobakery_workflows vis` takes one assay's output folder.
-    //
-    // The metatranscriptome half is not reported. With a mapping file it has no
-    // taxonomic profile of its own at all, and without one it is a second assay
-    // needing its own report; either way `--workflow vis --vis_input
-    // <outdir>/whole_metatranscriptome_shotgun` runs it separately.
-    if (params.run_vis || params.run_stats) {
-        REPORTING(
-            stage_report_input(
-                TAX_MGX.out.merged,
-                TAX_MGX.out.species_counts,
-                params.run_qc ? QC_MGX.out.read_counts : Channel.value(no_file),
-                params.run_functional_profiling ? FUNC_MGX.out.merged_tables.collect() : Channel.value([]),
-                params.run_functional_profiling ? FUNC_MGX.out.count_tables.collect()  : Channel.value([]),
-                ''
-            ).folder
-        )
-    }
-
-    if (params.log_versions) {
-        version_log(run_header_file(), software_versions())
-    }
+    emit:
+    mgx_unaligned_reads = mgx_unaligned_reads_ch
+    mtx_unaligned_reads = mtx_unaligned_reads_ch
 }
 
 // Re-key the metagenome taxonomic profiles onto the metatranscriptome sample
@@ -223,6 +232,6 @@ def map_profiles(mtx_reads, mgx_profiles, mapping_path) {
     // join drops DNA samples with no RNA partner, which is the intended
     // behaviour: they are still profiled, they just have nothing to pair with.
     return dna_keyed
-        .join(mgx_profiles)
-        .map { dna_sample, rna_sample, profile -> tuple(rna_sample, profile) }
+        .combine(mgx_profiles.map { db, sample, profile -> tuple(sample, db, profile) }, by: 0)
+        .map { dna_sample, rna_sample, db, profile -> tuple(db, rna_sample, profile) }
 }

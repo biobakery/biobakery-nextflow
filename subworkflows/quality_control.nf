@@ -22,9 +22,18 @@ workflow QUALITY_CONTROL {
         error "ERROR: no KneadData reference database configured. Set --host_genome " +
               "(and --host_transcriptome / --rrna_db for metatranscriptome input)."
     }
-    // Pre-formed argument string: see the note in modules/kneaddata/main.nf on
-    // why a List must not be handed to a process val input.
-    def db_args = db_paths.collect { "--reference-db ${it}" }.join(' ')
+    if (!(params.kneaddata_db_location in ['host', 'container']))
+        error 'kneaddata_db_location must be host or container'
+    // Local and HPC profiles stage databases as ordinary Nextflow paths.
+    // DNAnexus uses paths baked into the process container, so those paths are
+    // passed as values and verified from inside the running container. A
+    // harmless sentinel preserves one portable process signature.
+    if (params.kneaddata_db_location == 'container') {
+        db_files = Channel.value([file("${projectDir}/assets/NO_FILE")])
+    } else {
+        db_files = Channel.value(db_paths.collect { file(it, checkIfExists: true) })
+    }
+    db_path_values = Channel.value(db_paths)
 
     // Split channel by library type
     paired_reads = reads
@@ -35,8 +44,8 @@ workflow QUALITY_CONTROL {
         .filter  { meta, r -> !meta.paired_end }
         .map     { meta, r -> tuple(meta.id, r) }
 
-    paired_out = paired_end_kneaddata(paired_reads, db_args, subdir)
-    single_out = single_end_kneaddata(single_reads, db_args, subdir)
+    paired_out = paired_end_kneaddata(paired_reads, db_files, db_path_values, subdir)
+    single_out = single_end_kneaddata(single_reads, db_files, db_path_values, subdir)
 
     // Re-attach meta map so downstream subworkflows get consistent channel shape
     cleaned_paired = paired_out.kneads.map { sample, reads -> [ [id: sample, paired_end: true],  reads ] }

@@ -7,8 +7,8 @@ include { QUALITY_CONTROL }      from '../subworkflows/quality_control.nf'
 include { TAXONOMIC_PROFILING }  from '../subworkflows/taxonomic_profiling.nf'
 include { FUNCTIONAL_PROFILING } from '../subworkflows/functional_profiling.nf'
 include { STRAIN_PROFILING }     from '../subworkflows/strain_profiling.nf'
-include { version_log; run_header_file; software_versions } from '../modules/utils/version_log/main.nf'
-include { stage_report_input }   from '../modules/utils/report_input/main.nf'
+include { version_log; run_header_file; software_versions }          from '../modules/utils/version_log/main.nf'
+include { PREPARE_REPORTS } from '../subworkflows/prepare_reports.nf'
 include { REPORTING }            from '../subworkflows/reporting.nf'
 include { mtx_kneaddata_dbs }    from '../subworkflows/mtx_common.nf'
 include { merge_pairs }          from '../modules/utils/merge_pairs/main.nf'
@@ -29,8 +29,9 @@ workflow MTX {
 
     main:
     def no_file = file("${projectDir}/assets/NO_FILE")
+    unaligned_reads_ch = Channel.empty()
 
-    read_ch = read_input(params.readsdir, 'mtx')
+    read_ch = read_input(params.readsdir, 'mtx', params.samplesheet, false)
 
     // ── Input check ───────────────────────────────────────────────────────
     // Truncated or corrupt read files are logged and dropped here rather than
@@ -38,68 +39,71 @@ workflow MTX {
     read_ch = CHECK_INPUTS(read_ch, 'mtx').reads
 
     // --check_inputs_only: the check above was the whole run.
-    if (params.check_inputs_only) return
+    if (!params.check_inputs_only) {
+        // ── QC (KneadData, metatranscriptome database set) ────────────────────
+        if (params.run_qc) {
+            QUALITY_CONTROL(read_ch, mtx_kneaddata_dbs(), '')
+            cleaned = QUALITY_CONTROL.out.reads
+        } else {
+            // Upstream bypasses quality control by merging each pair into one file
+            // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
+            // per sample, so handing them the two raw mates passed the second one
+            // as a positional argument. Single-end samples pass straight through.
+            merged_pairs = merge_pairs(
+                read_ch.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
+            ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
 
-    // ── QC (KneadData, metatranscriptome database set) ────────────────────
-    if (params.run_qc) {
-        QUALITY_CONTROL(read_ch, mtx_kneaddata_dbs(), '')
-        cleaned = QUALITY_CONTROL.out.reads
-    } else {
-        // Upstream bypasses quality control by merging each pair into one file
-        // (shotgun.merge_pairs); MetaPhlAn and HUMAnN take a single input file
-        // per sample, so handing them the two raw mates passed the second one
-        // as a positional argument. Single-end samples pass straight through.
-        merged_pairs = merge_pairs(
-            read_ch.filter { meta, r -> meta.paired_end }.map { meta, r -> tuple(meta.id, r) }
-        ).merged.map { s, f -> [ [id: s, paired_end: true], f ] }
+            cleaned = merged_pairs.mix( read_ch.filter { meta, r -> !meta.paired_end } )
+        }
 
-        cleaned = merged_pairs.mix( read_ch.filter { meta, r -> !meta.paired_end } )
-    }
+        // ── Taxonomic profiling (MetaPhlAn) ───────────────────────────────────
+        if (params.run_taxonomic_profiling) {
+            TAXONOMIC_PROFILING(cleaned, '')
+        }
 
-    // ── Taxonomic profiling (MetaPhlAn) ───────────────────────────────────
-    if (params.run_taxonomic_profiling) {
-        TAXONOMIC_PROFILING(cleaned, '')
-    }
+        if (!params.run_taxonomic_profiling) {
+            def dependents = []
+            if (params.run_functional_profiling) dependents << 'run_functional_profiling (HUMAnN needs the MetaPhlAn profile)'
+            if (params.run_strain_profiling)     dependents << 'run_strain_profiling (StrainPhlAn needs the MetaPhlAn SAM)'
+            if (dependents) {
+                error "ERROR: run_taxonomic_profiling = false, but these require it:\n  - " +
+                      dependents.join("\n  - ") +
+                      "\nEnable run_taxonomic_profiling, or turn the above off."
+            }
+        }
 
-    if (!params.run_taxonomic_profiling) {
-        def dependents = []
-        if (params.run_functional_profiling) dependents << 'run_functional_profiling (HUMAnN needs the MetaPhlAn profile)'
-        if (params.run_strain_profiling)     dependents << 'run_strain_profiling (StrainPhlAn needs the MetaPhlAn SAM)'
-        if (dependents) {
-            error "ERROR: run_taxonomic_profiling = false, but these require it:\n  - " +
-                  dependents.join("\n  - ") +
-                  "\nEnable run_taxonomic_profiling, or turn the above off."
+        // ── Functional profiling (HUMAnN) ─────────────────────────────────────
+        if (params.run_functional_profiling) {
+            FUNCTIONAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile, '')
+            unaligned_reads_ch = FUNCTIONAL_PROFILING.out.unaligned_reads
+        }
+
+        // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
+        if (params.run_strain_profiling) {
+            STRAIN_PROFILING(TAXONOMIC_PROFILING.out.markers)
+        }
+
+
+        // ── Reports (vis / stats) ─────────────────────────────────────────────
+        // Chained from the profiling channels rather than from params.outdir: see
+        // modules/utils/report_input.
+        if (params.run_vis || params.run_stats) {
+            REPORTING(
+                PREPARE_REPORTS(
+                    params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(tuple('', no_file)),
+                    params.run_qc                   ? QUALITY_CONTROL.out.read_counts                  : Channel.value(no_file),
+                    params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables : Channel.empty(),
+                    params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.logs  : Channel.empty(),
+                    ''
+                ).folder
+            )
+        }
+
+        if (params.log_versions) {
+            version_log(run_header_file(), software_versions())
         }
     }
 
-    // ── Functional profiling (HUMAnN) ─────────────────────────────────────
-    if (params.run_functional_profiling) {
-        FUNCTIONAL_PROFILING(cleaned, TAXONOMIC_PROFILING.out.profile, '')
-    }
-
-    // ── Strain profiling (StrainPhlAn) ────────────────────────────────────
-    if (params.run_strain_profiling) {
-        STRAIN_PROFILING(TAXONOMIC_PROFILING.out.sam_bzip)
-    }
-
-
-    // ── Reports (vis / stats) ─────────────────────────────────────────────
-    // Chained from the profiling channels rather than from params.outdir: see
-    // modules/utils/report_input.
-    if (params.run_vis || params.run_stats) {
-        REPORTING(
-            stage_report_input(
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.merged                   : Channel.value(no_file),
-                params.run_taxonomic_profiling  ? TAXONOMIC_PROFILING.out.species_counts           : Channel.value(no_file),
-                params.run_qc                   ? QUALITY_CONTROL.out.read_counts                  : Channel.value(no_file),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.merged_tables.collect() : Channel.value([]),
-                params.run_functional_profiling ? FUNCTIONAL_PROFILING.out.count_tables.collect()  : Channel.value([]),
-                ''
-            ).folder
-        )
-    }
-
-    if (params.log_versions) {
-        version_log(run_header_file(), software_versions())
-    }
+    emit:
+    unaligned_reads = unaligned_reads_ch // [database context, sample, nucleotide-unaligned FASTA]
 }
